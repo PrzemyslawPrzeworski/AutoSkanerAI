@@ -447,10 +447,10 @@ Render's private network does not reach Supabase. All DB traffic crosses the pub
 
   ```bash
   # 1. List recent deploys (grab the DEPLOY_ID of the last good deploy)
-  render deploys list autoskaner-ai-backend --output json | jq '.[].id'
+  render deploys list srv-d89ni3i8qa3s73e6fub0 --output json | jq '[.[] | {id: .id, status: .status, createdAt: .createdAt}]'
 
   # 2. Roll back to that deploy
-  render deploys rollback autoskaner-ai-backend <DEPLOY_ID>
+  render deploys rollback srv-d89ni3i8qa3s73e6fub0 <DEPLOY_ID>
   ```
 
   Expected time-to-revert: 2–4 minutes (Docker pull + Spring Boot startup).
