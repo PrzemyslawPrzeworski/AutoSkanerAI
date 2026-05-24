@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell *)",
+      "Bash(npx @angular/cli new frontend --defaults --routing --style scss --skip-tests --ssr false)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(rm -rf frontend/.git)",
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
+    ]
+  }
+}
