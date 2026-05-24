@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: autoskaner-ai-backend
+    runtime: docker
+    rootDir: backend
+    plan: starter
+    healthCheckPath: /actuator/health
+    autoDeploy: true
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: mock
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
