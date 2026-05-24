@@ -32,3 +32,8 @@ build/
 ### VS Code ###
 # frontend/.gitignore handles .vscode/ selectively for the Angular project
 /backend/.vscode/
+
+### Claude Code ###
+.claude/skills/
+.claude/.10x-cli-manifest.json
+.claude/settings.local.json

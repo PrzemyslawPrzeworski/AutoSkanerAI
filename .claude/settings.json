@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const chunks=[];process.stdin.on('data',c=>chunks.push(c));process.stdin.on('end',()=>{const{execSync}=require('child_process');const d=JSON.parse(Buffer.concat(chunks).toString());const f=(d.tool_input||{}).file_path||(d.tool_response||{}).filePath||'';if(!f.includes('frontend')){process.exit(0);}try{execSync('npx prettier --write \"'+f+'\"',{cwd:'D:/projects/10xdevs/AutoSkanerAI/frontend',stdio:'inherit'});}catch(e){process.exit(0);}});\" 2>/dev/null || true",
+            "timeout": 30,
+            "statusMessage": "Formatting with Prettier..."
+          }
+        ]
+      }
+    ]
+  }
+}
