@@ -250,6 +250,17 @@ Supabase pauses projects that have had no activity for **7 days** on the free ti
 **Edge case — connection string contains special characters in password:**  
 If the database password contains `@`, `#`, `/`, or `?`, it must be URL-encoded in the JDBC URL. Generate a password using only alphanumeric characters and `-_` to avoid encoding issues.
 
+- [ ] 0.8.9 **Configure Supabase Auth redirect URLs** — required before implementing login (FR-008/FR-009):
+  - Supabase dashboard → **Authentication → URL Configuration**
+  - **Site URL:** `https://autoskaner-ai.pages.dev`
+  - **Redirect URLs allowlist** — add both:
+    - `https://autoskaner-ai.pages.dev`
+    - `http://localhost:4200`
+  - This tells Supabase where to redirect users after email confirmation or OAuth login. Must be set before wiring Spring Security + JWT/OAuth2, otherwise auth redirects will fail.
+
+**Edge case — custom domain added later:**  
+If a custom domain (e.g. `autoskaner.pl`) replaces `pages.dev`, update both the Site URL and the allowlist entry in Supabase Auth → URL Configuration. Auth redirects are tied to exact URLs — wildcards are not supported in the Site URL field.
+
 ---
 
 ### 0.9 — API keys inventory
