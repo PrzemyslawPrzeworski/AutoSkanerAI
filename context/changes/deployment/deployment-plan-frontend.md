@@ -1,6 +1,6 @@
 # Deployment Plan — AutoSkanerAI Frontend on Cloudflare Pages
 
-**Status:** Draft — not yet executed
+**Status:** Complete — deployed and verified 2026-05-24
 **Platform:** Cloudflare Pages (static hosting)
 **Scope:** Frontend only (Angular 21.2). Backend deployment is covered in `deployment-plan-backend.md`.
 **Reference:** `context/foundation/infrastructure.md` (researched 2026-05-24)
@@ -319,13 +319,17 @@ The format is `<source> <destination> <status>`. For SPA fallback the status mus
   ```
 
 - [ ] 3.4 Push backend changes → Render auto-deploys
-- [ ] 3.5 Verify CORS headers:
+- [ ] 3.5 Verify CORS headers — use an `/api/` endpoint, not `/actuator/health`:
   ```bash
-  curl -s -I -H "Origin: https://autoskaner-ai.pages.dev" \
-    https://autoskanerai.onrender.com/actuator/health \
+  curl -s -I -X OPTIONS \
+    -H "Origin: https://autoskaner-ai.pages.dev" \
+    -H "Access-Control-Request-Method: POST" \
+    https://autoskanerai.onrender.com/api/analyses \
     | grep -i "access-control"
   ```
   Expect: `Access-Control-Allow-Origin: https://autoskaner-ai.pages.dev`
+
+  **Important:** CORS is configured only for `/api/**`. Sending the Origin header to `/actuator/health` will return **no** `Access-Control-Allow-Origin` header — this is correct, not a bug. Always test CORS against an `/api/` path.
 
 **Edge case — auth (Spring Security) added later:**
 When Spring Security is wired up, `WebMvcConfigurer` CORS config is bypassed by the security filter chain. At that point, add `.cors(cors -> cors.configurationSource(...))` to the `SecurityFilterChain` bean. The `CorsConfig` class can be reused as a `CorsConfigurationSource` bean.
@@ -377,10 +381,12 @@ Cloudflare Pages creates preview deployments for every branch push by default. T
 > Goal: update Render with the real Cloudflare Pages URL so CORS headers are correct.
 
 - [ ] 5.1 After Phase 4 completes, note the assigned Pages URL (e.g. `https://autoskaner-ai.pages.dev`)
-- [ ] 5.2 Set on Render via CLI:
+- [ ] 5.2 Set on Render via REST API (CLI v2 has no `env set` command):
   ```bash
-  render env set FRONTEND_URL=https://autoskaner-ai.pages.dev \
-    --service srv-d89ni3i8qa3s73e6fub0 --confirm
+  curl -X PUT "https://api.render.com/v1/services/srv-d89ni3i8qa3s73e6fub0/env-vars" \
+    -H "Authorization: Bearer $RENDER_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '[{"key":"FRONTEND_URL","value":"https://autoskaner-ai.pages.dev"}]'
   ```
   Or via the Render dashboard → Service → Environment → add `FRONTEND_URL`
 - [ ] 5.3 Render triggers a rolling restart to pick up the new env var
@@ -444,7 +450,8 @@ As of 2026-05-25 the Cloudflare MCP server is community-maintained and primarily
 - [ ] `dist/frontend/browser/_redirects` exists and contains `/*  /index.html  200`
 
 **Backend CORS (Phase 3)**
-- [ ] `curl -s -I -H "Origin: https://autoskaner-ai.pages.dev" https://autoskanerai.onrender.com/actuator/health | grep -i access-control` returns `Access-Control-Allow-Origin: https://autoskaner-ai.pages.dev`
+- [ ] `curl -s -I -X OPTIONS -H "Origin: https://autoskaner-ai.pages.dev" -H "Access-Control-Request-Method: POST" https://autoskanerai.onrender.com/api/analyses | grep -i access-control` returns `Access-Control-Allow-Origin: https://autoskaner-ai.pages.dev`
+  Note: testing against `/actuator/health` will return no CORS headers — correct, since CORS is only on `/api/**`.
 
 **Deploy (Phases 4–6)**
 - [ ] `https://autoskaner-ai.pages.dev` loads Angular app without console errors

@@ -1,6 +1,6 @@
 # Deployment Plan — AutoSkanerAI on Render
 
-**Status:** Draft — not yet executed  
+**Status:** Complete — deployed and verified 2026-05-24  
 **Platform:** Render (Web Service, Docker runtime)  
 **Scope:** Backend only (Spring Boot). Frontend deployment is out of scope per `infrastructure.md`.  
 **Reference:** `context/foundation/infrastructure.md` (researched 2026-05-24)
@@ -86,42 +86,59 @@ On some Windows 10/11 builds, `wsl --install` requires a separate kernel update 
 
 > Goal: `render` command available in the shell for log tailing, env var management, rollback, and Phase 8 MCP setup.
 
-- [ ] 0.3.1 **Install via Scoop (recommended for Windows):**
-  ```powershell
-  scoop install render
+> **Note:** The Render CLI is at `render-oss/cli` (v2.18.0+). The old `render-com/render-cli` repo is deprecated and must not be used.
+
+- [ ] 0.3.1 **Install via direct binary download (recommended for Windows):**
+  1. Go to the Render CLI releases page: `https://github.com/render-oss/cli/releases`
+  2. Download `cli_<version>_windows_amd64.zip` (e.g. `cli_2.18.0_windows_amd64.zip`)
+  3. Unzip and move `render.exe` to a directory on `PATH`:
+     ```bash
+     # Git Bash example — create ~/bin if it doesn't exist
+     mkdir -p ~/bin
+     mv render.exe ~/bin/render.exe
+     # Ensure ~/bin is on PATH in ~/.bashrc:
+     export PATH="$HOME/bin:$PATH"
+     ```
+  4. Reload: `source ~/.bashrc`
+
+- [ ] 0.3.2 Verify install: `render --version` — expect output like `render v2.18.0`
+
+- [ ] 0.3.3 **Set workspace** — required before any `render` commands will return results:
+  ```bash
+  render workspace set <workspace-id>
+  # Find workspace ID: render workspace list
   ```
-  If Scoop is not installed first: `irm get.scoop.sh | iex` in PowerShell (requires execution policy: `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`).
+  Without this, commands like `render services list` return "no workspace set".
 
-- [ ] 0.3.2 **Alternative — direct binary download:**
-  1. Go to the Render CLI releases page: `https://github.com/render-com/render-cli/releases`
-  2. Download the latest `render_windows_amd64.zip`
-  3. Unzip and move `render.exe` to a directory on `PATH` (e.g. `C:\Users\<you>\bin\`)
+- [ ] 0.3.4 **Authenticate — API key auth (recommended for Windows Git Bash):**
+  ```bash
+  # Add to ~/.bashrc so it persists across sessions:
+  export RENDER_API_KEY=<your-render-api-key>
+  ```
+  The CLI reads `RENDER_API_KEY` automatically; no `render login` step needed.
 
-- [ ] 0.3.3 Verify install: `render --version` — expect a version string like `render/1.x.x`
-
-- [ ] 0.3.4 **Authenticate — browser OAuth (recommended):**
+- [ ] 0.3.5 **Alternative — browser OAuth:**
   ```bash
   render login
   # Opens browser → log in with your Render account → approval grants CLI access
   ```
 
-- [ ] 0.3.5 **Alternative — API key auth (for CI or headless environments):**
-  ```bash
-  # Set in shell profile (e.g. ~/.bashrc or Windows Environment Variables):
-  export RENDER_API_KEY=<your-render-api-key>
-  # The CLI reads this variable automatically; no login step needed
-  ```
+- [ ] 0.3.6 Verify auth: `render services list` — expect `autoskaner-ai-backend` in the output (once the service has been created in Phase 5)
 
-- [ ] 0.3.6 Verify auth: `render services list` — expect an empty list (no services yet) or a table if other services exist
+**Edge case — Scoop/winget do not have the Render CLI:**
+The current Render CLI (`render-oss/cli`) is not available in Scoop or winget registries. Use the direct binary download (step 0.3.1).
 
-**Edge case — Scoop PATH not set in Git Bash:**  
-Scoop installs to `~/scoop/shims/`. Git Bash on Windows may not include this path. If `render: command not found`, add `~/scoop/shims` to `PATH` in `~/.bashrc`:
+**Edge case — `render services list` returns "no workspace set":**
+Run `render workspace list` to find your workspace ID, then `render workspace set <id>`. The workspace is a Render account concept; every Render account has at least one.
+
+**Edge case — `render env set` command not found:**
+`render env set` is not available in CLI v2. To set env vars programmatically, use the Render REST API:
 ```bash
-export PATH="$HOME/scoop/shims:$PATH"
+curl -X PUT "https://api.render.com/v1/services/<SERVICE_ID>/env-vars" \
+  -H "Authorization: Bearer $RENDER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '[{"key":"KEY_NAME","value":"VALUE"}]'
 ```
-
-**Edge case — `render login` opens browser but token never arrives:**  
-This can happen when the callback port (default: `localhost:10000`) is blocked by a corporate firewall or another process. Use the API key auth method (step 0.3.5) as a fallback.
 
 **Edge case — Windows Defender / antivirus flags the binary:**  
 Some AV scanners flag unsigned Go binaries. If blocked, verify the binary's SHA-256 hash against the checksum published on the GitHub releases page before adding an exception.
@@ -207,7 +224,8 @@ Render updated its pricing structure in April 2026. Any tutorial or community an
   - **Region:** **Frankfurt (eu-central-1)** — closest to Render's Frankfurt region; minimises latency for the public-internet DB path (see `infrastructure.md` — Render private network does not reach Supabase)
 - [ ] 0.8.3 Wait for project provisioning (~2 minutes)
 - [ ] 0.8.4 Retrieve the JDBC connection string:
-  Supabase dashboard → **Project Settings → Database → Connection string → JDBC**
+  Supabase dashboard → **Connect → Direct tab → JDBC**
+  (The old path "Project Settings → Database" no longer shows connection strings — use the Connect button in the top nav instead.)
   It will look like:
   ```
   jdbc:postgresql://db.<project-ref>.supabase.co:5432/postgres?sslmode=require
@@ -278,6 +296,32 @@ If a custom domain (e.g. `autoskaner.pl`) replaces `pages.dev`, update both the 
 - [ ] 0.9.2 Confirm `RENDER_API_KEY` is generated and stored (Phase 0.6)
 - [ ] 0.9.3 Confirm `DATABASE_URL` connection string is saved in password manager (Phase 0.8)
 - [ ] 0.9.4 Verify none of the above appear in any file tracked by git: `git grep -r "sk-ant\|SUPABASE\|rnd_\|postgresql://" -- ':!*.md'` — expect zero results
+- [ ] 0.9.5 Create `.env` at the repo root for local development (gitignored — see `.gitignore`):
+  ```
+  DATABASE_URL=jdbc:postgresql://db.<project-ref>.supabase.co:5432/postgres?sslmode=require
+  DATABASE_USERNAME=postgres
+  DATABASE_PASSWORD=<your-db-password>
+  ANTHROPIC_API_KEY=
+  OPENAI_API_KEY=
+  RENDER_API_KEY=<your-render-api-key>
+  CLOUDFLARE_API_TOKEN=<your-cloudflare-token>
+  CLOUDFLARE_ACCOUNT_ID=<your-cloudflare-account-id>
+  ```
+- [ ] 0.9.6 Commit `.env.example` with all keys present but values empty — this is the template for new contributors:
+  ```
+  DATABASE_URL=jdbc:postgresql://db.<project-ref>.supabase.co:5432/postgres?sslmode=require
+  DATABASE_USERNAME=postgres
+  DATABASE_PASSWORD=
+  ANTHROPIC_API_KEY=
+  OPENAI_API_KEY=
+  RENDER_API_KEY=
+  CLOUDFLARE_API_TOKEN=
+  CLOUDFLARE_ACCOUNT_ID=
+  ```
+- [ ] 0.9.7 Confirm `.env` is in `.gitignore` and `.env.example` is tracked: `git status` should show `.env.example` as unmodified and `.env` as ignored
+
+**Edge case — CLI tool credentials vs app secrets:**  
+`RENDER_API_KEY`, `CLOUDFLARE_API_TOKEN`, and `CLOUDFLARE_ACCOUNT_ID` are CLI tool credentials (not app runtime secrets). They live in `~/.bashrc` so they persist across terminal sessions. They are also in `.env` so they are discoverable in the project directory. App secrets (`DATABASE_URL`, `ANTHROPIC_API_KEY`) go only in `.env` locally and as Render env vars in production.
 
 ---
 
@@ -424,7 +468,7 @@ This means preview services spin up for every open branch. Preview services on t
 
 - [ ] 5.4 Trigger first deploy (push a no-op commit or click "Deploy latest commit")
 - [ ] 5.5 Watch logs: `render logs autoskaner-ai-backend --tail`
-- [ ] 5.6 Confirm the service URL responds: `curl https://autoskaner-ai-backend.onrender.com/actuator/health`
+- [ ] 5.6 Confirm the service URL responds: `curl https://autoskanerai.onrender.com/actuator/health`
 
 **Edge case — service URL format:**  
 Render generates the URL as `https://<service-name>.onrender.com`. If the name contains underscores (`autoskaner_ai`), Render converts them to hyphens in the URL. Use only hyphens in the `name:` field of `render.yaml` to avoid confusion.
@@ -507,7 +551,7 @@ After all phases are complete:
 - [ ] `./mvnw verify -q` passes locally under JDK 21
 - [ ] `docker build -t autoskaner-ai-backend ./backend` succeeds with image under 300 MB
 - [ ] `docker run -p 10000:10000 autoskaner-ai-backend` + `curl http://localhost:10000/actuator/health` → `{"status":"UP"}`
-- [ ] `curl https://autoskaner-ai-backend.onrender.com/actuator/health` returns `{"status":"UP"}`
+- [ ] `curl https://autoskanerai.onrender.com/actuator/health` returns `{"status":"UP"}`
 - [ ] `render logs autoskaner-ai-backend --tail` shows clean startup with no OOM or port-bind errors
 - [ ] A push to `main` triggers an automatic redeploy (confirm in Render dashboard → Deploys)
 

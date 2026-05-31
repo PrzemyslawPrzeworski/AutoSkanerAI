@@ -10,7 +10,30 @@
       "Bash(git branch *)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "WebFetch(domain:docs.docker.com)",
+      "WebFetch(domain:supabase.com)",
+      "WebFetch(domain:render.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(java *)",
+      "Bash(docker --version)",
+      "Bash(docker run *)",
+      "Bash(render *)",
+      "Bash(jq *)",
+      "Bash(git grep *)",
+      "Bash(scoop *)",
+      "Bash(choco *)",
+      "Bash(winget *)",
+      "Bash(curl -sL \"https://api.github.com/repos/render-com/render-cli/releases/latest\")",
+      "Bash(curl -s \"https://api.github.com/repos/render-com/render-cli/releases/latest\")",
+      "Bash(curl -s \"https://api.github.com/repos/render-oss/render-cli/releases/latest\")",
+      "Bash(curl -sL \"https://api.github.com/repositories/523096859/releases/latest\")",
+      "Bash(curl -sL \"https://api.github.com/orgs/render-oss/repos?per_page=50\")",
+      "Bash(curl -sL \"https://api.github.com/repos/render-oss/cli/releases/latest\")",
+      "Bash(mkdir -p /c/Users/p.przeworski/bin)",
+      "Bash(curl -sL \"https://github.com/render-oss/cli/releases/download/v2.18.0/cli_2.18.0_windows_amd64.zip\" -o /tmp/render-cli.zip)",
+      "Read(//d/tmp/**)",
+      "Bash(unzip -o render-cli.zip)"
     ]
   }
 }
