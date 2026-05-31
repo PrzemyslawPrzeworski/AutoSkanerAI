@@ -2,6 +2,8 @@ package com.example.autoskaner_ai.analysis.llm;
 
 import com.example.autoskaner_ai.analysis.AiAnalysisService;
 import com.example.autoskaner_ai.analysis.AnalysisResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -13,6 +15,8 @@ import java.util.List;
 @Service
 @Profile("bedrock")
 public class BedrockClaudeAnalysisService implements AiAnalysisService {
+
+    private static final Logger log = LoggerFactory.getLogger(BedrockClaudeAnalysisService.class);
 
     private final AnalysisPrompt prompt;
     private final AnalysisResponseParser parser;
@@ -39,17 +43,25 @@ public class BedrockClaudeAnalysisService implements AiAnalysisService {
         try {
             response = client.converse(request);
         } catch (ThrottlingException | ServiceUnavailableException e) {
-            // one retry on transient errors
+            log.warn("LLM call retry provider={} model={} cause={}", "bedrock", modelId, e.getMessage());
             try {
                 response = client.converse(request);
             } catch (Exception retryEx) {
+                log.error("LLM call failed provider={} model={} cause={}", "bedrock", modelId, retryEx.getMessage());
                 throw new LlmCallException("Bedrock call failed after retry", retryEx);
             }
         } catch (Exception e) {
+            log.error("LLM call failed provider={} model={} cause={}", "bedrock", modelId, e.getMessage());
             throw new LlmCallException("Bedrock call failed", e);
         }
 
         long latencyMs = (System.nanoTime() - t0) / 1_000_000;
+        TokenUsage usage = response.usage();
+        int inputTokens = usage != null ? usage.inputTokens() : -1;
+        int outputTokens = usage != null ? usage.outputTokens() : -1;
+        log.info("LLM call provider={} model={} latencyMs={} inputTokens={} outputTokens={} listingChars={}",
+                "bedrock", modelId, latencyMs, inputTokens, outputTokens, listingText.length());
+
         String rawText = response.output().message().content().get(0).text();
         return parser.parse(rawText, "bedrock", modelId, latencyMs);
     }

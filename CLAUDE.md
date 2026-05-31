@@ -22,13 +22,29 @@ All Spring controllers must return errors in this exact shape — no exceptions,
 
 ## AI service pattern
 
-The AI layer uses a Spring interface with two Profile-switched implementations:
+The AI layer uses a Spring interface with three Profile-switched implementations:
 
 - `AiAnalysisService` — interface defining the contract
 - `MockAiAnalysisService` — deterministic mocks, activate with `SPRING_PROFILES_ACTIVE=mock`
-- `LlmAnalysisService` — real LLM calls (Claude API or OpenAI), activate with `SPRING_PROFILES_ACTIVE=llm`
+- `BedrockClaudeAnalysisService` — Claude Haiku 4.5 via AWS Bedrock, activate with `SPRING_PROFILES_ACTIVE=bedrock`
+- `OpenRouterAnalysisService` — any OpenRouter model, activate with `SPRING_PROFILES_ACTIVE=openrouter`
 
-Required env vars when running `llm` profile: `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`.
+Required env vars: `AWS_PROFILE` (or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`) for `bedrock`; `OPENROUTER_API_KEY` for `openrouter`.
+
+## API endpoints
+
+- `POST /api/analyses` — canonical endpoint; accepts `{ "listingText": "..." }`, returns full `AnalysisResult`
+- `POST /api/analysis/risk` — **deprecated** facade returning only `{ riskFlags: [...] }`; to be removed after S-01 ships
+
+Output schema is locked — see `context/changes/llm-analysis-wiring/plan.md` § "Locked output schema".
+
+## Live integration tests
+
+```bash
+cd backend && ./mvnw test -Dgroups=live-llm   # requires credentials in env
+```
+
+Tests are tagged `@Tag("live-llm")` and skipped by default in `./mvnw test`.
 
 ## Monorepo structure
 
@@ -59,7 +75,7 @@ cd frontend && npm run build             # production build → dist/
 
 ## Current state
 
-Bare scaffold — no feature code written yet. PRD is at `context/foundation/prd.md` (FR-001 to FR-017). Start feature work from FR-001.
+F-01 (LLM analysis wiring) complete. `POST /api/analyses` is live under `mock`, `bedrock`, and `openrouter` profiles. PRD is at `context/foundation/prd.md` (FR-001 to FR-017). Next: S-01 (full analysis flow with frontend).
 
 ## Deployment
 

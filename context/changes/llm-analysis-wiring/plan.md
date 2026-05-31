@@ -678,25 +678,25 @@ Add `@Tag("live-llm")` integration tests that hit the real Bedrock and OpenRoute
 
 #### Automated
 
-- [x] 4.1 `./mvnw test -Dtest=OpenRouterAnalysisServiceTest` passes (4 cases)
-- [x] 4.2 `./mvnw spring-boot:run -Dspring-boot.run.profiles=openrouter` fails at startup if `OPENROUTER_API_KEY` is unset
+- [x] 4.1 `./mvnw test -Dtest=OpenRouterAnalysisServiceTest` passes (4 cases) — b0ab8ca
+- [x] 4.2 `./mvnw spring-boot:run -Dspring-boot.run.profiles=openrouter` fails at startup if `OPENROUTER_API_KEY` is unset — b0ab8ca
 
 #### Manual
 
-- [x] 4.3 With `OPENROUTER_API_KEY` set, `openrouter` profile + curl returns a parsed `AnalysisResult` with `meta.provider="openrouter"`, `meta.model=<llama-free>`
-- [x] 4.4 Changing `OPENROUTER_MODEL` swaps model — confirmed in `meta.model`
+- [x] 4.3 With `OPENROUTER_API_KEY` set, `openrouter` profile + curl returns a parsed `AnalysisResult` with `meta.provider="openrouter"`, `meta.model=<llama-free>` — b0ab8ca
+- [x] 4.4 Changing `OPENROUTER_MODEL` swaps model — confirmed in `meta.model` — b0ab8ca
 
 ### Phase 5: Live tests, observability, docs
 
 #### Automated
 
-- [ ] 5.1 `./mvnw test` excludes `live-llm` by default and passes
-- [ ] 5.2 `./mvnw test -Dgroups=live-llm` runs live tests when credentials are present
-- [ ] 5.3 `./mvnw test -Dgroups=live-llm` skips live tests cleanly when env vars are missing
+- [x] 5.1 `./mvnw test` excludes `live-llm` by default and passes
+- [x] 5.2 `./mvnw test -Dgroups=live-llm` runs live tests when credentials are present
+- [x] 5.3 `./mvnw test -Dgroups=live-llm` skips live tests cleanly when env vars are missing
 
 #### Manual
 
-- [ ] 5.4 Logs from a successful `bedrock` call show all structured fields
-- [ ] 5.5 Forcing a retry produces the WARN retry log followed by the ERROR final-failure log
-- [ ] 5.6 `CLAUDE.md` re-read from scratch is coherent — no stale `llm` references
-- [ ] 5.7 Three real Polish listings tested via `mock`, `bedrock`, and `openrouter` produce three structurally-valid `AnalysisResult` payloads
+- [x] 5.4 Logs from a successful `bedrock` call show all structured fields
+- [x] 5.5 Forcing a retry produces the WARN retry log followed by the ERROR final-failure log
+- [x] 5.6 `CLAUDE.md` re-read from scratch is coherent — no stale `llm` references
+- [x] 5.7 Three real Polish listings tested via `mock`, `bedrock`, and `openrouter` produce three structurally-valid `AnalysisResult` payloads
