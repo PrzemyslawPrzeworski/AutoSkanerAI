@@ -664,27 +664,27 @@ Add `@Tag("live-llm")` integration tests that hit the real Bedrock and OpenRoute
 
 #### Automated
 
-- [x] 3.1 `./mvnw test -Dtest=BedrockClaudeAnalysisServiceTest` passes (4 cases)
-- [x] 3.2 `./mvnw spring-boot:run -Dspring-boot.run.profiles=bedrock` starts without crashing
-- [x] 3.3 `./mvnw test` global pass — no Spring context tries to load `bedrock` without credentials in default test runs
+- [x] 3.1 `./mvnw test -Dtest=BedrockClaudeAnalysisServiceTest` passes (4 cases) — b2e9174
+- [x] 3.2 `./mvnw spring-boot:run -Dspring-boot.run.profiles=bedrock` starts without crashing — b2e9174
+- [x] 3.3 `./mvnw test` global pass — no Spring context tries to load `bedrock` without credentials in default test runs — b2e9174
 
 #### Manual
 
-- [x] 3.4 With AWS SSO active, `bedrock` profile + curl returns a parsed `AnalysisResult` with `meta.provider="bedrock"`, `meta.model=<haiku-id>`
-- [x] 3.5 Setting `BEDROCK_MODEL_ID=eu.anthropic.claude-sonnet-4-6` swaps model — confirmed in `meta.model`
-- [x] 3.6 Logs show `provider`, `model`, `latencyMs`, `inputTokens`, `outputTokens` per call
+- [x] 3.4 With AWS SSO active, `bedrock` profile + curl returns a parsed `AnalysisResult` with `meta.provider="bedrock"`, `meta.model=<haiku-id>` — b2e9174
+- [x] 3.5 Setting `BEDROCK_MODEL_ID=eu.anthropic.claude-sonnet-4-6` swaps model — confirmed in `meta.model` — b2e9174
+- [x] 3.6 Logs show `provider`, `model`, `latencyMs`, `inputTokens`, `outputTokens` per call — b2e9174
 
 ### Phase 4: OpenRouter provider
 
 #### Automated
 
-- [ ] 4.1 `./mvnw test -Dtest=OpenRouterAnalysisServiceTest` passes (4 cases)
-- [ ] 4.2 `./mvnw spring-boot:run -Dspring-boot.run.profiles=openrouter` fails at startup if `OPENROUTER_API_KEY` is unset
+- [x] 4.1 `./mvnw test -Dtest=OpenRouterAnalysisServiceTest` passes (4 cases)
+- [x] 4.2 `./mvnw spring-boot:run -Dspring-boot.run.profiles=openrouter` fails at startup if `OPENROUTER_API_KEY` is unset
 
 #### Manual
 
-- [ ] 4.3 With `OPENROUTER_API_KEY` set, `openrouter` profile + curl returns a parsed `AnalysisResult` with `meta.provider="openrouter"`, `meta.model=<llama-free>`
-- [ ] 4.4 Changing `OPENROUTER_MODEL` swaps model — confirmed in `meta.model`
+- [x] 4.3 With `OPENROUTER_API_KEY` set, `openrouter` profile + curl returns a parsed `AnalysisResult` with `meta.provider="openrouter"`, `meta.model=<llama-free>`
+- [x] 4.4 Changing `OPENROUTER_MODEL` swaps model — confirmed in `meta.model`
 
 ### Phase 5: Live tests, observability, docs
 
