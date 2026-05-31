@@ -652,27 +652,27 @@ Add `@Tag("live-llm")` integration tests that hit the real Bedrock and OpenRoute
 
 #### Automated
 
-- [x] 2.1 `./mvnw test -Dtest=AnalysisResponseParserTest` passes (all 6 fixtures)
-- [x] 2.2 All fixture JSON files parse with strict mode
-- [x] 2.3 New LLM exceptions produce error envelopes matching `CLAUDE.md` shape
+- [x] 2.1 `./mvnw test -Dtest=AnalysisResponseParserTest` passes (all 6 fixtures) — dced73e
+- [x] 2.2 All fixture JSON files parse with strict mode — dced73e
+- [x] 2.3 New LLM exceptions produce error envelopes matching `CLAUDE.md` shape — dced73e
 
 #### Manual
 
-- [x] 2.4 Reading `AnalysisPrompt.systemPrompt()` aloud, the schema instruction is unambiguous
+- [x] 2.4 Reading `AnalysisPrompt.systemPrompt()` aloud, the schema instruction is unambiguous — dced73e
 
 ### Phase 3: Bedrock provider
 
 #### Automated
 
-- [ ] 3.1 `./mvnw test -Dtest=BedrockClaudeAnalysisServiceTest` passes (4 cases)
-- [ ] 3.2 `./mvnw spring-boot:run -Dspring-boot.run.profiles=bedrock` starts without crashing
-- [ ] 3.3 `./mvnw test` global pass — no Spring context tries to load `bedrock` without credentials in default test runs
+- [x] 3.1 `./mvnw test -Dtest=BedrockClaudeAnalysisServiceTest` passes (4 cases)
+- [x] 3.2 `./mvnw spring-boot:run -Dspring-boot.run.profiles=bedrock` starts without crashing
+- [x] 3.3 `./mvnw test` global pass — no Spring context tries to load `bedrock` without credentials in default test runs
 
 #### Manual
 
-- [ ] 3.4 With AWS SSO active, `bedrock` profile + curl returns a parsed `AnalysisResult` with `meta.provider="bedrock"`, `meta.model=<haiku-id>`
-- [ ] 3.5 Setting `BEDROCK_MODEL_ID=eu.anthropic.claude-sonnet-4-6` swaps model — confirmed in `meta.model`
-- [ ] 3.6 Logs show `provider`, `model`, `latencyMs`, `inputTokens`, `outputTokens` per call
+- [x] 3.4 With AWS SSO active, `bedrock` profile + curl returns a parsed `AnalysisResult` with `meta.provider="bedrock"`, `meta.model=<haiku-id>`
+- [x] 3.5 Setting `BEDROCK_MODEL_ID=eu.anthropic.claude-sonnet-4-6` swaps model — confirmed in `meta.model`
+- [x] 3.6 Logs show `provider`, `model`, `latencyMs`, `inputTokens`, `outputTokens` per call
 
 ### Phase 4: OpenRouter provider
 
