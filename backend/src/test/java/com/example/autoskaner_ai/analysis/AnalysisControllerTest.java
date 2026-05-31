@@ -3,6 +3,7 @@ package com.example.autoskaner_ai.analysis;
 import com.example.autoskaner_ai.common.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -16,7 +17,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-class RiskAnalysisControllerTest {
+@ActiveProfiles("mock")
+class AnalysisControllerTest {
 
     private MockMvc mockMvc;
     private AiAnalysisService aiAnalysisService;
@@ -25,49 +27,50 @@ class RiskAnalysisControllerTest {
     void setUp() {
         aiAnalysisService = mock(AiAnalysisService.class);
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new RiskAnalysisController(aiAnalysisService))
+                .standaloneSetup(new AnalysisController(aiAnalysisService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
 
-    private AnalysisResult resultWithFlags(List<RiskFlag> flags) {
-        var extracted = new ExtractedData(null, null, null, null, null, null, null, null, null, null, null, null, null);
-        var scores = new CategoryScores(50, 50, 50, 50, 50);
-        var verdict = new Verdict(VerdictCode.NEEDS_MORE_INFO, "sprawdź po doprecyzowaniu");
-        var meta = new AnalysisMeta("mock", "mock-v1", 1L, Instant.now());
-        return new AnalysisResult(extracted, List.of(), flags, List.of(), scores, verdict, meta);
+    private AnalysisResult fullResult() {
+        var extracted = new ExtractedData("BMW", "3 Series", 2018, null, null, 120000,
+                "benzyna", null, null, null, Boolean.TRUE, "bezwypadkowy", Boolean.TRUE);
+        var equipment = List.of(
+                new EquipmentItem("klimatyzacja", EquipmentStatus.CONFIRMED, null),
+                new EquipmentItem("tempomat", EquipmentStatus.UNCLEAR, "Nie wspomniano w ogłoszeniu")
+        );
+        var flags = List.of(
+                new RiskFlag("NO_SERVICE_HISTORY", RiskSeverity.MEDIUM, "Brak historii serwisowej")
+        );
+        var questions = List.of("Czy pojazd był w wypadku?", "Jaki jest powód sprzedaży?");
+        var scores = new CategoryScores(83, 50, 75, 60, 67);
+        var verdict = new Verdict(VerdictCode.WORTH_CHECKING, "warto sprawdzić");
+        var meta = new AnalysisMeta("mock", "mock-v1", 5L, Instant.now());
+        return new AnalysisResult(extracted, equipment, flags, questions, scores, verdict, meta);
     }
 
     @Test
-    void returnsRiskFlags_whenValidInput() throws Exception {
-        when(aiAnalysisService.analyze(anyString())).thenReturn(resultWithFlags(List.of(
-                new RiskFlag("NO_VIN", RiskSeverity.HIGH, "Brak numeru VIN")
-        )));
+    void returnsFullAnalysisResult_whenValidInput() throws Exception {
+        when(aiAnalysisService.analyze(anyString())).thenReturn(fullResult());
 
-        mockMvc.perform(post("/api/analysis/risk")
+        mockMvc.perform(post("/api/analyses")
                         .contentType("application/json")
-                        .content("{\"listingText\":\"Sprzedam auto, rok 2018, benzyna.\"}"))
+                        .content("{\"listingText\":\"BMW 3 Series 2018, bezwypadkowy, VIN dostępny\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.riskFlags[0].code").value("NO_VIN"))
-                .andExpect(jsonPath("$.riskFlags[0].severity").value("HIGH"))
-                .andExpect(jsonPath("$.riskFlags[0].description").value("Brak numeru VIN"));
-    }
-
-    @Test
-    void returnsEmptyFlags_whenServiceReturnsNone() throws Exception {
-        when(aiAnalysisService.analyze(anyString())).thenReturn(resultWithFlags(List.of()));
-
-        mockMvc.perform(post("/api/analysis/risk")
-                        .contentType("application/json")
-                        .content("{\"listingText\":\"Świetne auto, bez uwag.\"}"))
-                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.extracted").exists())
+                .andExpect(jsonPath("$.equipment").isArray())
                 .andExpect(jsonPath("$.riskFlags").isArray())
-                .andExpect(jsonPath("$.riskFlags").isEmpty());
+                .andExpect(jsonPath("$.sellerQuestions").isArray())
+                .andExpect(jsonPath("$.scores").exists())
+                .andExpect(jsonPath("$.verdict").exists())
+                .andExpect(jsonPath("$.meta").exists())
+                .andExpect(jsonPath("$.meta.provider").value("mock"))
+                .andExpect(jsonPath("$.verdict.code").value("WORTH_CHECKING"));
     }
 
     @Test
     void returns400_whenListingTextIsBlank() throws Exception {
-        mockMvc.perform(post("/api/analysis/risk")
+        mockMvc.perform(post("/api/analyses")
                         .contentType("application/json")
                         .content("{\"listingText\":\"\"}"))
                 .andExpect(status().isBadRequest())
@@ -79,7 +82,7 @@ class RiskAnalysisControllerTest {
 
     @Test
     void returns400_whenListingTextIsMissing() throws Exception {
-        mockMvc.perform(post("/api/analysis/risk")
+        mockMvc.perform(post("/api/analyses")
                         .contentType("application/json")
                         .content("{}"))
                 .andExpect(status().isBadRequest())
@@ -90,7 +93,7 @@ class RiskAnalysisControllerTest {
 
     @Test
     void returns400_whenBodyIsNotJson() throws Exception {
-        mockMvc.perform(post("/api/analysis/risk")
+        mockMvc.perform(post("/api/analyses")
                         .contentType("application/json")
                         .content("not-json"))
                 .andExpect(status().isBadRequest())
