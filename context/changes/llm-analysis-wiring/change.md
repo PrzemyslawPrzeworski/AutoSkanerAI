@@ -1,7 +1,7 @@
 ---
 change_id: llm-analysis-wiring
 title: Wire LlmAnalysisService to Claude Haiku 4.5 via Bedrock + OpenRouter for experimentation
-status: implementing
+status: implemented
 created: 2026-05-31
 updated: 2026-05-31
 

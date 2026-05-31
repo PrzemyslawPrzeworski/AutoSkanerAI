@@ -690,13 +690,13 @@ Add `@Tag("live-llm")` integration tests that hit the real Bedrock and OpenRoute
 
 #### Automated
 
-- [x] 5.1 `./mvnw test` excludes `live-llm` by default and passes
-- [x] 5.2 `./mvnw test -Dgroups=live-llm` runs live tests when credentials are present
-- [x] 5.3 `./mvnw test -Dgroups=live-llm` skips live tests cleanly when env vars are missing
+- [x] 5.1 `./mvnw test` excludes `live-llm` by default and passes — b6b408f
+- [x] 5.2 `./mvnw test -Dgroups=live-llm` runs live tests when credentials are present — b6b408f
+- [x] 5.3 `./mvnw test -Dgroups=live-llm` skips live tests cleanly when env vars are missing — b6b408f
 
 #### Manual
 
-- [x] 5.4 Logs from a successful `bedrock` call show all structured fields
-- [x] 5.5 Forcing a retry produces the WARN retry log followed by the ERROR final-failure log
-- [x] 5.6 `CLAUDE.md` re-read from scratch is coherent — no stale `llm` references
-- [x] 5.7 Three real Polish listings tested via `mock`, `bedrock`, and `openrouter` produce three structurally-valid `AnalysisResult` payloads
+- [x] 5.4 Logs from a successful `bedrock` call show all structured fields — b6b408f
+- [x] 5.5 Forcing a retry produces the WARN retry log followed by the ERROR final-failure log — b6b408f
+- [x] 5.6 `CLAUDE.md` re-read from scratch is coherent — no stale `llm` references — b6b408f
+- [x] 5.7 Three real Polish listings tested via `mock`, `bedrock`, and `openrouter` produce three structurally-valid `AnalysisResult` payloads — b6b408f
