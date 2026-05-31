@@ -1,0 +1,31 @@
+{
+  "extracted": {
+    "make": "Audi",
+    "model": "A4",
+    "year": 2019,
+    "priceAmount": 90000.0,
+    "priceCurrency": "PLN",
+    "mileageKm": 80000,
+    "fuel": "diesel",
+    "transmission": "automatyczna",
+    "originCountry": null,
+    "sellerType": "prywatny",
+    "serviceHistoryMentioned": false,
+    "accidentClaim": null,
+    "vinPresent": null
+  },
+  "equipment": [],
+  "riskFlags": [],
+  "sellerQuestions": ["Czy jest historia serwisowa?"],
+  "scores": {
+    "completeness": 150,
+    "equipment": 50,
+    "risk": 50,
+    "value": 50,
+    "overall": 50
+  },
+  "verdict": {
+    "code": "NEEDS_MORE_INFO",
+    "label": "sprawdź po doprecyzowaniu"
+  }
+}

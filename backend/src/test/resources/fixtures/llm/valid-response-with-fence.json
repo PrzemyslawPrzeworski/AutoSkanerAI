@@ -1,0 +1,37 @@
+```json
+{
+  "extracted": {
+    "make": "Toyota",
+    "model": "Corolla",
+    "year": 2020,
+    "priceAmount": 55000.0,
+    "priceCurrency": "PLN",
+    "mileageKm": 40000,
+    "fuel": "hybryda",
+    "transmission": "automatyczna",
+    "originCountry": "Polska",
+    "sellerType": "dealer",
+    "serviceHistoryMentioned": true,
+    "accidentClaim": null,
+    "vinPresent": true
+  },
+  "equipment": [
+    { "name": "kamera cofania", "status": "CONFIRMED", "note": null }
+  ],
+  "riskFlags": [],
+  "sellerQuestions": [
+    "Czy pojazd ma pełną historię serwisową?"
+  ],
+  "scores": {
+    "completeness": 90,
+    "equipment": 80,
+    "risk": 95,
+    "value": 70,
+    "overall": 84
+  },
+  "verdict": {
+    "code": "WORTH_CHECKING",
+    "label": "warto sprawdzić"
+  }
+}
+```

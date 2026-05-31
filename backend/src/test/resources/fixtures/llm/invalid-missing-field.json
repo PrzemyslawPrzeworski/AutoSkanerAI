@@ -1,0 +1,30 @@
+{
+  "extracted": {
+    "make": "Volkswagen",
+    "model": "Passat",
+    "year": 2016,
+    "priceAmount": 35000.0,
+    "priceCurrency": "PLN",
+    "mileageKm": 200000,
+    "fuel": "diesel",
+    "transmission": "manualna",
+    "originCountry": null,
+    "sellerType": "prywatny",
+    "serviceHistoryMentioned": null,
+    "accidentClaim": null,
+    "vinPresent": null
+  },
+  "riskFlags": [],
+  "sellerQuestions": ["Jaki jest powód sprzedaży?"],
+  "scores": {
+    "completeness": 50,
+    "equipment": 50,
+    "risk": 50,
+    "value": 50,
+    "overall": 50
+  },
+  "verdict": {
+    "code": "NEEDS_MORE_INFO",
+    "label": "sprawdź po doprecyzowaniu"
+  }
+}

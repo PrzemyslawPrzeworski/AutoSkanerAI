@@ -1,0 +1,33 @@
+{
+  "extracted": {
+    "make": "Skoda",
+    "model": "Octavia",
+    "year": 2017,
+    "priceAmount": 40000.0,
+    "priceCurrency": "PLN",
+    "mileageKm": 150000,
+    "fuel": "benzyna",
+    "transmission": "manualna",
+    "originCountry": null,
+    "sellerType": "prywatny",
+    "serviceHistoryMentioned": null,
+    "accidentClaim": null,
+    "vinPresent": false
+  },
+  "equipment": [],
+  "riskFlags": [
+    { "code": "NO_VIN", "severity": "HIGH", "description": "Brak numeru VIN w ogłoszeniu" }
+  ],
+  "sellerQuestions": ["Dlaczego brak VIN?"],
+  "scores": {
+    "completeness": 40,
+    "equipment": 40,
+    "risk": 20,
+    "value": 45,
+    "overall": 36
+  },
+  "verdict": {
+    "code": "MAYBE",
+    "label": "może warto"
+  }
+}

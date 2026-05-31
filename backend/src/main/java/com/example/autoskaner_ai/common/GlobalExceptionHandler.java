@@ -1,5 +1,7 @@
 package com.example.autoskaner_ai.common;
 
+import com.example.autoskaner_ai.analysis.llm.LlmCallException;
+import com.example.autoskaner_ai.analysis.llm.LlmResponseSchemaException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -25,6 +27,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleNotReadable(HttpMessageNotReadableException ex) {
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.of(400, "Nieprawidłowe dane wejściowe", List.of(ex.getMessage())));
+    }
+
+    @ExceptionHandler(LlmCallException.class)
+    public ResponseEntity<ErrorResponse> handleLlmCall(LlmCallException ex) {
+        String causeMsg = ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage();
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(ErrorResponse.of(502, "Błąd usługi LLM", List.of(causeMsg)));
+    }
+
+    @ExceptionHandler(LlmResponseSchemaException.class)
+    public ResponseEntity<ErrorResponse> handleLlmSchema(LlmResponseSchemaException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(ErrorResponse.of(502, "Niepoprawny format odpowiedzi LLM",
+                        List.of(ex.getFieldPath() + ": " + ex.getMessage())));
     }
 
     @ExceptionHandler(Exception.class)

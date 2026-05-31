@@ -636,29 +636,29 @@ Add `@Tag("live-llm")` integration tests that hit the real Bedrock and OpenRoute
 
 #### Automated
 
-- [x] 1.1 `./mvnw test` passes
-- [x] 1.2 New record types compile with no warnings
-- [x] 1.3 Existing tests for `RiskAnalysisController` still pass against the deprecated endpoint
-- [x] 1.4 New controller test for `POST /api/analyses` under `mock` profile asserts the full `AnalysisResult` shape
+- [x] 1.1 `./mvnw test` passes — fdd4553
+- [x] 1.2 New record types compile with no warnings — fdd4553
+- [x] 1.3 Existing tests for `RiskAnalysisController` still pass against the deprecated endpoint — fdd4553
+- [x] 1.4 New controller test for `POST /api/analyses` under `mock` profile asserts the full `AnalysisResult` shape — fdd4553
 
 #### Manual
 
-- [x] 1.5 `SPRING_PROFILES_ACTIVE=mock ./mvnw spring-boot:run` starts cleanly
-- [x] 1.6 `curl POST /api/analyses` with valid body returns a complete `AnalysisResult` with `meta.provider="mock"`
-- [x] 1.7 `curl POST /api/analyses` with empty body returns the standard 400 error envelope
-- [x] 1.8 `/api/analysis/risk` still returns only `{ riskFlags: [...] }` for backward compatibility
+- [x] 1.5 `SPRING_PROFILES_ACTIVE=mock ./mvnw spring-boot:run` starts cleanly — fdd4553
+- [x] 1.6 `curl POST /api/analyses` with valid body returns a complete `AnalysisResult` with `meta.provider="mock"` — fdd4553
+- [x] 1.7 `curl POST /api/analyses` with empty body returns the standard 400 error envelope — fdd4553
+- [x] 1.8 `/api/analysis/risk` still returns only `{ riskFlags: [...] }` for backward compatibility — fdd4553
 
 ### Phase 2: Shared prompt + parser
 
 #### Automated
 
-- [ ] 2.1 `./mvnw test -Dtest=AnalysisResponseParserTest` passes (all 6 fixtures)
-- [ ] 2.2 All fixture JSON files parse with strict mode
-- [ ] 2.3 New LLM exceptions produce error envelopes matching `CLAUDE.md` shape
+- [x] 2.1 `./mvnw test -Dtest=AnalysisResponseParserTest` passes (all 6 fixtures)
+- [x] 2.2 All fixture JSON files parse with strict mode
+- [x] 2.3 New LLM exceptions produce error envelopes matching `CLAUDE.md` shape
 
 #### Manual
 
-- [ ] 2.4 Reading `AnalysisPrompt.systemPrompt()` aloud, the schema instruction is unambiguous
+- [x] 2.4 Reading `AnalysisPrompt.systemPrompt()` aloud, the schema instruction is unambiguous
 
 ### Phase 3: Bedrock provider
 

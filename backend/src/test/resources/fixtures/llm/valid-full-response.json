@@ -1,0 +1,39 @@
+{
+  "extracted": {
+    "make": "BMW",
+    "model": "3 Series",
+    "year": 2018,
+    "priceAmount": 75000.0,
+    "priceCurrency": "PLN",
+    "mileageKm": 120000,
+    "fuel": "benzyna",
+    "transmission": "automatyczna",
+    "originCountry": null,
+    "sellerType": "prywatny",
+    "serviceHistoryMentioned": true,
+    "accidentClaim": "bezwypadkowy wg sprzedającego",
+    "vinPresent": true
+  },
+  "equipment": [
+    { "name": "klimatyzacja", "status": "CONFIRMED", "note": null },
+    { "name": "tempomat", "status": "UNCLEAR", "note": "Nie wspomniano w ogłoszeniu" }
+  ],
+  "riskFlags": [
+    { "code": "HIGH_MILEAGE", "severity": "MEDIUM", "description": "Przebieg 120 000 km powyżej średniej dla rocznika" }
+  ],
+  "sellerQuestions": [
+    "Czy pojazd był serwisowany w ASO?",
+    "Z jakiego kraju pochodzi pojazd?"
+  ],
+  "scores": {
+    "completeness": 75,
+    "equipment": 60,
+    "risk": 65,
+    "value": 55,
+    "overall": 64
+  },
+  "verdict": {
+    "code": "NEEDS_MORE_INFO",
+    "label": "sprawdź po doprecyzowaniu"
+  }
+}
