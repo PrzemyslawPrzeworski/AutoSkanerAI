@@ -27,7 +27,7 @@ Verification: `./mvnw test` passes; `ng build` passes with zero type errors; `cu
 
 ## What We're NOT Doing
 
-- No Playwright, headless Chrome, or paid scraping API — URL fetch will fail on Render; text paste is the fallback
+- No Playwright, headless Chrome, or paid scraping API — URL fetching is handled via Jina Reader (free, no key needed)
 - No navigation, routes beyond `/` — S-01 is one page
 - No auth, guards, or interceptors — F-03 territory
 - No persistence — save/view/delete is S-03

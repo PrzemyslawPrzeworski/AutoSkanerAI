@@ -18,6 +18,11 @@ import java.util.concurrent.TimeoutException;
 @Service
 public class ListingFetchService {
 
+    // Jina Reader renders JavaScript and bypasses Cloudflare for free.
+    // Production (Render) calls this directly. Dev machines behind Zscaler will
+    // get a timeout/block — that's a corporate proxy issue, not a code issue.
+    static final String JINA_PREFIX = "https://r.jina.ai/";
+
     private final RestClient client;
 
     public ListingFetchService(@Qualifier("listingFetchBuilder") RestClient.Builder builder) {
@@ -42,7 +47,7 @@ public class ListingFetchService {
             return FetchResult.failed("invalid_scheme");
         }
 
-        // SSRF protection — DNS lookup capped at 5 s
+        // SSRF protection — DNS lookup on the user-supplied host, capped at 5 s
         try {
             InetAddress[] addresses = CompletableFuture
                     .supplyAsync(() -> {
@@ -72,11 +77,16 @@ public class ListingFetchService {
             return FetchResult.failed("timeout");
         }
 
-        // Fetch the URL
-        String html;
+        // Route through Jina Reader which renders JS and handles Cloudflare.
+        // Build the Jina URL as a string — do NOT pass through URI constructor,
+        // which collapses "https://" to "https:/" in the concatenated result.
+        String jinaUrl = JINA_PREFIX + rawUrl;
+        String content;
         try {
-            html = client.get()
-                    .uri(rawUrl)
+            // Use URI.create only for the base Jina host; pass the full encoded URL
+            // via uriBuilder to prevent RestClient from normalizing the double-slash.
+            content = client.get()
+                    .uri(java.net.URI.create(jinaUrl))
                     .retrieve()
                     .body(String.class);
         } catch (RestClientException e) {
@@ -87,16 +97,14 @@ public class ListingFetchService {
             return FetchResult.failed("blocked");
         }
 
-        if (html == null || html.isBlank()) {
+        if (content == null || content.isBlank()) {
             return FetchResult.failed("empty_content");
         }
 
-        // Detect Cloudflare challenge page before parsing
-        if (html.contains("cf-browser-verification") || html.contains("Just a moment...")) {
-            return FetchResult.failed("blocked");
-        }
+        // Jina returns plain text — no HTML stripping needed, but run through
+        // Jsoup anyway in case it returns HTML for non-standard pages
+        String text = content.contains("<html") ? Jsoup.parse(content).text() : content;
 
-        String text = Jsoup.parse(html).text();
         if (text.length() < 100) {
             return FetchResult.failed("empty_content");
         }

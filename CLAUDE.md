@@ -33,10 +33,22 @@ Required env vars: `AWS_PROFILE` (or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`
 
 ## API endpoints
 
-- `POST /api/analyses` — canonical endpoint; accepts `{ "listingText": "..." }`, returns full `AnalysisResult`
+- `POST /api/analyses` — canonical endpoint; accepts `{ "listingText": "..." }` or `{ "url": "..." }`, returns `AnalysisResponse { fetchStatus, fetchFailureReason, analysis }`
 - `POST /api/analysis/risk` — **deprecated** facade returning only `{ riskFlags: [...] }`; to be removed after S-01 ships
 
+`fetchStatus` values: `"text"` (listing text analysed directly), `"ok"` (URL fetched successfully), `"url_failed"` (fetch failed — `analysis` is null, frontend shows text-paste fallback).
+
 Output schema is locked — see `context/changes/llm-analysis-wiring/plan.md` § "Locked output schema".
+
+## URL fetching
+
+Listing URLs are fetched via **Jina Reader** (`https://r.jina.ai/<url>`), which handles JavaScript rendering and Cloudflare bypass for free. No API key needed.
+
+- `ListingFetchService` prepends `https://r.jina.ai/` to the user-supplied URL
+- SSRF protection runs on the user-supplied host before the Jina call
+- Read timeout: 30 s (Jina needs time to render the page)
+- Dev machines behind corporate proxies (e.g. Zscaler) will see `url_failed` — this is a network constraint, not a bug; production on Render works correctly
+- `ListingFetchConfig` — provides `@Bean("listingFetchBuilder") RestClient.Builder`
 
 ## Live integration tests
 

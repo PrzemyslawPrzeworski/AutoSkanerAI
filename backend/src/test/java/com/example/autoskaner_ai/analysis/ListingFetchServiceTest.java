@@ -17,19 +17,11 @@ class ListingFetchServiceTest {
     private MockRestServiceServer mockServer;
     private ListingFetchService service;
 
-    private static final String LISTING_HTML = """
-            <html><head><title>BMW 3 E46 2002</title></head>
-            <body>
-            <h1>BMW 3 E46 2002</h1>
-            <p>Cena: 18500 zł. Przebieg: 180000 km. Benzyna, manual. VIN: WBAAM31060GE12345.
-            Klimatyzacja, ABS, airbagi. Historia serwisowa dostępna. Sprzedający twierdzi bezwypadkowy.
-            Opony zimowe w zestawie. Możliwa zamiana. Kontakt telefoniczny po 16:00.</p>
-            </body></html>
-            """;
-
-    private static final String CLOUDFLARE_HTML = """
-            <html><head><title>Just a moment...</title></head>
-            <body><div id="cf-browser-verification">Checking your browser...</div></body></html>
+    private static final String LISTING_TEXT = """
+            BMW 3 E46 2002. Cena: 18500 zł. Przebieg: 180000 km. Benzyna, manual.
+            VIN: WBAAM31060GE12345. Klimatyzacja, ABS, airbagi.
+            Historia serwisowa dostępna. Sprzedający twierdzi bezwypadkowy.
+            Opony zimowe w zestawie. Kontakt telefoniczny po 16:00.
             """;
 
     @BeforeEach
@@ -40,22 +32,22 @@ class ListingFetchServiceTest {
     }
 
     @Test
-    void fetch_http200WithContent_returnsOk() {
-        mockServer.expect(requestTo("https://otomoto.pl/listing/123"))
+    void fetch_jinaReturnsContent_returnsOk() {
+        // Verify that the actual HTTP call goes to Jina, not directly to otomoto.pl
+        mockServer.expect(requestTo(ListingFetchService.JINA_PREFIX + "https://otomoto.pl/listing/123"))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess(LISTING_HTML, MediaType.TEXT_HTML));
+                .andRespond(withSuccess(LISTING_TEXT, MediaType.TEXT_PLAIN));
 
         FetchResult result = service.fetch("https://otomoto.pl/listing/123");
 
         assertThat(result.isOk()).isTrue();
-        assertThat(result.text()).isNotBlank();
         assertThat(result.text()).contains("BMW");
         mockServer.verify();
     }
 
     @Test
-    void fetch_http403_returnsBlocked() {
-        mockServer.expect(requestTo("https://otomoto.pl/listing/456"))
+    void fetch_jina403_returnsBlocked() {
+        mockServer.expect(requestTo(ListingFetchService.JINA_PREFIX + "https://otomoto.pl/listing/456"))
                 .andRespond(withStatus(org.springframework.http.HttpStatus.FORBIDDEN));
 
         FetchResult result = service.fetch("https://otomoto.pl/listing/456");
@@ -66,20 +58,8 @@ class ListingFetchServiceTest {
     }
 
     @Test
-    void fetch_cloudflareChallengeHtml_returnsBlocked() {
-        mockServer.expect(requestTo("https://otomoto.pl/listing/789"))
-                .andRespond(withSuccess(CLOUDFLARE_HTML, MediaType.TEXT_HTML));
-
-        FetchResult result = service.fetch("https://otomoto.pl/listing/789");
-
-        assertThat(result.isOk()).isFalse();
-        assertThat(result.reason()).isEqualTo("blocked");
-        mockServer.verify();
-    }
-
-    @Test
-    void fetch_serverError_returnsFailure() {
-        mockServer.expect(requestTo("https://olx.pl/listing/999"))
+    void fetch_jinaServerError_returnsFailure() {
+        mockServer.expect(requestTo(ListingFetchService.JINA_PREFIX + "https://olx.pl/listing/999"))
                 .andRespond(withServerError());
 
         FetchResult result = service.fetch("https://olx.pl/listing/999");
@@ -90,8 +70,20 @@ class ListingFetchServiceTest {
     }
 
     @Test
+    void fetch_jinaEmptyResponse_returnsEmptyContent() {
+        mockServer.expect(requestTo(ListingFetchService.JINA_PREFIX + "https://otomoto.pl/listing/empty"))
+                .andRespond(withSuccess("short", MediaType.TEXT_PLAIN));
+
+        FetchResult result = service.fetch("https://otomoto.pl/listing/empty");
+
+        assertThat(result.isOk()).isFalse();
+        assertThat(result.reason()).isEqualTo("empty_content");
+        mockServer.verify();
+    }
+
+    @Test
     void fetch_privateIpUrl_returnsSsrfBlocked() {
-        // SSRF check fires before any HTTP call — no mock expectation needed
+        // SSRF check on the user-supplied host fires before Jina call
         FetchResult result = service.fetch("http://192.168.1.1/test");
 
         assertThat(result.isOk()).isFalse();
