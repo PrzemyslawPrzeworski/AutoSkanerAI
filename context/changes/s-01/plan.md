@@ -585,29 +585,29 @@ Content: large `result.verdict.label` text, `result.scores.overall` as a large b
 
 #### Automated
 
-- [x] 3.1 `ng build` passes
-- [x] 3.2 `AnalyzerComponent` spec passes (initial state; blank submit error; text submit → result; URL submit → banner; HTTP 400 error; HTTP 502 error; reset button)
+- [x] 3.1 `ng build` passes — b77237e
+- [x] 3.2 `AnalyzerComponent` spec passes (initial state; blank submit error; text submit → result; URL submit → banner; HTTP 400 error; HTTP 502 error; reset button) — b77237e
 
 #### Manual
 
-- [x] 3.3 App loads showing URL input and text textarea
-- [x] 3.4 Submit empty form → inline validation error
-- [x] 3.5 Submit with listingText → loading skeleton → result placeholder visible (no error)
-- [x] 3.6 URL fetch failure → yellow banner + textarea focus
-- [x] 3.7 "Nowe ogłoszenie" resets all state
+- [x] 3.3 App loads showing URL input and text textarea — b77237e
+- [x] 3.4 Submit empty form → inline validation error — b77237e
+- [x] 3.5 Submit with listingText → loading skeleton → result placeholder visible (no error) — b77237e
+- [x] 3.6 URL fetch failure → yellow banner + textarea focus — b77237e
+- [x] 3.7 "Nowe ogłoszenie" resets all state — b77237e
 
 ### Phase 4: AnalysisResultComponent — full result display
 
 #### Automated
 
-- [ ] 4.1 `ng build` passes
-- [ ] 4.2 `AnalysisResultComponent` spec passes (WORTH_CHECKING green; HIGH_RISK_SKIP red; null field shows "—"; 6 flags collapse to 4; 3 flags no expand link; MISSING badge red; questions count)
+- [x] 4.1 `ng build` passes
+- [x] 4.2 `AnalysisResultComponent` spec passes (WORTH_CHECKING green; HIGH_RISK_SKIP red; null field shows "—"; 6 flags collapse to 4; 3 flags no expand link; MISSING badge red; questions count)
 
 #### Manual
 
-- [ ] 4.3 Full result renders with all 7 sections (mock profile)
-- [ ] 4.4 Verdict card shows correct color per verdict code
-- [ ] 4.5 Risk flag expand/collapse works (verify via spec; mock returns ≤ 4 flags)
-- [ ] 4.6 Score progress bars render correct values
-- [ ] 4.7 Null extracted fields show "—"
-- [ ] 4.8 Full end-to-end with bedrock profile and real Polish listing renders correctly
+- [x] 4.3 Full result renders with all 7 sections (mock profile)
+- [x] 4.4 Verdict card shows correct color per verdict code
+- [x] 4.5 Risk flag expand/collapse works (verify via spec; mock returns ≤ 4 flags)
+- [x] 4.6 Score progress bars render correct values
+- [x] 4.7 Null extracted fields show "—"
+- [x] 4.8 Full end-to-end with bedrock profile and real Polish listing renders correctly

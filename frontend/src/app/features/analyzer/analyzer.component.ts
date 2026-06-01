@@ -7,10 +7,11 @@ import { MessageModule } from 'primeng/message';
 import { SkeletonModule } from 'primeng/skeleton';
 import { AnalysisService } from '../../core/services/analysis.service';
 import { AnalysisResult } from '../../shared/models/analysis.models';
+import { AnalysisResultComponent } from './components/analysis-result/analysis-result.component';
 
 @Component({
   selector: 'app-analyzer',
-  imports: [InputTextModule, TextareaModule, ButtonModule, MessageModule, SkeletonModule],
+  imports: [InputTextModule, TextareaModule, ButtonModule, MessageModule, SkeletonModule, AnalysisResultComponent],
   templateUrl: './analyzer.component.html',
   styleUrl: './analyzer.component.scss'
 })

@@ -3,10 +3,7 @@
   <div class="result-header">
     <button pButton class="p-button-secondary" label="Nowe ogłoszenie" (click)="reset()"></button>
   </div>
-  <div class="result-placeholder">
-    <!-- AnalysisResultComponent wired in Phase 4 -->
-    <p>Analiza zakończona. Wynik dostępny po ukończeniu Phase 4.</p>
-  </div>
+  <app-analysis-result [result]="result()!"></app-analysis-result>
 } @else if (loading()) {
   <!-- Loading skeleton -->
   <div class="loading-container">

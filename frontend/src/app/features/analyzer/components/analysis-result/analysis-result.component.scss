@@ -1,0 +1,159 @@
+.verdict-card {
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: #fff;
+
+  &.verdict-green { background: #16a34a; }
+  &.verdict-orange { background: #ea580c; }
+  &.verdict-red { background: #dc2626; }
+}
+
+.verdict-label {
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.verdict-score {
+  font-size: 3rem;
+  font-weight: 900;
+  line-height: 1;
+  margin: 0.5rem 0;
+}
+
+.verdict-meta {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.section {
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+
+  h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #343a40;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+}
+
+.scores-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.score-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.score-label {
+  width: 120px;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.score-bar {
+  flex: 1;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+
+  td {
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid #f1f3f5;
+
+    &:first-child {
+      color: #6c757d;
+      width: 45%;
+    }
+  }
+
+  tr:last-child td { border-bottom: none; }
+}
+
+.risk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.risk-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.risk-desc {
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.expand-link {
+  background: none;
+  border: none;
+  color: #0d6efd;
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 0.5rem 0 0;
+  text-decoration: underline;
+
+  &:hover { color: #0a58ca; }
+}
+
+.equipment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.equipment-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.equipment-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.equipment-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.equipment-note {
+  font-size: 0.75rem;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.questions-list {
+  padding-left: 1.5rem;
+  font-size: 0.875rem;
+  line-height: 1.8;
+}
+
+.meta-footer {
+  font-size: 0.75rem;
+  color: #adb5bd;
+  text-align: center;
+  padding: 0.75rem 0 0.25rem;
+}
