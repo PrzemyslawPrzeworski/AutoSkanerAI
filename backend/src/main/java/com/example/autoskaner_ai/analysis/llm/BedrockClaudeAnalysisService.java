@@ -43,24 +43,30 @@ public class BedrockClaudeAnalysisService implements AiAnalysisService {
         try {
             response = client.converse(request);
         } catch (ThrottlingException | ServiceUnavailableException e) {
-            log.warn("LLM call retry provider={} model={} cause={}", "bedrock", modelId, e.getMessage());
+            log.warn("LLM call retry provider={} model={} exceptionClass={} cause={}",
+                    "bedrock", modelId, e.getClass().getSimpleName(), e.getMessage());
             try {
                 response = client.converse(request);
             } catch (Exception retryEx) {
-                log.error("LLM call failed provider={} model={} cause={}", "bedrock", modelId, retryEx.getMessage());
+                log.error("LLM call failed provider={} model={} exceptionClass={} cause={}",
+                        "bedrock", modelId, retryEx.getClass().getSimpleName(), retryEx.getMessage());
                 throw new LlmCallException("Bedrock call failed after retry", retryEx);
             }
         } catch (Exception e) {
-            log.error("LLM call failed provider={} model={} cause={}", "bedrock", modelId, e.getMessage());
+            log.error("LLM call failed provider={} model={} exceptionClass={} cause={}",
+                    "bedrock", modelId, e.getClass().getSimpleName(), e.getMessage());
             throw new LlmCallException("Bedrock call failed", e);
         }
 
         long latencyMs = (System.nanoTime() - t0) / 1_000_000;
         TokenUsage usage = response.usage();
-        int inputTokens = usage != null ? usage.inputTokens() : -1;
-        int outputTokens = usage != null ? usage.outputTokens() : -1;
+        Integer inputTokens = usage != null ? usage.inputTokens() : null;
+        Integer outputTokens = usage != null ? usage.outputTokens() : null;
         log.info("LLM call provider={} model={} latencyMs={} inputTokens={} outputTokens={} listingChars={}",
-                "bedrock", modelId, latencyMs, inputTokens, outputTokens, listingText.length());
+                "bedrock", modelId, latencyMs,
+                inputTokens != null ? inputTokens : -1,
+                outputTokens != null ? outputTokens : -1,
+                listingText.length());
 
         String rawText = response.output().message().content().get(0).text();
         return parser.parse(rawText, "bedrock", modelId, latencyMs);
@@ -77,7 +83,7 @@ public class BedrockClaudeAnalysisService implements AiAnalysisService {
                 .build();
 
         var inferenceConfig = InferenceConfiguration.builder()
-                .maxTokens(4096)
+                .maxTokens(8192)
                 .temperature(0.2f)
                 .build();
 
