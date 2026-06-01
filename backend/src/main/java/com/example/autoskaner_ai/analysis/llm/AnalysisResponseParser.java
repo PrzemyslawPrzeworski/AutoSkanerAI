@@ -127,7 +127,7 @@ public class AnalysisResponseParser {
 
     // --- private DTOs for deserialization ---
 
-    @JsonIgnoreProperties(ignoreUnknown = false)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     record ResponseDto(
             ExtractedDto extracted,
             List<EquipmentItemDto> equipment,
@@ -146,15 +146,15 @@ public class AnalysisResponseParser {
             Boolean serviceHistoryMentioned, String accidentClaim, Boolean vinPresent
     ) {}
 
-    @JsonIgnoreProperties(ignoreUnknown = false)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     record EquipmentItemDto(String name, String status, String note) {}
 
-    @JsonIgnoreProperties(ignoreUnknown = false)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     record RiskFlagDto(String code, String severity, String description) {}
 
-    @JsonIgnoreProperties(ignoreUnknown = false)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     record ScoresDto(int completeness, int equipment, int risk, int value, int overall) {}
 
-    @JsonIgnoreProperties(ignoreUnknown = false)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     record VerdictDto(String code, String label) {}
 }

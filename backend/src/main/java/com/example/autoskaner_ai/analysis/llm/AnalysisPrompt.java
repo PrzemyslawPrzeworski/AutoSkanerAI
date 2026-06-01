@@ -9,8 +9,11 @@ public class AnalysisPrompt {
         return """
                 Jesteś ekspertem od analizy ogłoszeń sprzedaży samochodów używanych na polskim rynku.
 
-                WAŻNA ZASADA: Brak danych o wypadkach oznacza nieznane, nigdy nie potwierdzenie braku wypadków.
-                Nigdy nie pisz "bezwypadkowy" jeśli ogłoszenie tego nie stwierdza wprost.
+                WAŻNA ZASADA — historia wypadkowa:
+                - Brak danych o wypadkach oznacza NIEZNANE, nigdy nie potwierdzenie braku wypadków.
+                - Jeśli ogłoszenie nie wspomina wypadków wprost, accidentClaim MUSI być null. Nigdy nie wymyślaj wartości "bezwypadkowy".
+                - Cytuj accidentClaim wyłącznie gdy ogłoszenie zawiera wyraźne stwierdzenie (np. "bezwypadkowy", "drobna szkoda przednia", "po wypadku").
+                - Gdy accidentClaim jest null, MUSISZ dodać do riskFlags wpis: { "code": "NO_ACCIDENT_DECLARATION", "severity": "MEDIUM", "description": "Ogłoszenie nie zawiera deklaracji wypadkowej — historia nieznana" }.
 
                 Przeanalizuj podane ogłoszenie i zwróć odpowiedź w formacie JSON zgodnym ze schematem poniżej.
                 Zwróć WYŁĄCZNIE obiekt JSON — bez żadnego tekstu przed ani po, bez znaczników markdown.
@@ -60,7 +63,7 @@ public class AnalysisPrompt {
                 - scores: oceny 0–100 dla każdej kategorii. overall = średnia ważona.
                 - verdict: wybierz jeden kod i odpowiedni label w języku polskim.
 
-                PRZYKŁAD PRAWIDŁOWEJ ODPOWIEDZI:
+                PRZYKŁAD 1 — ogłoszenie WYRAŹNIE deklaruje "bezwypadkowy":
                 {
                   "extracted": { "make": "BMW", "model": "3 Series", "year": 2018, "priceAmount": 75000,
                     "priceCurrency": "PLN", "mileageKm": 120000, "fuel": "benzyna", "transmission": "automatyczna",
@@ -79,6 +82,29 @@ public class AnalysisPrompt {
                     "Czy jest możliwość sprawdzenia w niezależnym warsztacie przed zakupem?"
                   ],
                   "scores": { "completeness": 75, "equipment": 60, "risk": 65, "value": 55, "overall": 64 },
+                  "verdict": { "code": "NEEDS_MORE_INFO", "label": "sprawdź po doprecyzowaniu" }
+                }
+
+                PRZYKŁAD 2 — ogłoszenie NIE wspomina wypadków (accidentClaim=null + obowiązkowy NO_ACCIDENT_DECLARATION):
+                {
+                  "extracted": { "make": "Toyota", "model": "Corolla", "year": 2019, "priceAmount": 58000,
+                    "priceCurrency": "PLN", "mileageKm": 95000, "fuel": "benzyna", "transmission": "manualna",
+                    "originCountry": "Polska", "sellerType": "prywatny", "serviceHistoryMentioned": false,
+                    "accidentClaim": null, "vinPresent": false },
+                  "equipment": [
+                    { "name": "klimatyzacja", "status": "CONFIRMED", "note": null }
+                  ],
+                  "riskFlags": [
+                    { "code": "NO_ACCIDENT_DECLARATION", "severity": "MEDIUM", "description": "Ogłoszenie nie zawiera deklaracji wypadkowej — historia nieznana" },
+                    { "code": "NO_VIN", "severity": "HIGH", "description": "Brak numeru VIN — nie można zweryfikować pojazdu" },
+                    { "code": "NO_SERVICE_HISTORY", "severity": "MEDIUM", "description": "Brak wzmianki o historii serwisowej" }
+                  ],
+                  "sellerQuestions": [
+                    "Czy pojazd ma jakąkolwiek historię wypadkową lub szkód?",
+                    "Czy może Pan/Pani podać numer VIN?",
+                    "Czy są dostępne faktury serwisowe lub książka serwisowa?"
+                  ],
+                  "scores": { "completeness": 50, "equipment": 40, "risk": 35, "value": 60, "overall": 46 },
                   "verdict": { "code": "NEEDS_MORE_INFO", "label": "sprawdź po doprecyzowaniu" }
                 }
                 """;
