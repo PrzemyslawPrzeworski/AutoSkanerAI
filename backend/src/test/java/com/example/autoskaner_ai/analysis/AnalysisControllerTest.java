@@ -22,12 +22,14 @@ class AnalysisControllerTest {
 
     private MockMvc mockMvc;
     private AiAnalysisService aiAnalysisService;
+    private ListingFetchService listingFetchService;
 
     @BeforeEach
     void setUp() {
         aiAnalysisService = mock(AiAnalysisService.class);
+        listingFetchService = mock(ListingFetchService.class);
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new AnalysisController(aiAnalysisService))
+                .standaloneSetup(new AnalysisController(aiAnalysisService, listingFetchService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -57,15 +59,54 @@ class AnalysisControllerTest {
                         .contentType("application/json")
                         .content("{\"listingText\":\"BMW 3 Series 2018, bezwypadkowy, VIN dostępny\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.extracted").exists())
-                .andExpect(jsonPath("$.equipment").isArray())
-                .andExpect(jsonPath("$.riskFlags").isArray())
-                .andExpect(jsonPath("$.sellerQuestions").isArray())
-                .andExpect(jsonPath("$.scores").exists())
-                .andExpect(jsonPath("$.verdict").exists())
-                .andExpect(jsonPath("$.meta").exists())
-                .andExpect(jsonPath("$.meta.provider").value("mock"))
-                .andExpect(jsonPath("$.verdict.code").value("WORTH_CHECKING"));
+                .andExpect(jsonPath("$.fetchStatus").value("text"))
+                .andExpect(jsonPath("$.analysis.extracted").exists())
+                .andExpect(jsonPath("$.analysis.equipment").isArray())
+                .andExpect(jsonPath("$.analysis.riskFlags").isArray())
+                .andExpect(jsonPath("$.analysis.sellerQuestions").isArray())
+                .andExpect(jsonPath("$.analysis.scores").exists())
+                .andExpect(jsonPath("$.analysis.verdict").exists())
+                .andExpect(jsonPath("$.analysis.meta").exists())
+                .andExpect(jsonPath("$.analysis.meta.provider").value("mock"))
+                .andExpect(jsonPath("$.analysis.verdict.code").value("WORTH_CHECKING"));
+    }
+
+    @Test
+    void returnsUrlFailed_whenFetchFails() throws Exception {
+        when(listingFetchService.fetch(anyString())).thenReturn(FetchResult.failed("blocked"));
+
+        mockMvc.perform(post("/api/analyses")
+                        .contentType("application/json")
+                        .content("{\"url\":\"https://otomoto.pl/listing/123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fetchStatus").value("url_failed"))
+                .andExpect(jsonPath("$.fetchFailureReason").value("blocked"))
+                .andExpect(jsonPath("$.analysis").doesNotExist());
+    }
+
+    @Test
+    void returnsOk_whenUrlFetchSucceeds() throws Exception {
+        when(listingFetchService.fetch(anyString())).thenReturn(FetchResult.ok("BMW text from listing"));
+        when(aiAnalysisService.analyze(anyString())).thenReturn(fullResult());
+
+        mockMvc.perform(post("/api/analyses")
+                        .contentType("application/json")
+                        .content("{\"url\":\"https://otomoto.pl/listing/123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fetchStatus").value("ok"))
+                .andExpect(jsonPath("$.analysis.verdict.code").value("WORTH_CHECKING"));
+    }
+
+    @Test
+    void returns400_whenNeitherFieldProvided() throws Exception {
+        mockMvc.perform(post("/api/analyses")
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Błąd walidacji"))
+                .andExpect(jsonPath("$.messages[0]").value("Wymagane jest podanie url lub listingText"))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @Test
@@ -76,18 +117,7 @@ class AnalysisControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Błąd walidacji"))
-                .andExpect(jsonPath("$.messages[0]").value("listingText: nie może być pusty"))
-                .andExpect(jsonPath("$.timestamp").exists());
-    }
-
-    @Test
-    void returns400_whenListingTextIsMissing() throws Exception {
-        mockMvc.perform(post("/api/analyses")
-                        .contentType("application/json")
-                        .content("{}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.error").value("Błąd walidacji"))
+                .andExpect(jsonPath("$.messages[0]").value("Wymagane jest podanie url lub listingText"))
                 .andExpect(jsonPath("$.timestamp").exists());
     }
 

@@ -6,20 +6,23 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
-        List<String> messages = ex.getBindingResult().getFieldErrors().stream()
-                .map(FieldError::getDefaultMessage)
-                .toList();
+        List<String> messages = Stream.concat(
+                ex.getBindingResult().getFieldErrors().stream().map(FieldError::getDefaultMessage),
+                ex.getBindingResult().getGlobalErrors().stream().map(ObjectError::getDefaultMessage)
+        ).toList();
         return ResponseEntity.badRequest().body(ErrorResponse.of(400, "Błąd walidacji", messages));
     }
 
