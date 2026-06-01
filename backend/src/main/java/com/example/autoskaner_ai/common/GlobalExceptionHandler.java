@@ -39,16 +39,18 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(LlmCallException.class)
     public ResponseEntity<ErrorResponse> handleLlmCall(LlmCallException ex) {
-        String causeMsg = ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage();
+        log.warn("LLM call failed", ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body(ErrorResponse.of(502, "Błąd usługi LLM", List.of(causeMsg)));
+                .body(ErrorResponse.of(502, "Błąd usługi LLM",
+                        List.of("Wystąpił błąd usługi LLM. Spróbuj ponownie.")));
     }
 
     @ExceptionHandler(LlmResponseSchemaException.class)
     public ResponseEntity<ErrorResponse> handleLlmSchema(LlmResponseSchemaException ex) {
+        log.warn("LLM schema violation at {}: {}", ex.getFieldPath(), ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(ErrorResponse.of(502, "Niepoprawny format odpowiedzi LLM",
-                        List.of(ex.getFieldPath() + ": " + ex.getMessage())));
+                        List.of(ex.getFieldPath())));
     }
 
     @ExceptionHandler(Exception.class)

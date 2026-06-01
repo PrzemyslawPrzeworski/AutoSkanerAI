@@ -95,6 +95,17 @@ class OpenRouterAnalysisServiceTest {
     }
 
     @Test
+    void emptyChoicesResponse_failsWithoutRetry() {
+        // Response-shape failure (empty choices) is deterministic — must NOT trigger retry.
+        mockServer.expect(requestTo("https://openrouter.ai/api/v1/chat/completions"))
+                .andRespond(withSuccess("{\"choices\":[]}", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> svc.analyze("listing text"))
+                .isInstanceOf(LlmCallException.class);
+        mockServer.verify();
+    }
+
+    @Test
     void parserThrowsSchemaException_propagatesWithoutRetry() {
         mockServer.expect(requestTo("https://openrouter.ai/api/v1/chat/completions"))
                 .andRespond(withSuccess(OK_BODY, MediaType.APPLICATION_JSON));

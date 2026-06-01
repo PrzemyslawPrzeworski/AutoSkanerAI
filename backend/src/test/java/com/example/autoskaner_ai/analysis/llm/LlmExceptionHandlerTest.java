@@ -43,7 +43,7 @@ class LlmExceptionHandlerTest {
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.status").value(502))
                 .andExpect(jsonPath("$.error").value("Błąd usługi LLM"))
-                .andExpect(jsonPath("$.messages[0]").value("connection refused"))
+                .andExpect(jsonPath("$.messages[0]").value("Wystąpił błąd usługi LLM. Spróbuj ponownie."))
                 .andExpect(jsonPath("$.timestamp").exists());
     }
 
@@ -53,7 +53,7 @@ class LlmExceptionHandlerTest {
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.status").value(502))
                 .andExpect(jsonPath("$.error").value("Niepoprawny format odpowiedzi LLM"))
-                .andExpect(jsonPath("$.messages[0]").value("scores.completeness: Wartość poza zakresem"))
+                .andExpect(jsonPath("$.messages[0]").value("scores.completeness"))
                 .andExpect(jsonPath("$.timestamp").exists());
     }
 }

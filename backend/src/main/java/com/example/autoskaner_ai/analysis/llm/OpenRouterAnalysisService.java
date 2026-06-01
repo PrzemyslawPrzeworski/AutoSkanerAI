@@ -48,6 +48,13 @@ public class OpenRouterAnalysisService implements AiAnalysisService {
             fullResponse = callApiRaw(requestBody);
             rawText = extractContent(fullResponse);
         } catch (LlmCallException e) {
+            // Retry only on transport-shaped failures (5xx / IO / timeout via RestClientException).
+            // Response-shape failures (null body, empty choices) are deterministic and won't change
+            // between attempts — fail fast to keep parity with Bedrock's narrow retry contract.
+            if (!isRetryable(e)) {
+                log.error("LLM call failed provider={} model={} cause={}", "openrouter", model, e.getMessage());
+                throw e;
+            }
             log.warn("LLM call retry provider={} model={} cause={}", "openrouter", model, e.getMessage());
             try {
                 fullResponse = callApiRaw(requestBody);
@@ -65,6 +72,12 @@ public class OpenRouterAnalysisService implements AiAnalysisService {
                 "openrouter", model, latencyMs, inputTokens, outputTokens, listingText.length());
 
         return parser.parse(rawText, "openrouter", model, latencyMs);
+    }
+
+    private static boolean isRetryable(LlmCallException e) {
+        Throwable cause = e.getCause();
+        return cause instanceof RestClientException
+                || cause instanceof java.io.IOException;
     }
 
     @SuppressWarnings("unchecked")
@@ -116,7 +129,7 @@ public class OpenRouterAnalysisService implements AiAnalysisService {
                         Map.of("role", "user", "content", prompt.userMessage(listingText))
                 ),
                 "temperature", 0.2,
-                "max_tokens", 4096
+                "max_tokens", 8192
         );
     }
 }
