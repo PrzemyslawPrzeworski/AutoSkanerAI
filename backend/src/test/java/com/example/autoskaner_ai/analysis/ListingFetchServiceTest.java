@@ -7,6 +7,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -31,10 +34,14 @@ class ListingFetchServiceTest {
         service = new ListingFetchService(builder);
     }
 
+    private static String jinaUrl(String rawUrl) {
+        return ListingFetchService.JINA_PREFIX + URLEncoder.encode(rawUrl, StandardCharsets.UTF_8);
+    }
+
     @Test
     void fetch_jinaReturnsContent_returnsOk() {
         // Verify that the actual HTTP call goes to Jina, not directly to otomoto.pl
-        mockServer.expect(requestTo(ListingFetchService.JINA_PREFIX + "https://otomoto.pl/listing/123"))
+        mockServer.expect(requestTo(jinaUrl("https://otomoto.pl/listing/123")))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess(LISTING_TEXT, MediaType.TEXT_PLAIN));
 
@@ -46,8 +53,23 @@ class ListingFetchServiceTest {
     }
 
     @Test
+    void fetch_urlWithQueryString_preservesQueryInJinaCall() {
+        // Regression: query strings must reach Jina as part of the embedded URL,
+        // not be attributed to the Jina URL itself by the URI parser.
+        String rawUrl = "https://www.otomoto.pl/oferta/x?utm_source=share&id=42";
+        mockServer.expect(requestTo(jinaUrl(rawUrl)))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(LISTING_TEXT, MediaType.TEXT_PLAIN));
+
+        FetchResult result = service.fetch(rawUrl);
+
+        assertThat(result.isOk()).isTrue();
+        mockServer.verify();
+    }
+
+    @Test
     void fetch_jina403_returnsBlocked() {
-        mockServer.expect(requestTo(ListingFetchService.JINA_PREFIX + "https://otomoto.pl/listing/456"))
+        mockServer.expect(requestTo(jinaUrl("https://otomoto.pl/listing/456")))
                 .andRespond(withStatus(org.springframework.http.HttpStatus.FORBIDDEN));
 
         FetchResult result = service.fetch("https://otomoto.pl/listing/456");
@@ -59,7 +81,7 @@ class ListingFetchServiceTest {
 
     @Test
     void fetch_jinaServerError_returnsFailure() {
-        mockServer.expect(requestTo(ListingFetchService.JINA_PREFIX + "https://olx.pl/listing/999"))
+        mockServer.expect(requestTo(jinaUrl("https://olx.pl/listing/999")))
                 .andRespond(withServerError());
 
         FetchResult result = service.fetch("https://olx.pl/listing/999");
@@ -71,7 +93,7 @@ class ListingFetchServiceTest {
 
     @Test
     void fetch_jinaEmptyResponse_returnsEmptyContent() {
-        mockServer.expect(requestTo(ListingFetchService.JINA_PREFIX + "https://otomoto.pl/listing/empty"))
+        mockServer.expect(requestTo(jinaUrl("https://otomoto.pl/listing/empty")))
                 .andRespond(withSuccess("short", MediaType.TEXT_PLAIN));
 
         FetchResult result = service.fetch("https://otomoto.pl/listing/empty");
