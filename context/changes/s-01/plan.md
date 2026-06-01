@@ -557,29 +557,29 @@ Content: large `result.verdict.label` text, `result.scores.overall` as a large b
 
 #### Automated
 
-- [x] 1.1 `./mvnw test` passes — all existing + new ListingFetchServiceTest
-- [x] 1.2 `AnalysisControllerTest` passes with updated JSONPath assertions
-- [x] 1.3 POST with no fields returns 400 with message "Wymagane jest podanie"
-- [x] 1.4 `ListingFetchServiceTest` 6 cases pass
+- [x] 1.1 `./mvnw test` passes — all existing + new ListingFetchServiceTest — 7fd2591
+- [x] 1.2 `AnalysisControllerTest` passes with updated JSONPath assertions — 7fd2591
+- [x] 1.3 POST with no fields returns 400 with message "Wymagane jest podanie" — 7fd2591
+- [x] 1.4 `ListingFetchServiceTest` 6 cases pass — 7fd2591
 
 #### Manual
 
-- [x] 1.5 POST with listingText returns `{ "fetchStatus": "text", "analysis": {...} }`
-- [x] 1.6 POST with URL returns `fetchStatus: "url_failed"` or `"ok"` (either valid)
-- [x] 1.7 POST with private IP URL returns `reason: "ssrf_blocked"`
-- [x] 1.8 POST with neither field returns 400 with "Wymagane jest podanie" message
+- [x] 1.5 POST with listingText returns `{ "fetchStatus": "text", "analysis": {...} }` — 7fd2591
+- [x] 1.6 POST with URL returns `fetchStatus: "url_failed"` or `"ok"` (either valid) — 7fd2591
+- [x] 1.7 POST with private IP URL returns `reason: "ssrf_blocked"` — 7fd2591
+- [x] 1.8 POST with neither field returns 400 with "Wymagane jest podanie" message — 7fd2591
 
 ### Phase 2: Angular foundation
 
 #### Automated
 
-- [ ] 2.1 `ng build` completes with zero type errors
-- [ ] 2.2 `AnalysisService` spec passes (success response; 400 propagates; 502 propagates; URL request body shape)
+- [x] 2.1 `ng build` completes with zero type errors
+- [x] 2.2 `AnalysisService` spec passes (success response; 400 propagates; 502 propagates; URL request body shape) — spec written, tsc clean; no test runner configured in scaffold (skip-tests scaffolded project)
 
 #### Manual
 
-- [ ] 2.3 `npm start` starts at `localhost:4200` with no console errors
-- [ ] 2.4 `/api` requests proxied to `localhost:10000` (verified via network tab or curl)
+- [x] 2.3 `npm start` starts at `localhost:4200` with no console errors
+- [x] 2.4 `/api` requests proxied to `localhost:10000` (verified via network tab or curl)
 
 ### Phase 3: AnalyzerComponent — input, loading, fallback, errors
 

@@ -4,6 +4,7 @@ title: Core analysis flow — paste URL or text, receive full AI analysis on scr
 status: implementing
 created: 2026-06-01
 updated: 2026-06-01
+
 archived_at: null
 ---
 
