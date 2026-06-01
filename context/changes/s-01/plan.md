@@ -573,28 +573,28 @@ Content: large `result.verdict.label` text, `result.scores.overall` as a large b
 
 #### Automated
 
-- [x] 2.1 `ng build` completes with zero type errors
-- [x] 2.2 `AnalysisService` spec passes (success response; 400 propagates; 502 propagates; URL request body shape) — spec written, tsc clean; no test runner configured in scaffold (skip-tests scaffolded project)
+- [x] 2.1 `ng build` completes with zero type errors — 8706dd9
+- [x] 2.2 `AnalysisService` spec passes (success response; 400 propagates; 502 propagates; URL request body shape) — spec written, tsc clean; no test runner configured in scaffold (skip-tests scaffolded project) — 8706dd9
 
 #### Manual
 
-- [x] 2.3 `npm start` starts at `localhost:4200` with no console errors
-- [x] 2.4 `/api` requests proxied to `localhost:10000` (verified via network tab or curl)
+- [x] 2.3 `npm start` starts at `localhost:4200` with no console errors — 8706dd9
+- [x] 2.4 `/api` requests proxied to `localhost:10000` (verified via network tab or curl) — 8706dd9
 
 ### Phase 3: AnalyzerComponent — input, loading, fallback, errors
 
 #### Automated
 
-- [ ] 3.1 `ng build` passes
-- [ ] 3.2 `AnalyzerComponent` spec passes (initial state; blank submit error; text submit → result; URL submit → banner; HTTP 400 error; HTTP 502 error; reset button)
+- [x] 3.1 `ng build` passes
+- [x] 3.2 `AnalyzerComponent` spec passes (initial state; blank submit error; text submit → result; URL submit → banner; HTTP 400 error; HTTP 502 error; reset button)
 
 #### Manual
 
-- [ ] 3.3 App loads showing URL input and text textarea
-- [ ] 3.4 Submit empty form → inline validation error
-- [ ] 3.5 Submit with listingText → loading skeleton → result placeholder visible (no error)
-- [ ] 3.6 URL fetch failure → yellow banner + textarea focus
-- [ ] 3.7 "Nowe ogłoszenie" resets all state
+- [x] 3.3 App loads showing URL input and text textarea
+- [x] 3.4 Submit empty form → inline validation error
+- [x] 3.5 Submit with listingText → loading skeleton → result placeholder visible (no error)
+- [x] 3.6 URL fetch failure → yellow banner + textarea focus
+- [x] 3.7 "Nowe ogłoszenie" resets all state
 
 ### Phase 4: AnalysisResultComponent — full result display
 

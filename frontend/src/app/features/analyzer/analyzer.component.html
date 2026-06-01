@@ -1,0 +1,65 @@
+@if (result()) {
+  <!-- Result view -->
+  <div class="result-header">
+    <button pButton class="p-button-secondary" label="Nowe ogłoszenie" (click)="reset()"></button>
+  </div>
+  <div class="result-placeholder">
+    <!-- AnalysisResultComponent wired in Phase 4 -->
+    <p>Analiza zakończona. Wynik dostępny po ukończeniu Phase 4.</p>
+  </div>
+} @else if (loading()) {
+  <!-- Loading skeleton -->
+  <div class="loading-container">
+    <p-skeleton height="120px" styleClass="mb-3"></p-skeleton>
+    <p-skeleton height="16px" width="60%" styleClass="mb-2"></p-skeleton>
+    <p-skeleton height="16px" width="60%" styleClass="mb-2"></p-skeleton>
+    <p-skeleton height="16px" width="60%" styleClass="mb-2"></p-skeleton>
+    <p-skeleton height="16px" width="60%" styleClass="mb-2"></p-skeleton>
+    <p-skeleton height="16px" width="60%" styleClass="mb-4"></p-skeleton>
+    <p-skeleton height="80px" styleClass="mb-3"></p-skeleton>
+    <p class="loading-message">{{ loadingMessage() }}</p>
+  </div>
+} @else {
+  <!-- Input form -->
+  <div class="input-form">
+    <div class="field">
+      <label for="url-input">URL ogłoszenia</label>
+      <input
+        id="url-input"
+        pInputText
+        class="w-full"
+        placeholder="https://www.otomoto.pl/..."
+        [value]="url()"
+        (input)="url.set($any($event.target).value)"
+      />
+    </div>
+
+    @if (fetchFailedBanner()) {
+      <p-message severity="warn" [text]="fetchFailedBanner()!"></p-message>
+    }
+
+    <div class="field">
+      <label for="listing-text">lub wklej treść ogłoszenia</label>
+      <textarea
+        id="listing-text"
+        pTextarea
+        class="w-full"
+        rows="8"
+        placeholder="Wklej tutaj pełną treść ogłoszenia..."
+        [value]="listingText()"
+        (input)="listingText.set($any($event.target).value)"
+      ></textarea>
+    </div>
+
+    <button
+      pButton
+      label="Analizuj"
+      class="p-button-primary submit-btn"
+      (click)="submit()"
+    ></button>
+
+    @if (error()) {
+      <p-message severity="error" [text]="error()!"></p-message>
+    }
+  </div>
+}

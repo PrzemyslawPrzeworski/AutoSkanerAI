@@ -1,0 +1,43 @@
+.input-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+
+  label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #495057;
+  }
+}
+
+.submit-btn {
+  align-self: flex-start;
+}
+
+.loading-container {
+  padding: 1rem 0;
+}
+
+.loading-message {
+  text-align: center;
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-top: 1rem;
+}
+
+.result-header {
+  margin-bottom: 1.5rem;
+}
+
+.result-placeholder {
+  padding: 1rem;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+}
