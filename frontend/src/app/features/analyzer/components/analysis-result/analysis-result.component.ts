@@ -1,9 +1,9 @@
-import { Component, Input, signal, computed } from '@angular/core';
+import { Component, input, signal, computed } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
 import { ProgressBarModule } from 'primeng/progressbar';
-import { AnalysisResult, RiskFlag, EquipmentItem, CategoryScores } from '../../../../shared/models/analysis.models';
+import { AnalysisResult } from '../../../../shared/models/analysis.models';
 
 @Component({
   selector: 'app-analysis-result',
@@ -12,26 +12,24 @@ import { AnalysisResult, RiskFlag, EquipmentItem, CategoryScores } from '../../.
   styleUrl: './analysis-result.component.scss'
 })
 export class AnalysisResultComponent {
-  @Input({ required: true }) result!: AnalysisResult;
+  readonly result = input.required<AnalysisResult>();
 
   riskFlagsExpanded = signal(false);
 
-  get verdictClass(): string {
-    switch (this.result.verdict.code) {
+  readonly verdictClass = computed(() => {
+    switch (this.result().verdict.code) {
       case 'WORTH_CHECKING': return 'verdict-green';
       case 'NEEDS_MORE_INFO': return 'verdict-orange';
       case 'HIGH_RISK_SKIP': return 'verdict-red';
     }
-  }
+  });
 
-  get visibleFlags(): RiskFlag[] {
-    const flags = this.result.riskFlags;
+  readonly visibleFlags = computed(() => {
+    const flags = this.result().riskFlags;
     return this.riskFlagsExpanded() || flags.length <= 4 ? flags : flags.slice(0, 4);
-  }
+  });
 
-  get showExpandLink(): boolean {
-    return this.result.riskFlags.length > 4;
-  }
+  readonly showExpandLink = computed(() => this.result().riskFlags.length > 4);
 
   toggleFlags(): void {
     this.riskFlagsExpanded.update(v => !v);

@@ -52,6 +52,7 @@
       pButton
       label="Analizuj"
       class="p-button-primary submit-btn"
+      [disabled]="loading()"
       (click)="submit()"
     ></button>
 

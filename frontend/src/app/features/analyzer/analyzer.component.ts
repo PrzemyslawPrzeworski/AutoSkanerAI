@@ -65,8 +65,10 @@ export class AnalyzerComponent implements OnDestroy {
           this.fetchFailedBanner.set(
             'Nie udało się pobrać ogłoszenia. Wklej treść ręcznie poniżej.'
           );
+        } else if (response.analysis) {
+          this.result.set(response.analysis);
         } else {
-          this.result.set(response.analysis!);
+          this.error.set('Otrzymano niepełną odpowiedź serwera.');
         }
       },
       error: (err: HttpErrorResponse) => {
@@ -89,6 +91,7 @@ export class AnalyzerComponent implements OnDestroy {
   }
 
   private startRotation(): void {
+    this.stopRotation();
     this.msgIndex = 0;
     this.loadingMessage.set(this.loadingMessages[0]);
     this.rotationInterval = setInterval(() => {

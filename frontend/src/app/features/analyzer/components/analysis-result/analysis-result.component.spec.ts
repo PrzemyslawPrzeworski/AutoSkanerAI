@@ -32,7 +32,7 @@ describe('AnalysisResultComponent', () => {
 
   function create(result: AnalysisResult): AnalysisResultComponent {
     fixture = TestBed.createComponent(AnalysisResultComponent);
-    fixture.componentInstance.result = result;
+    fixture.componentRef.setInput('result', result);
     fixture.detectChanges();
     return fixture.componentInstance;
   }
@@ -57,7 +57,7 @@ describe('AnalysisResultComponent', () => {
 
   it('null extracted.make renders as —', () => {
     const result = makeResult();
-    result.extracted.make = null;
+    result.extracted = { ...result.extracted, make: null };
     create(result);
     const cells = fixture.debugElement.queryAll(By.css('.data-table td:last-child'));
     expect(cells[0].nativeElement.textContent.trim()).toBe('—');
@@ -69,11 +69,11 @@ describe('AnalysisResultComponent', () => {
     }));
     const comp = create(makeResult({ riskFlags: flags }));
 
-    expect(comp.visibleFlags.length).toBe(4);
+    expect(comp.visibleFlags().length).toBe(4);
 
     comp.toggleFlags();
     fixture.detectChanges();
-    expect(comp.visibleFlags.length).toBe(6);
+    expect(comp.visibleFlags().length).toBe(6);
   });
 
   it('3 risk flags: no expand link', () => {

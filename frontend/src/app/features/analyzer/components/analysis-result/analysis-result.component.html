@@ -1,8 +1,8 @@
 <!-- Section 1: Verdict hero card -->
-<div class="verdict-card" [class]="verdictClass">
-  <div class="verdict-label">{{ result.verdict.label }}</div>
-  <div class="verdict-score">{{ result.scores.overall }}</div>
-  <div class="verdict-meta">{{ result.meta.provider }} · {{ result.meta.model }}</div>
+<div class="verdict-card" [class]="verdictClass()">
+  <div class="verdict-label">{{ result().verdict.label }}</div>
+  <div class="verdict-score">{{ result().scores.overall }}</div>
+  <div class="verdict-meta">{{ result().meta.provider }} · {{ result().meta.model }}</div>
 </div>
 
 <!-- Section 2: Category scores -->
@@ -10,11 +10,11 @@
   <h3>Oceny kategorii</h3>
   <div class="scores-list">
     @for (item of [
-      { label: 'Kompletność', value: result.scores.completeness },
-      { label: 'Wyposażenie', value: result.scores.equipment },
-      { label: 'Ryzyko', value: result.scores.risk },
-      { label: 'Wartość', value: result.scores.value },
-      { label: 'Łącznie', value: result.scores.overall }
+      { label: 'Kompletność', value: result().scores.completeness },
+      { label: 'Wyposażenie', value: result().scores.equipment },
+      { label: 'Ryzyko', value: result().scores.risk },
+      { label: 'Wartość', value: result().scores.value },
+      { label: 'Łącznie', value: result().scores.overall }
     ]; track item.label) {
       <div class="score-row">
         <span class="score-label">{{ item.label }}</span>
@@ -34,29 +34,29 @@
   <h3>Dane ogłoszenia</h3>
   <table class="data-table">
     <tbody>
-      <tr><td>Marka</td><td>{{ str(result.extracted.make) }}</td></tr>
-      <tr><td>Model</td><td>{{ str(result.extracted.model) }}</td></tr>
-      <tr><td>Rok produkcji</td><td>{{ str(result.extracted.year) }}</td></tr>
-      <tr><td>Cena</td><td>{{ str(result.extracted.priceAmount) }}</td></tr>
-      <tr><td>Waluta</td><td>{{ str(result.extracted.priceCurrency) }}</td></tr>
-      <tr><td>Przebieg (km)</td><td>{{ str(result.extracted.mileageKm) }}</td></tr>
-      <tr><td>Rodzaj paliwa</td><td>{{ str(result.extracted.fuel) }}</td></tr>
-      <tr><td>Skrzynia biegów</td><td>{{ str(result.extracted.transmission) }}</td></tr>
-      <tr><td>Kraj pochodzenia</td><td>{{ str(result.extracted.originCountry) }}</td></tr>
-      <tr><td>Typ sprzedającego</td><td>{{ str(result.extracted.sellerType) }}</td></tr>
-      <tr><td>Historia serwisowa</td><td>{{ format(result.extracted.serviceHistoryMentioned) }}</td></tr>
-      <tr><td>Deklaracja dot. wypadków</td><td>{{ str(result.extracted.accidentClaim) }}</td></tr>
-      <tr><td>Numer VIN podany</td><td>{{ format(result.extracted.vinPresent) }}</td></tr>
+      <tr><td>Marka</td><td>{{ str(result().extracted.make) }}</td></tr>
+      <tr><td>Model</td><td>{{ str(result().extracted.model) }}</td></tr>
+      <tr><td>Rok produkcji</td><td>{{ str(result().extracted.year) }}</td></tr>
+      <tr><td>Cena</td><td>{{ str(result().extracted.priceAmount) }}</td></tr>
+      <tr><td>Waluta</td><td>{{ str(result().extracted.priceCurrency) }}</td></tr>
+      <tr><td>Przebieg (km)</td><td>{{ str(result().extracted.mileageKm) }}</td></tr>
+      <tr><td>Rodzaj paliwa</td><td>{{ str(result().extracted.fuel) }}</td></tr>
+      <tr><td>Skrzynia biegów</td><td>{{ str(result().extracted.transmission) }}</td></tr>
+      <tr><td>Kraj pochodzenia</td><td>{{ str(result().extracted.originCountry) }}</td></tr>
+      <tr><td>Typ sprzedającego</td><td>{{ str(result().extracted.sellerType) }}</td></tr>
+      <tr><td>Historia serwisowa</td><td>{{ format(result().extracted.serviceHistoryMentioned) }}</td></tr>
+      <tr><td>Deklaracja dot. wypadków</td><td>{{ str(result().extracted.accidentClaim) }}</td></tr>
+      <tr><td>Numer VIN podany</td><td>{{ format(result().extracted.vinPresent) }}</td></tr>
     </tbody>
   </table>
 </div>
 
 <!-- Section 4: Risk flags -->
-@if (result.riskFlags.length > 0) {
+@if (result().riskFlags.length > 0) {
   <div class="section">
     <h3>Flagi ryzyka</h3>
     <div class="risk-list">
-      @for (flag of visibleFlags; track flag.code) {
+      @for (flag of visibleFlags(); track flag.code) {
         <div class="risk-row">
           <p-tag
             [value]="severityLabel(flag.severity)"
@@ -66,20 +66,20 @@
         </div>
       }
     </div>
-    @if (showExpandLink) {
+    @if (showExpandLink()) {
       <button class="expand-link" (click)="toggleFlags()">
-        {{ riskFlagsExpanded() ? 'Pokaż mniej' : 'Pokaż wszystkie (' + result.riskFlags.length + ')' }}
+        {{ riskFlagsExpanded() ? 'Pokaż mniej' : 'Pokaż wszystkie (' + result().riskFlags.length + ')' }}
       </button>
     }
   </div>
 }
 
 <!-- Section 5: Equipment grid -->
-@if (result.equipment.length > 0) {
+@if (result().equipment.length > 0) {
   <div class="section">
     <h3>Wyposażenie</h3>
     <div class="equipment-grid">
-      @for (item of result.equipment; track item.name) {
+      @for (item of result().equipment; track item.name) {
         <div class="equipment-item">
           <div class="equipment-name-row">
             <span class="equipment-name">{{ item.name }}</span>
@@ -98,11 +98,11 @@
 }
 
 <!-- Section 6: Seller questions -->
-@if (result.sellerQuestions.length > 0) {
+@if (result().sellerQuestions.length > 0) {
   <div class="section">
     <h3>Pytania do sprzedającego</h3>
     <ol class="questions-list">
-      @for (q of result.sellerQuestions; track q) {
+      @for (q of result().sellerQuestions; track q) {
         <li>{{ q }}</li>
       }
     </ol>
@@ -111,7 +111,7 @@
 
 <!-- Section 7: Meta footer -->
 <div class="meta-footer">
-  Analiza: {{ result.meta.provider }} · {{ result.meta.model }} ·
-  {{ result.meta.latencyMs }}ms ·
-  {{ result.meta.generatedAt | date:'short' }}
+  Analiza: {{ result().meta.provider }} · {{ result().meta.model }} ·
+  {{ result().meta.latencyMs }}ms ·
+  {{ result().meta.generatedAt | date:'short' }}
 </div>
