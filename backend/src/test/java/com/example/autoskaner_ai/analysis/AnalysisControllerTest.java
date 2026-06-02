@@ -1,5 +1,8 @@
 package com.example.autoskaner_ai.analysis;
 
+import com.example.autoskaner_ai.analysis.CepikResult;
+import com.example.autoskaner_ai.analysis.CepikStatus;
+import com.example.autoskaner_ai.cepik.CepikEnrichmentService;
 import com.example.autoskaner_ai.common.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,6 +13,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.time.Instant;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -23,13 +27,16 @@ class AnalysisControllerTest {
     private MockMvc mockMvc;
     private AiAnalysisService aiAnalysisService;
     private ListingFetchService listingFetchService;
+    private CepikEnrichmentService cepikEnrichmentService;
 
     @BeforeEach
     void setUp() {
         aiAnalysisService = mock(AiAnalysisService.class);
         listingFetchService = mock(ListingFetchService.class);
+        cepikEnrichmentService = mock(CepikEnrichmentService.class);
+        when(cepikEnrichmentService.enrich(any())).thenReturn(null);
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new AnalysisController(aiAnalysisService, listingFetchService))
+                .standaloneSetup(new AnalysisController(aiAnalysisService, listingFetchService, cepikEnrichmentService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -130,5 +137,40 @@ class AnalysisControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    void mockProfile_cepikResultIsLookupFailed() throws Exception {
+        var cepikResult = new CepikResult(
+                CepikStatus.LOOKUP_FAILED, null, null, null, null,
+                null, List.of(), List.of(), "https://historiapojazdu.gov.pl", java.time.Instant.now()
+        );
+        when(cepikEnrichmentService.enrich(any())).thenReturn(cepikResult);
+        when(aiAnalysisService.analyze(anyString())).thenReturn(fullResult());
+
+        mockMvc.perform(post("/api/analyses")
+                        .contentType("application/json")
+                        .content("{\"listingText\":\"BMW 3 Series 2018\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cepikResult.status").value("LOOKUP_FAILED"));
+    }
+
+    @Test
+    void missingPlate_injectsPlateQuestion() throws Exception {
+        var extracted = new ExtractedData("BMW", "3 Series", 2018, null, null, 120000,
+                "benzyna", null, null, null, Boolean.TRUE, "bezwypadkowy", Boolean.TRUE,
+                "WBAAM31060GE12345", null, "2018-03-15");
+        var result = new AnalysisResult(extracted, List.of(), List.of(),
+                List.of("Istniejące pytanie"), new CategoryScores(80, 80, 80, 60, 75),
+                new Verdict(VerdictCode.WORTH_CHECKING, "warto sprawdzić"),
+                new AnalysisMeta("mock", "mock-v1", 1L, java.time.Instant.now()));
+        when(aiAnalysisService.analyze(anyString())).thenReturn(result);
+        when(cepikEnrichmentService.enrich(any())).thenReturn(null);
+
+        mockMvc.perform(post("/api/analyses")
+                        .contentType("application/json")
+                        .content("{\"listingText\":\"BMW 3 Series 2018, VIN: WBAAM31060GE12345\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.analysis.sellerQuestions[?(@=='Proszę podać numer rejestracyjny pojazdu')]").exists());
     }
 }

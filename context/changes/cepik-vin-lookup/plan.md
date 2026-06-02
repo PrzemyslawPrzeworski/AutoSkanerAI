@@ -627,28 +627,28 @@ The `CepikApiService` fires 16 parallel HTTP requests (one per voivodeship). Wit
 
 #### Automated
 
-- [x] 4.1 `./mvnw compile` — no errors
-- [x] 4.2 Unit test `HistoriaPojazduParser`: fixture JSON → correct field mapping
-- [x] 4.3 Unit test `HistoriaPojazduService`: session exception → `LOOKUP_FAILED`, no exception propagated
+- [x] 4.1 `./mvnw compile` — no errors — e616ea2
+- [x] 4.2 Unit test `HistoriaPojazduParser`: fixture JSON → correct field mapping — e616ea2
+- [x] 4.3 Unit test `HistoriaPojazduService`: session exception → `LOOKUP_FAILED`, no exception propagated — e616ea2
 
 #### Manual
 
-- [x] 4.4 Valid plate + VIN + date → `status = FOUND` with populated fields (live test)
-- [x] 4.5 Invalid inputs → `NOT_FOUND` or `LOOKUP_FAILED` without exception
+- [x] 4.4 Valid plate + VIN + date → `status = FOUND` with populated fields (live test) — e616ea2
+- [x] 4.5 Invalid inputs → `NOT_FOUND` or `LOOKUP_FAILED` without exception — e616ea2
 
 ### Phase 5: Controller Orchestration
 
 #### Automated
 
-- [ ] 5.1 `./mvnw test` — all existing controller tests pass
-- [ ] 5.2 New test: mock profile → `cepikResult.status == "LOOKUP_FAILED"` in response JSON
-- [ ] 5.3 New test: missing plate → sellerQuestions contains plate question
+- [x] 5.1 `./mvnw test` — all existing controller tests pass
+- [x] 5.2 New test: mock profile → `cepikResult.status == "LOOKUP_FAILED"` in response JSON
+- [x] 5.3 New test: missing plate → sellerQuestions contains plate question
 - [ ] 5.4 `./mvnw test -Dgroups=live-llm` — response includes `cepikResult` field
 
 #### Manual
 
-- [ ] 5.5 Listing with no VIN → `MISSING_INPUTS`, seller questions contain VIN + plate + date prompts
-- [ ] 5.6 Listing with VIN + plate + date → `FOUND` or `LOOKUP_FAILED`, never an exception
+- [x] 5.5 Listing with no VIN → `MISSING_INPUTS`, seller questions contain VIN + plate + date prompts
+- [x] 5.6 Listing with VIN + plate + date → `FOUND` or `LOOKUP_FAILED`, never an exception
 
 ### Phase 6: Frontend CEPiK Panel
 
