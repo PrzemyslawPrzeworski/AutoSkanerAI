@@ -310,26 +310,26 @@ export class MarketPricePanelComponent {
 
 #### Automated
 
-- [x] 2.1 `./mvnw test` — all tests green including updated controller test
-- [x] 2.2 `./mvnw test -Dgroups=live-llm` — live response includes `marketPriceContext` field
+- [x] 2.1 `./mvnw test` — all tests green including updated controller test — 53cecea
+- [x] 2.2 `./mvnw test -Dgroups=live-llm` — live response includes `marketPriceContext` field — 53cecea
 
 #### Manual
 
-- [x] 2.3 Mock profile POST → `marketPriceContext.status == "FETCH_FAILED"` in response JSON
-- [x] 2.4 OpenRouter profile POST with make/model/year listing → `marketPriceContext` present with status
+- [x] 2.3 Mock profile POST → `marketPriceContext.status == "FETCH_FAILED"` in response JSON — 53cecea
+- [x] 2.4 OpenRouter profile POST with make/model/year listing → `marketPriceContext` present with status — 53cecea
 
 ### Phase 3: Frontend Market Price Panel
 
 #### Automated
 
-- [ ] 3.1 `npm run build` — no errors
-- [ ] 3.2 `npm run typecheck` — no errors
+- [x] 3.1 `npm run build` — no errors
+- [x] 3.2 `npm run typecheck` — no errors
 
 #### Manual
 
-- [ ] 3.3 Mock profile → price panel shows degraded state
-- [ ] 3.4 Listing with no make → price panel absent
-- [ ] 3.5 Live test Toyota Corolla → price range shown with Otomoto link
-- [ ] 3.6 Expand/collapse works
-- [ ] 3.7 Low-sample caveat shown when sampleSize < 3
-- [ ] 3.8 Otomoto link opens correct URL in new tab
+- [x] 3.3 Mock profile → price panel shows degraded state
+- [x] 3.4 Listing with no make → price panel absent
+- [x] 3.5 Live test Toyota Corolla → price range shown with Otomoto link
+- [x] 3.6 Expand/collapse works
+- [x] 3.7 Low-sample caveat shown when sampleSize < 3
+- [x] 3.8 Otomoto link opens correct URL in new tab
