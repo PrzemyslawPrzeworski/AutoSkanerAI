@@ -600,28 +600,28 @@ The `CepikApiService` fires 16 parallel HTTP requests (one per voivodeship). Wit
 
 #### Automated
 
-- [x] 2.1 `./mvnw test` — parser tests pass with updated fixtures
-- [x] 2.2 `npm run build` — no TypeScript errors
+- [x] 2.1 `./mvnw test` — parser tests pass with updated fixtures — 8a2dcfe
+- [x] 2.2 `npm run build` — no TypeScript errors — 8a2dcfe
 - [ ] 2.3 `./mvnw test -Dgroups=live-llm` — response includes `vin`, `registrationPlate`, `firstRegistrationDate` fields
 
 #### Manual
 
-- [x] 2.4 Listing with VIN → `extracted.vin` populated, visible in data table
-- [x] 2.5 Listing without VIN → `extracted.vin` null, `NO_VIN` risk flag still present
-- [x] 2.6 Listing with registration plate → `extracted.registrationPlate` populated
+- [x] 2.4 Listing with VIN → `extracted.vin` populated, visible in data table — 8a2dcfe
+- [x] 2.5 Listing without VIN → `extracted.vin` null, `NO_VIN` risk flag still present — 8a2dcfe
+- [x] 2.6 Listing with registration plate → `extracted.registrationPlate` populated — 8a2dcfe
 
 ### Phase 3: CepikApiService
 
 #### Automated
 
-- [ ] 3.1 `./mvnw compile` — no errors in `cepik` package
-- [ ] 3.2 Unit test: mock hit on voivodeship 12 → correct date string returned
-- [ ] 3.3 Unit test: all 16 empty → `Optional.empty()` returned
-- [ ] 3.4 Unit test: 14 exceptions, 2 empty → `Optional.empty()`, no exception propagated
+- [x] 3.1 `./mvnw compile` — no errors in `cepik` package
+- [x] 3.2 Unit test: mock hit on voivodeship 12 → correct date string returned
+- [x] 3.3 Unit test: all 16 empty → `Optional.empty()` returned
+- [x] 3.4 Unit test: 14 exceptions, 2 empty → `Optional.empty()`, no exception propagated
 
 #### Manual
 
-- [ ] 3.5 `CepikApiService` called with known VIN → returns date string or empty without throwing (live test)
+- [x] 3.5 `CepikApiService` called with known VIN → returns date string or empty without throwing (live test)
 
 ### Phase 4: HistoriaPojazduService
 
