@@ -600,15 +600,15 @@ The `CepikApiService` fires 16 parallel HTTP requests (one per voivodeship). Wit
 
 #### Automated
 
-- [ ] 2.1 `./mvnw test` — parser tests pass with updated fixtures
-- [ ] 2.2 `npm run build` — no TypeScript errors
+- [x] 2.1 `./mvnw test` — parser tests pass with updated fixtures
+- [x] 2.2 `npm run build` — no TypeScript errors
 - [ ] 2.3 `./mvnw test -Dgroups=live-llm` — response includes `vin`, `registrationPlate`, `firstRegistrationDate` fields
 
 #### Manual
 
-- [ ] 2.4 Listing with VIN → `extracted.vin` populated, visible in data table
-- [ ] 2.5 Listing without VIN → `extracted.vin` null, `NO_VIN` risk flag still present
-- [ ] 2.6 Listing with registration plate → `extracted.registrationPlate` populated
+- [x] 2.4 Listing with VIN → `extracted.vin` populated, visible in data table
+- [x] 2.5 Listing without VIN → `extracted.vin` null, `NO_VIN` risk flag still present
+- [x] 2.6 Listing with registration plate → `extracted.registrationPlate` populated
 
 ### Phase 3: CepikApiService
 

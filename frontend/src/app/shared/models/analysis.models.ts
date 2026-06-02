@@ -41,6 +41,9 @@ export interface ExtractedData {
   serviceHistoryMentioned: boolean | null;
   accidentClaim: string | null;
   vinPresent: boolean | null;
+  vin: string | null;
+  registrationPlate: string | null;
+  firstRegistrationDate: string | null;
 }
 
 export interface EquipmentItem {

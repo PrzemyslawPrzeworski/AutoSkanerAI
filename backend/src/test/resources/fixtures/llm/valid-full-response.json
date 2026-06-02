@@ -12,7 +12,10 @@
     "sellerType": "prywatny",
     "serviceHistoryMentioned": true,
     "accidentClaim": "bezwypadkowy wg sprzedającego",
-    "vinPresent": true
+    "vinPresent": true,
+    "vin": "WBAAM31060GE12345",
+    "registrationPlate": null,
+    "firstRegistrationDate": "2018-03-15"
   },
   "equipment": [
     { "name": "klimatyzacja", "status": "CONFIRMED", "note": null },

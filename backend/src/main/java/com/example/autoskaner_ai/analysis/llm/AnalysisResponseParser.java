@@ -83,7 +83,8 @@ public class AnalysisResponseParser {
                 d.priceAmount() != null ? BigDecimal.valueOf(d.priceAmount()) : null,
                 d.priceCurrency(), d.mileageKm(), d.fuel(), d.transmission(),
                 d.originCountry(), d.sellerType(),
-                d.serviceHistoryMentioned(), d.accidentClaim(), d.vinPresent()
+                d.serviceHistoryMentioned(), d.accidentClaim(), d.vinPresent(),
+                d.vin(), d.registrationPlate(), d.firstRegistrationDate()
         );
     }
 
@@ -143,7 +144,8 @@ public class AnalysisResponseParser {
             Double priceAmount, String priceCurrency,
             Integer mileageKm, String fuel, String transmission,
             String originCountry, String sellerType,
-            Boolean serviceHistoryMentioned, String accidentClaim, Boolean vinPresent
+            Boolean serviceHistoryMentioned, String accidentClaim, Boolean vinPresent,
+            String vin, String registrationPlate, String firstRegistrationDate
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)

@@ -43,7 +43,7 @@ class OpenRouterAnalysisServiceTest {
     }
 
     private AnalysisResult dummyResult() {
-        var extracted = new ExtractedData(null, null, null, null, null, null, null, null, null, null, null, null, null);
+        var extracted = new ExtractedData(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         var scores = new CategoryScores(70, 70, 70, 70, 70);
         var verdict = new Verdict(VerdictCode.WORTH_CHECKING, "warto sprawdzic");
         var meta = new AnalysisMeta("openrouter", MODEL, 200L, Instant.now());

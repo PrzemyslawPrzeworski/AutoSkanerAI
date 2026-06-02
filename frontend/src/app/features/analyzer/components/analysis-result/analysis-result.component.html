@@ -47,6 +47,9 @@
       <tr><td>Historia serwisowa</td><td>{{ format(result().extracted.serviceHistoryMentioned) }}</td></tr>
       <tr><td>Deklaracja dot. wypadków</td><td>{{ str(result().extracted.accidentClaim) }}</td></tr>
       <tr><td>Numer VIN podany</td><td>{{ format(result().extracted.vinPresent) }}</td></tr>
+      <tr><td>Numer VIN</td><td>{{ str(result().extracted.vin) }}</td></tr>
+      <tr><td>Nr rejestracyjny</td><td>{{ str(result().extracted.registrationPlate) }}</td></tr>
+      <tr><td>Data 1. rejestracji</td><td>{{ str(result().extracted.firstRegistrationDate) }}</td></tr>
     </tbody>
   </table>
 </div>

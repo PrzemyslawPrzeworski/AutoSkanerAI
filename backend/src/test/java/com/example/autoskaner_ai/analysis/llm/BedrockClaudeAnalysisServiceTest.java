@@ -47,7 +47,7 @@ class BedrockClaudeAnalysisServiceTest {
     }
 
     private AnalysisResult dummyResult() {
-        var extracted = new ExtractedData(null, null, null, null, null, null, null, null, null, null, null, null, null);
+        var extracted = new ExtractedData(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         var scores = new CategoryScores(70, 70, 70, 70, 70);
         var verdict = new Verdict(VerdictCode.WORTH_CHECKING, "warto sprawdzić");
         var meta = new AnalysisMeta("bedrock", MODEL_ID, 500L, Instant.now());

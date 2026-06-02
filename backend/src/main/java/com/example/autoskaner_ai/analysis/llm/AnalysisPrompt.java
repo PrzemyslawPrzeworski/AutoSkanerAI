@@ -33,7 +33,10 @@ public class AnalysisPrompt {
                     "sellerType": <"prywatny"|"dealer"|null>,
                     "serviceHistoryMentioned": <boolean|null>,
                     "accidentClaim": <string|null>,
-                    "vinPresent": <boolean|null>
+                    "vinPresent": <boolean|null>,
+                    "vin": <string|null>,
+                    "registrationPlate": <string|null>,
+                    "firstRegistrationDate": <string|null>
                   },
                   "equipment": [
                     { "name": <string>, "status": <"CONFIRMED"|"MISSING"|"UNCLEAR">, "note": <string|null> }
@@ -56,7 +59,7 @@ public class AnalysisPrompt {
                 }
 
                 INSTRUKCJE:
-                - extracted: wyodrębnij fakty z ogłoszenia. Użyj null dla każdego pola, którego nie możesz ustalić.
+                - extracted: wyodrębnij fakty z ogłoszenia. Użyj null dla każdego pola, którego nie możesz ustalić. vin: wyodrębnij pełny numer VIN (17 znaków) jeśli podany. registrationPlate: numer rejestracyjny jeśli podany. firstRegistrationDate: data pierwszej rejestracji w formacie z ogłoszenia.
                 - equipment: oceń wyposażenie wymienione lub nieobecne w ogłoszeniu.
                 - riskFlags: zidentyfikuj sygnały ostrzegawcze (np. brak VIN, zbyt niska cena, brak historii serwisowej).
                 - sellerQuestions: wygeneruj 3–5 konkretnych pytań do sprzedawcy po polsku.
@@ -68,7 +71,8 @@ public class AnalysisPrompt {
                   "extracted": { "make": "BMW", "model": "3 Series", "year": 2018, "priceAmount": 75000,
                     "priceCurrency": "PLN", "mileageKm": 120000, "fuel": "benzyna", "transmission": "automatyczna",
                     "originCountry": null, "sellerType": "prywatny", "serviceHistoryMentioned": true,
-                    "accidentClaim": "bezwypadkowy wg sprzedającego", "vinPresent": true },
+                    "accidentClaim": "bezwypadkowy wg sprzedającego", "vinPresent": true,
+                    "vin": "WBAAM31060GE12345", "registrationPlate": "WA12345", "firstRegistrationDate": "15.03.2018" },
                   "equipment": [
                     { "name": "klimatyzacja", "status": "CONFIRMED", "note": null },
                     { "name": "tempomat", "status": "UNCLEAR", "note": "Nie wspomniano w ogłoszeniu" }
@@ -90,7 +94,8 @@ public class AnalysisPrompt {
                   "extracted": { "make": "Toyota", "model": "Corolla", "year": 2019, "priceAmount": 58000,
                     "priceCurrency": "PLN", "mileageKm": 95000, "fuel": "benzyna", "transmission": "manualna",
                     "originCountry": "Polska", "sellerType": "prywatny", "serviceHistoryMentioned": false,
-                    "accidentClaim": null, "vinPresent": false },
+                    "accidentClaim": null, "vinPresent": false,
+                    "vin": null, "registrationPlate": null, "firstRegistrationDate": null },
                   "equipment": [
                     { "name": "klimatyzacja", "status": "CONFIRMED", "note": null }
                   ],

@@ -13,7 +13,10 @@
     "sellerType": "dealer",
     "serviceHistoryMentioned": true,
     "accidentClaim": null,
-    "vinPresent": true
+    "vinPresent": true,
+    "vin": "WBAAM31060GE12345",
+    "registrationPlate": null,
+    "firstRegistrationDate": "2018-03-15"
   },
   "equipment": [
     { "name": "kamera cofania", "status": "CONFIRMED", "note": null }

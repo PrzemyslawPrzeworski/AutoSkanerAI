@@ -36,7 +36,8 @@ class AnalysisControllerTest {
 
     private AnalysisResult fullResult() {
         var extracted = new ExtractedData("BMW", "3 Series", 2018, null, null, 120000,
-                "benzyna", null, null, null, Boolean.TRUE, "bezwypadkowy", Boolean.TRUE);
+                "benzyna", null, null, null, Boolean.TRUE, "bezwypadkowy", Boolean.TRUE,
+                "WBAAM31060GE12345", null, "2018-03-15");
         var equipment = List.of(
                 new EquipmentItem("klimatyzacja", EquipmentStatus.CONFIRMED, null),
                 new EquipmentItem("tempomat", EquipmentStatus.UNCLEAR, "Nie wspomniano w ogłoszeniu")
