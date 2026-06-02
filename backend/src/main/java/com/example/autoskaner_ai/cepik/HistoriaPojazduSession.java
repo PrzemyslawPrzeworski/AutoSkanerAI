@@ -2,17 +2,14 @@ package com.example.autoskaner_ai.cepik;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-@Component
 public class HistoriaPojazduSession {
 
     private static final Logger log = LoggerFactory.getLogger(HistoriaPojazduSession.class);
@@ -26,7 +23,7 @@ public class HistoriaPojazduSession {
     private String xsrfToken;
     private String nfWid;
 
-    public HistoriaPojazduSession(@Qualifier("historiaPojazduBuilder") RestClient.Builder builder) {
+    public HistoriaPojazduSession(RestClient.Builder builder) {
         this.builder = builder;
         this.client = builder.build();
     }

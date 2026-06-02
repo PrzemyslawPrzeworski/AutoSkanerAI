@@ -11,7 +11,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 @SpringBootTest
-@ActiveProfiles("mock")
+@ActiveProfiles("openrouter")
 @Tag("live-llm")
 class CepikApiServiceLiveTest {
 

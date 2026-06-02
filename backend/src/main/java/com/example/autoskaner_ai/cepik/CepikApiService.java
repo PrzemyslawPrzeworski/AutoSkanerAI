@@ -1,8 +1,10 @@
 package com.example.autoskaner_ai.cepik;
 
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -15,8 +17,11 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Service
+@Profile("!mock")
 public class CepikApiService {
 
     private static final Logger log = LoggerFactory.getLogger(CepikApiService.class);
@@ -33,6 +38,11 @@ public class CepikApiService {
         this.restClient = builder.build();
     }
 
+    @PreDestroy
+    public void shutdown() {
+        executor.shutdownNow();
+    }
+
     public Optional<String> lookupFirstRegistrationDate(String normalisedVin) {
         String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
 
@@ -42,12 +52,17 @@ public class CepikApiService {
                 .toList();
 
         try {
-            // Poll until the first non-empty result
             List<CompletableFuture<Optional<String>>> remaining = new ArrayList<>(futures);
+            long deadline = System.currentTimeMillis() + 12_000;
             while (!remaining.isEmpty()) {
-                CompletableFuture<Object> any = CompletableFuture.anyOf(
-                        remaining.toArray(CompletableFuture[]::new));
-                any.get();
+                long left = deadline - System.currentTimeMillis();
+                if (left <= 0) {
+                    log.warn("CEPiK API scan timed out after 12s; cancelling remaining futures");
+                    futures.forEach(f -> f.cancel(true));
+                    return Optional.empty();
+                }
+                CompletableFuture.anyOf(remaining.toArray(CompletableFuture[]::new))
+                        .get(left, TimeUnit.MILLISECONDS);
 
                 for (CompletableFuture<Optional<String>> f : remaining) {
                     if (f.isDone()) {
@@ -60,8 +75,12 @@ public class CepikApiService {
                 }
                 remaining.removeIf(CompletableFuture::isDone);
             }
+        } catch (TimeoutException e) {
+            log.warn("CEPiK API scan timed out after 12s");
+            futures.forEach(f -> f.cancel(true));
         } catch (Exception e) {
             log.warn("CEPiK API scan interrupted: {}", e.getMessage());
+            futures.forEach(f -> f.cancel(true));
         }
         return Optional.empty();
     }

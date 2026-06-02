@@ -2,6 +2,7 @@ package com.example.autoskaner_ai.cepik;
 
 import com.example.autoskaner_ai.analysis.CepikStatus;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -11,7 +12,10 @@ class HistoriaPojazduServiceTest {
 
     private final HistoriaPojazduSession session = mock(HistoriaPojazduSession.class);
     private final HistoriaPojazduParser parser = mock(HistoriaPojazduParser.class);
-    private final HistoriaPojazduService service = new HistoriaPojazduService(session, parser);
+    private final HistoriaPojazduService service = new HistoriaPojazduService(mock(RestClient.Builder.class), parser) {
+        @Override
+        HistoriaPojazduSession createSession() { return session; }
+    };
 
     @Test
     void returnsLookupFailedWhenSessionThrows() {

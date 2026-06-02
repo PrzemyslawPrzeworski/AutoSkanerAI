@@ -2,32 +2,24 @@ package com.example.autoskaner_ai.cepik;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 import java.net.http.HttpClient;
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
 import java.time.Duration;
 
+// Note: using JdkClientHttpRequestFactory instead of HttpComponentsClientHttpRequestFactory
+// (httpclient5 5.3.x unavailable in dev env due to Zscaler); functionally equivalent.
+// If api.cepik.gov.pl TLS handshake fails on Render, diagnose the specific cipher/cert issue
+// and configure SSLParameters.setCipherSuites() or import the CA cert — do NOT restore trust-all.
 @Configuration
+@Profile("!mock")
 public class CepikApiConfig {
 
     @Bean("cepikApiBuilder")
-    public RestClient.Builder cepikApiBuilder() throws Exception {
-        // Trust-all SSLContext required for api.cepik.gov.pl legacy TLS cipher suites
-        SSLContext sslContext = SSLContext.getInstance("TLS");
-        sslContext.init(null, new TrustManager[]{new X509TrustManager() {
-            public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
-            public void checkClientTrusted(X509Certificate[] c, String a) {}
-            public void checkServerTrusted(X509Certificate[] c, String a) {}
-        }}, new SecureRandom());
-
+    public RestClient.Builder cepikApiBuilder() {
         var httpClient = HttpClient.newBuilder()
-                .sslContext(sslContext)
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
 

@@ -4,6 +4,7 @@ import com.example.autoskaner_ai.analysis.CepikResult;
 import com.example.autoskaner_ai.analysis.CepikStatus;
 import com.example.autoskaner_ai.analysis.DamageRecord;
 import com.example.autoskaner_ai.analysis.MileageStamp;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -12,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @Component
+@Profile("!mock")
 public class HistoriaPojazduParser {
 
     private static final String LOOKUP_URL = "https://historiapojazdu.gov.pl";

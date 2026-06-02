@@ -10,12 +10,14 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 @Service
 @Profile("!mock")
 public class RealCepikEnrichmentService implements CepikEnrichmentService {
 
     private static final String LOOKUP_URL = "https://historiapojazdu.gov.pl";
+    private static final Pattern PLATE_PATTERN = Pattern.compile("[A-Z]{2,3}[A-Z0-9]{4,5}");
 
     private final CepikApiService cepikApiService;
     private final HistoriaPojazduService historiaPojazduService;
@@ -35,9 +37,10 @@ public class RealCepikEnrichmentService implements CepikEnrichmentService {
         String vin = normalisedVin.get();
 
         String plate = extracted.registrationPlate();
-        if (plate == null || plate.isBlank()) {
+        if (plate == null || plate.isBlank() || !PLATE_PATTERN.matcher(plate.strip().toUpperCase()).matches()) {
             return missingInputs(vin);
         }
+        plate = plate.strip().toUpperCase();
 
         String firstRegDate = extracted.firstRegistrationDate();
         if (firstRegDate == null || firstRegDate.isBlank()) {

@@ -602,7 +602,7 @@ The `CepikApiService` fires 16 parallel HTTP requests (one per voivodeship). Wit
 
 - [x] 2.1 `./mvnw test` — parser tests pass with updated fixtures — 8a2dcfe
 - [x] 2.2 `npm run build` — no TypeScript errors — 8a2dcfe
-- [ ] 2.3 `./mvnw test -Dgroups=live-llm` — response includes `vin`, `registrationPlate`, `firstRegistrationDate` fields
+- [x] 2.3 `./mvnw test -Plive-tests` — response includes `vin`, `registrationPlate`, `firstRegistrationDate` fields (use `-Plive-tests` profile; surefire excludedGroups hardcoded in default config)
 
 #### Manual
 
@@ -643,7 +643,7 @@ The `CepikApiService` fires 16 parallel HTTP requests (one per voivodeship). Wit
 - [x] 5.1 `./mvnw test` — all existing controller tests pass — 6d3e948
 - [x] 5.2 New test: mock profile → `cepikResult.status == "LOOKUP_FAILED"` in response JSON — 6d3e948
 - [x] 5.3 New test: missing plate → sellerQuestions contains plate question — 6d3e948
-- [ ] 5.4 `./mvnw test -Dgroups=live-llm` — response includes `cepikResult` field
+- [x] 5.4 `./mvnw test -Plive-tests` — response includes `cepikResult` field (use `-Plive-tests` profile)
 
 #### Manual
 
