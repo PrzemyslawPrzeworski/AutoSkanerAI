@@ -1,5 +1,32 @@
 export type VerdictCode = 'WORTH_CHECKING' | 'NEEDS_MORE_INFO' | 'HIGH_RISK_SKIP';
 
+export type CepikStatus = 'FOUND' | 'NOT_FOUND' | 'LOOKUP_FAILED' | 'MISSING_INPUTS';
+
+export interface MileageStamp { date: string; mileageKm: number | null; }
+export interface DamageRecord { date: string; description: string; }
+
+export interface CepikResult {
+  status: CepikStatus;
+  vin: string | null;
+  firstRegistrationDatePl: string | null;
+  deregisteredDate: string | null;
+  originCountry: string | null;
+  ownerCount: number | null;
+  mileageStamps: MileageStamp[] | null;
+  damageRecords: DamageRecord[] | null;
+  lookupUrl: string | null;
+  fetchedAt: string;
+}
+
+export interface MarketPriceContext {
+  minPricePln: number | null;
+  medianPricePln: number | null;
+  maxPricePln: number | null;
+  sampleSize: number | null;
+  queryUrl: string | null;
+  fetchedAt: string;
+}
+
 export interface ExtractedData {
   make: string | null;
   model: string | null;
@@ -62,6 +89,8 @@ export interface AnalysisResponse {
   fetchStatus: 'ok' | 'url_failed' | 'text';
   fetchFailureReason: string | null;
   analysis: AnalysisResult | null;
+  cepikResult: CepikResult | null;
+  marketPriceContext: MarketPriceContext | null;
 }
 
 export interface AnalysisRequest {
