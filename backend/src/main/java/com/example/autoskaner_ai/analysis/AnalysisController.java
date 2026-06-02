@@ -1,5 +1,6 @@
 package com.example.autoskaner_ai.analysis;
 
+import com.example.autoskaner_ai.market.MarketPriceEnrichmentService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,10 +14,14 @@ public class AnalysisController {
 
     private final AiAnalysisService aiAnalysisService;
     private final ListingFetchService listingFetchService;
+    private final MarketPriceEnrichmentService marketPriceEnrichmentService;
 
-    public AnalysisController(AiAnalysisService aiAnalysisService, ListingFetchService listingFetchService) {
+    public AnalysisController(AiAnalysisService aiAnalysisService,
+                              ListingFetchService listingFetchService,
+                              MarketPriceEnrichmentService marketPriceEnrichmentService) {
         this.aiAnalysisService = aiAnalysisService;
         this.listingFetchService = listingFetchService;
+        this.marketPriceEnrichmentService = marketPriceEnrichmentService;
     }
 
     @PostMapping
@@ -25,13 +30,15 @@ public class AnalysisController {
             FetchResult fetch = listingFetchService.fetch(request.url());
             if (fetch.isOk()) {
                 AnalysisResult result = aiAnalysisService.analyze(fetch.text());
-                return ResponseEntity.ok(AnalysisResponse.ok(result));
+                var marketPriceContext = marketPriceEnrichmentService.enrich(result.extracted());
+                return ResponseEntity.ok(new AnalysisResponse("ok", null, result, null, marketPriceContext));
             } else {
                 return ResponseEntity.ok(AnalysisResponse.urlFailed(fetch.reason()));
             }
         }
 
         AnalysisResult result = aiAnalysisService.analyze(request.listingText());
-        return ResponseEntity.ok(AnalysisResponse.text(result));
+        var marketPriceContext = marketPriceEnrichmentService.enrich(result.extracted());
+        return ResponseEntity.ok(new AnalysisResponse("text", null, result, null, marketPriceContext));
     }
 }

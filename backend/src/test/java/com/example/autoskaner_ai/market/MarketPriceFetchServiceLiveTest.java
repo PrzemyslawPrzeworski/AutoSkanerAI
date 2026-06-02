@@ -28,7 +28,7 @@ class MarketPriceFetchServiceLiveTest {
                 95_000,
                 null, null, null, null, null, null, null);
 
-        MarketPriceContext ctx = service.fetch(data);
+        MarketPriceContext ctx = service.enrich(data);
 
         System.out.println("Market price result: status=" + ctx.status()
                 + " min=" + ctx.minPricePln()
@@ -56,7 +56,7 @@ class MarketPriceFetchServiceLiveTest {
                 null, "Corolla", 2019, null, null, 95_000,
                 null, null, null, null, null, null, null);
 
-        MarketPriceContext ctx = service.fetch(data);
+        MarketPriceContext ctx = service.enrich(data);
 
         assertThat(ctx.status()).isEqualTo(MarketPriceStatus.MISSING_INPUTS);
         assertThat(ctx.queryUrl()).isNull();

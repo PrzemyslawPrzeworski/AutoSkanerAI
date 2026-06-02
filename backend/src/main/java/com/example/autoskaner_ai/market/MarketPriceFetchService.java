@@ -5,6 +5,7 @@ import com.example.autoskaner_ai.analysis.MarketPriceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -20,7 +21,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
-public class MarketPriceFetchService {
+@Profile("!mock")
+public class MarketPriceFetchService implements MarketPriceEnrichmentService {
 
     private static final Logger log = LoggerFactory.getLogger(MarketPriceFetchService.class);
 
@@ -38,7 +40,8 @@ public class MarketPriceFetchService {
         this.slugMapper = slugMapper;
     }
 
-    public MarketPriceContext fetch(ExtractedData extracted) {
+    @Override
+    public MarketPriceContext enrich(ExtractedData extracted) {
         if (extracted == null || extracted.make() == null) {
             return missing();
         }

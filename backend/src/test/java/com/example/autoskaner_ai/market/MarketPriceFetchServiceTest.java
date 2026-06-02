@@ -56,7 +56,7 @@ class MarketPriceFetchServiceTest {
                 .andRespond(withSuccess(JINA_MARKDOWN_5_PRICES, MediaType.TEXT_PLAIN));
 
         ExtractedData data = toyotaCorolla2019();
-        MarketPriceContext ctx = service.fetch(data);
+        MarketPriceContext ctx = service.enrich(data);
 
         assertThat(ctx.status()).isEqualTo(MarketPriceStatus.OK);
         assertThat(ctx.minPricePln()).isEqualTo(48_000);
@@ -74,7 +74,7 @@ class MarketPriceFetchServiceTest {
         mockServer.expect(method(HttpMethod.GET))
                 .andRespond(withSuccess("", MediaType.TEXT_PLAIN));
 
-        MarketPriceContext ctx = service.fetch(toyotaCorolla2019());
+        MarketPriceContext ctx = service.enrich(toyotaCorolla2019());
 
         assertThat(ctx.status()).isEqualTo(MarketPriceStatus.FETCH_FAILED);
         mockServer.verify();
@@ -85,7 +85,7 @@ class MarketPriceFetchServiceTest {
         mockServer.expect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-        MarketPriceContext ctx = service.fetch(toyotaCorolla2019());
+        MarketPriceContext ctx = service.enrich(toyotaCorolla2019());
 
         assertThat(ctx.status()).isEqualTo(MarketPriceStatus.FETCH_FAILED);
         mockServer.verify();
@@ -96,7 +96,7 @@ class MarketPriceFetchServiceTest {
         ExtractedData data = new ExtractedData(null, "Corolla", 2019, null, null, 95_000,
                 null, null, null, null, null, null, null);
 
-        MarketPriceContext ctx = service.fetch(data);
+        MarketPriceContext ctx = service.enrich(data);
 
         assertThat(ctx.status()).isEqualTo(MarketPriceStatus.MISSING_INPUTS);
         assertThat(ctx.queryUrl()).isNull();
@@ -107,7 +107,7 @@ class MarketPriceFetchServiceTest {
         ExtractedData data = new ExtractedData("Trabant", "601", 1980, null, null, 50_000,
                 null, null, null, null, null, null, null);
 
-        MarketPriceContext ctx = service.fetch(data);
+        MarketPriceContext ctx = service.enrich(data);
 
         assertThat(ctx.status()).isEqualTo(MarketPriceStatus.MISSING_INPUTS);
     }
@@ -119,7 +119,7 @@ class MarketPriceFetchServiceTest {
         mockServer.expect(method(HttpMethod.GET)).andRespond(withSuccess(noPrices, MediaType.TEXT_PLAIN));
         mockServer.expect(method(HttpMethod.GET)).andRespond(withSuccess(noPrices, MediaType.TEXT_PLAIN));
 
-        MarketPriceContext ctx = service.fetch(toyotaCorolla2019());
+        MarketPriceContext ctx = service.enrich(toyotaCorolla2019());
 
         assertThat(ctx.status()).isEqualTo(MarketPriceStatus.INSUFFICIENT_DATA);
         assertThat(ctx.sampleSize()).isEqualTo(0);
@@ -128,7 +128,7 @@ class MarketPriceFetchServiceTest {
 
     @Test
     void fetch_nullExtractedData_returnsMissingInputs() {
-        MarketPriceContext ctx = service.fetch(null);
+        MarketPriceContext ctx = service.enrich(null);
 
         assertThat(ctx.status()).isEqualTo(MarketPriceStatus.MISSING_INPUTS);
     }

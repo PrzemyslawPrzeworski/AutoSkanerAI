@@ -297,26 +297,26 @@ export class MarketPricePanelComponent {
 
 #### Automated
 
-- [x] 1.1 `./mvnw test` — all existing tests green; new `MarketPriceFetchServiceTest` passes
-- [x] 1.2 `./mvnw compile` — no errors in new `market` package
-- [x] 1.3 `npm run build` — no TypeScript errors after status field addition
+- [x] 1.1 `./mvnw test` — all existing tests green; new `MarketPriceFetchServiceTest` passes — 0365560
+- [x] 1.2 `./mvnw compile` — no errors in new `market` package — 0365560
+- [x] 1.3 `npm run build` — no TypeScript errors after status field addition — 0365560
 
 #### Manual
 
-- [x] 1.4 Live call with Toyota Corolla 2019 → `OK` status with populated price range
-- [x] 1.5 Null make → `MISSING_INPUTS`, no exception
+- [x] 1.4 Live call with Toyota Corolla 2019 → `OK` status with populated price range — 0365560
+- [x] 1.5 Null make → `MISSING_INPUTS`, no exception — 0365560
 
 ### Phase 2: Controller Wiring
 
 #### Automated
 
-- [ ] 2.1 `./mvnw test` — all tests green including updated controller test
-- [ ] 2.2 `./mvnw test -Dgroups=live-llm` — live response includes `marketPriceContext` field
+- [x] 2.1 `./mvnw test` — all tests green including updated controller test
+- [x] 2.2 `./mvnw test -Dgroups=live-llm` — live response includes `marketPriceContext` field
 
 #### Manual
 
-- [ ] 2.3 Mock profile POST → `marketPriceContext.status == "FETCH_FAILED"` in response JSON
-- [ ] 2.4 OpenRouter profile POST with make/model/year listing → `marketPriceContext` present with status
+- [x] 2.3 Mock profile POST → `marketPriceContext.status == "FETCH_FAILED"` in response JSON
+- [x] 2.4 OpenRouter profile POST with make/model/year listing → `marketPriceContext` present with status
 
 ### Phase 3: Frontend Market Price Panel
 

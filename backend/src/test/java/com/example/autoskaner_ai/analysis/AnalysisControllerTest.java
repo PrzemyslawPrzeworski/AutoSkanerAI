@@ -1,6 +1,8 @@
 package com.example.autoskaner_ai.analysis;
 
 import com.example.autoskaner_ai.common.GlobalExceptionHandler;
+import com.example.autoskaner_ai.market.MarketPriceEnrichmentService;
+import com.example.autoskaner_ai.market.MarketPriceStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.context.ActiveProfiles;
@@ -10,6 +12,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.time.Instant;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -23,13 +26,17 @@ class AnalysisControllerTest {
     private MockMvc mockMvc;
     private AiAnalysisService aiAnalysisService;
     private ListingFetchService listingFetchService;
+    private MarketPriceEnrichmentService marketPriceEnrichmentService;
 
     @BeforeEach
     void setUp() {
         aiAnalysisService = mock(AiAnalysisService.class);
         listingFetchService = mock(ListingFetchService.class);
+        marketPriceEnrichmentService = mock(MarketPriceEnrichmentService.class);
+        when(marketPriceEnrichmentService.enrich(any())).thenReturn(
+                new MarketPriceContext(MarketPriceStatus.FETCH_FAILED, null, null, null, null, null, Instant.now()));
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new AnalysisController(aiAnalysisService, listingFetchService))
+                .standaloneSetup(new AnalysisController(aiAnalysisService, listingFetchService, marketPriceEnrichmentService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -68,7 +75,8 @@ class AnalysisControllerTest {
                 .andExpect(jsonPath("$.analysis.verdict").exists())
                 .andExpect(jsonPath("$.analysis.meta").exists())
                 .andExpect(jsonPath("$.analysis.meta.provider").value("mock"))
-                .andExpect(jsonPath("$.analysis.verdict.code").value("WORTH_CHECKING"));
+                .andExpect(jsonPath("$.analysis.verdict.code").value("WORTH_CHECKING"))
+                .andExpect(jsonPath("$.marketPriceContext.status").value("FETCH_FAILED"));
     }
 
     @Test
@@ -94,7 +102,8 @@ class AnalysisControllerTest {
                         .content("{\"url\":\"https://otomoto.pl/listing/123\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fetchStatus").value("ok"))
-                .andExpect(jsonPath("$.analysis.verdict.code").value("WORTH_CHECKING"));
+                .andExpect(jsonPath("$.analysis.verdict.code").value("WORTH_CHECKING"))
+                .andExpect(jsonPath("$.marketPriceContext.status").value("FETCH_FAILED"));
     }
 
     @Test
