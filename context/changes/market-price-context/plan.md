@@ -297,14 +297,14 @@ export class MarketPricePanelComponent {
 
 #### Automated
 
-- [ ] 1.1 `./mvnw test` — all existing tests green; new `MarketPriceFetchServiceTest` passes
-- [ ] 1.2 `./mvnw compile` — no errors in new `market` package
-- [ ] 1.3 `npm run build` — no TypeScript errors after status field addition
+- [x] 1.1 `./mvnw test` — all existing tests green; new `MarketPriceFetchServiceTest` passes
+- [x] 1.2 `./mvnw compile` — no errors in new `market` package
+- [x] 1.3 `npm run build` — no TypeScript errors after status field addition
 
 #### Manual
 
-- [ ] 1.4 Live call with Toyota Corolla 2019 → `OK` status with populated price range
-- [ ] 1.5 Null make → `MISSING_INPUTS`, no exception
+- [x] 1.4 Live call with Toyota Corolla 2019 → `OK` status with populated price range
+- [x] 1.5 Null make → `MISSING_INPUTS`, no exception
 
 ### Phase 2: Controller Wiring
 
