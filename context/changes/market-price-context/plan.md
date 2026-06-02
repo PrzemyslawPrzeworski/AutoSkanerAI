@@ -322,14 +322,14 @@ export class MarketPricePanelComponent {
 
 #### Automated
 
-- [x] 3.1 `npm run build` — no errors
-- [x] 3.2 `npm run typecheck` — no errors
+- [x] 3.1 `npm run build` — no errors — 746404c
+- [x] 3.2 `npm run typecheck` — no errors — 746404c
 
 #### Manual
 
-- [x] 3.3 Mock profile → price panel shows degraded state
-- [x] 3.4 Listing with no make → price panel absent
-- [x] 3.5 Live test Toyota Corolla → price range shown with Otomoto link
-- [x] 3.6 Expand/collapse works
-- [x] 3.7 Low-sample caveat shown when sampleSize < 3
-- [x] 3.8 Otomoto link opens correct URL in new tab
+- [x] 3.3 Mock profile → price panel shows degraded state — 746404c
+- [x] 3.4 Listing with no make → price panel absent — 746404c
+- [x] 3.5 Live test Toyota Corolla → price range shown with Otomoto link — 746404c
+- [x] 3.6 Expand/collapse works — 746404c
+- [x] 3.7 Low-sample caveat shown when sampleSize < 3 — 746404c
+- [x] 3.8 Otomoto link opens correct URL in new tab — 746404c
