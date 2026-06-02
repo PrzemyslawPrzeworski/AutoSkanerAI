@@ -28,7 +28,7 @@ public class MarketPriceFetchService implements MarketPriceEnrichmentService {
 
     private static final String JINA_PREFIX = "https://r.jina.ai/";
     private static final String OTOMOTO_BASE = "https://www.otomoto.pl/osobowe";
-    private static final Pattern PRICE_PATTERN = Pattern.compile("###\\s*([\\d\\s]+)\\nPLN");
+    private static final Pattern PRICE_PATTERN = Pattern.compile("###\\s*([\\d\\s]+)\\r?\\nPLN");
 
     private final RestClient client;
     private final OtomotoSlugMapper slugMapper;
@@ -73,7 +73,7 @@ public class MarketPriceFetchService implements MarketPriceEnrichmentService {
         }
 
         if (prices.isEmpty()) {
-            return new MarketPriceContext(MarketPriceStatus.INSUFFICIENT_DATA, null, null, null, 0, queryUrl, Instant.now());
+            return new MarketPriceContext(MarketPriceStatus.INSUFFICIENT_DATA, null, null, null, null, queryUrl, Instant.now());
         }
 
         Collections.sort(prices);
@@ -136,9 +136,14 @@ public class MarketPriceFetchService implements MarketPriceEnrichmentService {
         while (m.find()) {
             String raw = m.group(1).replaceAll("\\s", "");
             try {
-                prices.add(Integer.parseInt(raw));
+                long v = Long.parseLong(raw);
+                if (v >= 1_000 && v <= 10_000_000) {
+                    prices.add((int) v);
+                } else {
+                    log.warn("Market price token out of range url={} token={}", otomotoUrl, raw);
+                }
             } catch (NumberFormatException e) {
-                log.debug("Skipping unparseable price token: {}", m.group(1));
+                log.warn("Market price unparseable token url={} token={}", otomotoUrl, m.group(1));
             }
         }
         return prices;

@@ -34,7 +34,8 @@ class AnalysisControllerTest {
         listingFetchService = mock(ListingFetchService.class);
         marketPriceEnrichmentService = mock(MarketPriceEnrichmentService.class);
         when(marketPriceEnrichmentService.enrich(any())).thenReturn(
-                new MarketPriceContext(MarketPriceStatus.FETCH_FAILED, null, null, null, null, null, Instant.now()));
+                new MarketPriceContext(MarketPriceStatus.OK, 45_000, 55_000, 70_000, 12,
+                        "https://www.otomoto.pl/osobowe/toyota/corolla", Instant.now()));
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new AnalysisController(aiAnalysisService, listingFetchService, marketPriceEnrichmentService))
                 .setControllerAdvice(new GlobalExceptionHandler())
@@ -76,7 +77,7 @@ class AnalysisControllerTest {
                 .andExpect(jsonPath("$.analysis.meta").exists())
                 .andExpect(jsonPath("$.analysis.meta.provider").value("mock"))
                 .andExpect(jsonPath("$.analysis.verdict.code").value("WORTH_CHECKING"))
-                .andExpect(jsonPath("$.marketPriceContext.status").value("FETCH_FAILED"));
+                .andExpect(jsonPath("$.marketPriceContext.status").value("OK"));
     }
 
     @Test
@@ -103,7 +104,7 @@ class AnalysisControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fetchStatus").value("ok"))
                 .andExpect(jsonPath("$.analysis.verdict.code").value("WORTH_CHECKING"))
-                .andExpect(jsonPath("$.marketPriceContext.status").value("FETCH_FAILED"));
+                .andExpect(jsonPath("$.marketPriceContext.status").value("OK"));
     }
 
     @Test

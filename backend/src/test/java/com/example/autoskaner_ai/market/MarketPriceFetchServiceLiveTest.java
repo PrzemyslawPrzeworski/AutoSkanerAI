@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @Tag("live-llm")
 @SpringBootTest
-@ActiveProfiles("mock")
+@ActiveProfiles("openrouter")
 class MarketPriceFetchServiceLiveTest {
 
     @Autowired

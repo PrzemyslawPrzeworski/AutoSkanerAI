@@ -12,8 +12,9 @@ import org.springframework.web.client.RestClient;
 import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestToUriTemplate;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
@@ -53,6 +54,8 @@ class MarketPriceFetchServiceTest {
     @Test
     void fetch_validMarkdownWith5Prices_returnsCorrectStats() {
         mockServer.expect(method(HttpMethod.GET))
+                .andExpect(requestTo(containsString("r.jina.ai")))
+                .andExpect(requestTo(containsString("toyota%2Fcorolla")))
                 .andRespond(withSuccess(JINA_MARKDOWN_5_PRICES, MediaType.TEXT_PLAIN));
 
         ExtractedData data = toyotaCorolla2019();
@@ -72,6 +75,7 @@ class MarketPriceFetchServiceTest {
     @Test
     void fetch_emptyBody_returnsFetchFailed() {
         mockServer.expect(method(HttpMethod.GET))
+                .andExpect(requestTo(containsString("r.jina.ai")))
                 .andRespond(withSuccess("", MediaType.TEXT_PLAIN));
 
         MarketPriceContext ctx = service.enrich(toyotaCorolla2019());
@@ -122,7 +126,7 @@ class MarketPriceFetchServiceTest {
         MarketPriceContext ctx = service.enrich(toyotaCorolla2019());
 
         assertThat(ctx.status()).isEqualTo(MarketPriceStatus.INSUFFICIENT_DATA);
-        assertThat(ctx.sampleSize()).isEqualTo(0);
+        assertThat(ctx.sampleSize()).isNull();
         mockServer.verify();
     }
 

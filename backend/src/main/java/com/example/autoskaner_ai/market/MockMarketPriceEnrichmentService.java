@@ -13,6 +13,10 @@ public class MockMarketPriceEnrichmentService implements MarketPriceEnrichmentSe
 
     @Override
     public MarketPriceContext enrich(ExtractedData extracted) {
-        return new MarketPriceContext(MarketPriceStatus.FETCH_FAILED, null, null, null, null, null, Instant.now());
+        return new MarketPriceContext(
+                MarketPriceStatus.OK,
+                45_000, 55_000, 70_000, 12,
+                "https://www.otomoto.pl/osobowe/toyota/corolla",
+                Instant.now());
     }
 }
