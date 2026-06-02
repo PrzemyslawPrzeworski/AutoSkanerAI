@@ -640,28 +640,28 @@ The `CepikApiService` fires 16 parallel HTTP requests (one per voivodeship). Wit
 
 #### Automated
 
-- [x] 5.1 `./mvnw test` — all existing controller tests pass
-- [x] 5.2 New test: mock profile → `cepikResult.status == "LOOKUP_FAILED"` in response JSON
-- [x] 5.3 New test: missing plate → sellerQuestions contains plate question
+- [x] 5.1 `./mvnw test` — all existing controller tests pass — 6d3e948
+- [x] 5.2 New test: mock profile → `cepikResult.status == "LOOKUP_FAILED"` in response JSON — 6d3e948
+- [x] 5.3 New test: missing plate → sellerQuestions contains plate question — 6d3e948
 - [ ] 5.4 `./mvnw test -Dgroups=live-llm` — response includes `cepikResult` field
 
 #### Manual
 
-- [x] 5.5 Listing with no VIN → `MISSING_INPUTS`, seller questions contain VIN + plate + date prompts
-- [x] 5.6 Listing with VIN + plate + date → `FOUND` or `LOOKUP_FAILED`, never an exception
+- [x] 5.5 Listing with no VIN → `MISSING_INPUTS`, seller questions contain VIN + plate + date prompts — 6d3e948
+- [x] 5.6 Listing with VIN + plate + date → `FOUND` or `LOOKUP_FAILED`, never an exception — 6d3e948
 
 ### Phase 6: Frontend CEPiK Panel
 
 #### Automated
 
-- [ ] 6.1 `npm run build` — no errors
-- [ ] 6.2 `npm run typecheck` — no errors
+- [x] 6.1 `npm run build` — no errors
+- [x] 6.2 `npm run typecheck` — no errors
 
 #### Manual
 
-- [ ] 6.3 Mock profile → CEPiK card shows degraded state with manual link
-- [ ] 6.4 Missing VIN listing → card shows `MISSING_INPUTS`, seller questions include prompts
-- [ ] 6.5 Live test with VIN + plate + date → `FOUND` or `LOOKUP_FAILED` rendered correctly
-- [ ] 6.6 Mileage expand/collapse works
-- [ ] 6.7 Damage copy never says "brak wypadków"
-- [ ] 6.8 Manual link opens `historiapojazdu.gov.pl` in new tab
+- [x] 6.3 Mock profile → CEPiK card shows degraded state with manual link
+- [x] 6.4 Missing VIN listing → card shows `MISSING_INPUTS`, seller questions include prompts
+- [x] 6.5 Live test with VIN + plate + date → `FOUND` or `LOOKUP_FAILED` rendered correctly
+- [x] 6.6 Mileage expand/collapse works
+- [x] 6.7 Damage copy never says "brak wypadków"
+- [x] 6.8 Manual link opens `historiapojazdu.gov.pl` in new tab

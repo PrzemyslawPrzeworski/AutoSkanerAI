@@ -3,16 +3,18 @@ import { DatePipe } from '@angular/common';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
 import { ProgressBarModule } from 'primeng/progressbar';
-import { AnalysisResult } from '../../../../shared/models/analysis.models';
+import { AnalysisResult, CepikResult } from '../../../../shared/models/analysis.models';
+import { CepikResultComponent } from '../cepik-result/cepik-result.component';
 
 @Component({
   selector: 'app-analysis-result',
-  imports: [DatePipe, CardModule, TagModule, ProgressBarModule],
+  imports: [DatePipe, CardModule, TagModule, ProgressBarModule, CepikResultComponent],
   templateUrl: './analysis-result.component.html',
   styleUrl: './analysis-result.component.scss'
 })
 export class AnalysisResultComponent {
   readonly result = input.required<AnalysisResult>();
+  readonly cepikResult = input<CepikResult | null>(null);
 
   riskFlagsExpanded = signal(false);
 

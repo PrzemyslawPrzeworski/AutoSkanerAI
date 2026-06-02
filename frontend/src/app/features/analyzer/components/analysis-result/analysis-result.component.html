@@ -112,7 +112,10 @@
   </div>
 }
 
-<!-- Section 7: Meta footer -->
+<!-- Section 7: CEPiK panel -->
+<app-cepik-result [cepikResult]="cepikResult()" />
+
+<!-- Section 8: Meta footer -->
 <div class="meta-footer">
   Analiza: {{ result().meta.provider }} · {{ result().meta.model }} ·
   {{ result().meta.latencyMs }}ms ·
