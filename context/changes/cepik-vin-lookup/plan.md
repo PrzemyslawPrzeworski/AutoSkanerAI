@@ -654,14 +654,14 @@ The `CepikApiService` fires 16 parallel HTTP requests (one per voivodeship). Wit
 
 #### Automated
 
-- [x] 6.1 `npm run build` — no errors
-- [x] 6.2 `npm run typecheck` — no errors
+- [x] 6.1 `npm run build` — no errors — 29ebba1
+- [x] 6.2 `npm run typecheck` — no errors — 29ebba1
 
 #### Manual
 
-- [x] 6.3 Mock profile → CEPiK card shows degraded state with manual link
-- [x] 6.4 Missing VIN listing → card shows `MISSING_INPUTS`, seller questions include prompts
-- [x] 6.5 Live test with VIN + plate + date → `FOUND` or `LOOKUP_FAILED` rendered correctly
-- [x] 6.6 Mileage expand/collapse works
-- [x] 6.7 Damage copy never says "brak wypadków"
-- [x] 6.8 Manual link opens `historiapojazdu.gov.pl` in new tab
+- [x] 6.3 Mock profile → CEPiK card shows degraded state with manual link — 29ebba1
+- [x] 6.4 Missing VIN listing → card shows `MISSING_INPUTS`, seller questions include prompts — 29ebba1
+- [x] 6.5 Live test with VIN + plate + date → `FOUND` or `LOOKUP_FAILED` rendered correctly — 29ebba1
+- [x] 6.6 Mileage expand/collapse works — 29ebba1
+- [x] 6.7 Damage copy never says "brak wypadków" — 29ebba1
+- [x] 6.8 Manual link opens `historiapojazdu.gov.pl` in new tab — 29ebba1
