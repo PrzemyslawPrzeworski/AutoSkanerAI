@@ -614,27 +614,27 @@ The `CepikApiService` fires 16 parallel HTTP requests (one per voivodeship). Wit
 
 #### Automated
 
-- [x] 3.1 `./mvnw compile` — no errors in `cepik` package
-- [x] 3.2 Unit test: mock hit on voivodeship 12 → correct date string returned
-- [x] 3.3 Unit test: all 16 empty → `Optional.empty()` returned
-- [x] 3.4 Unit test: 14 exceptions, 2 empty → `Optional.empty()`, no exception propagated
+- [x] 3.1 `./mvnw compile` — no errors in `cepik` package — a27064a
+- [x] 3.2 Unit test: mock hit on voivodeship 12 → correct date string returned — a27064a
+- [x] 3.3 Unit test: all 16 empty → `Optional.empty()` returned — a27064a
+- [x] 3.4 Unit test: 14 exceptions, 2 empty → `Optional.empty()`, no exception propagated — a27064a
 
 #### Manual
 
-- [x] 3.5 `CepikApiService` called with known VIN → returns date string or empty without throwing (live test)
+- [x] 3.5 `CepikApiService` called with known VIN → returns date string or empty without throwing (live test) — a27064a
 
 ### Phase 4: HistoriaPojazduService
 
 #### Automated
 
-- [ ] 4.1 `./mvnw compile` — no errors
-- [ ] 4.2 Unit test `HistoriaPojazduParser`: fixture JSON → correct field mapping
-- [ ] 4.3 Unit test `HistoriaPojazduService`: session exception → `LOOKUP_FAILED`, no exception propagated
+- [x] 4.1 `./mvnw compile` — no errors
+- [x] 4.2 Unit test `HistoriaPojazduParser`: fixture JSON → correct field mapping
+- [x] 4.3 Unit test `HistoriaPojazduService`: session exception → `LOOKUP_FAILED`, no exception propagated
 
 #### Manual
 
-- [ ] 4.4 Valid plate + VIN + date → `status = FOUND` with populated fields (live test)
-- [ ] 4.5 Invalid inputs → `NOT_FOUND` or `LOOKUP_FAILED` without exception
+- [x] 4.4 Valid plate + VIN + date → `status = FOUND` with populated fields (live test)
+- [x] 4.5 Invalid inputs → `NOT_FOUND` or `LOOKUP_FAILED` without exception
 
 ### Phase 5: Controller Orchestration
 
