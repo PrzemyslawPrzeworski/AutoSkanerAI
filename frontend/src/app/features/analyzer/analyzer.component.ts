@@ -6,7 +6,7 @@ import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { SkeletonModule } from 'primeng/skeleton';
 import { AnalysisService } from '../../core/services/analysis.service';
-import { AnalysisResponse, AnalysisResult } from '../../shared/models/analysis.models';
+import { AnalysisResponse } from '../../shared/models/analysis.models';
 import { AnalysisResultComponent } from './components/analysis-result/analysis-result.component';
 
 @Component({
@@ -22,7 +22,6 @@ export class AnalyzerComponent implements OnDestroy {
   loadingMessage = signal('Analizuję ogłoszenie...');
   fetchFailedBanner = signal<string | null>(null);
   error = signal<string | null>(null);
-  result = signal<AnalysisResult | null>(null);
   analysisResponse = signal<AnalysisResponse | null>(null);
 
   private rotationInterval: ReturnType<typeof setInterval> | null = null;
@@ -52,7 +51,7 @@ export class AnalyzerComponent implements OnDestroy {
     this.loading.set(true);
     this.error.set(null);
     this.fetchFailedBanner.set(null);
-    this.result.set(null);
+    this.analysisResponse.set(null);
     this.startRotation();
 
     this.analysisService.analyze({
@@ -68,7 +67,6 @@ export class AnalyzerComponent implements OnDestroy {
           );
         } else if (response.analysis) {
           this.analysisResponse.set(response);
-          this.result.set(response.analysis);
         } else {
           this.error.set('Otrzymano niepełną odpowiedź serwera.');
         }
@@ -88,7 +86,6 @@ export class AnalyzerComponent implements OnDestroy {
     this.loadingMessage.set(this.loadingMessages[0]);
     this.fetchFailedBanner.set(null);
     this.error.set(null);
-    this.result.set(null);
     this.analysisResponse.set(null);
     this.stopRotation();
   }

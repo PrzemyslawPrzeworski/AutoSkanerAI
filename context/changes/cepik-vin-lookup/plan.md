@@ -600,68 +600,68 @@ The `CepikApiService` fires 16 parallel HTTP requests (one per voivodeship). Wit
 
 #### Automated
 
-- [ ] 2.1 `./mvnw test` — parser tests pass with updated fixtures
-- [ ] 2.2 `npm run build` — no TypeScript errors
-- [ ] 2.3 `./mvnw test -Dgroups=live-llm` — response includes `vin`, `registrationPlate`, `firstRegistrationDate` fields
+- [x] 2.1 `./mvnw test` — parser tests pass with updated fixtures — 8a2dcfe
+- [x] 2.2 `npm run build` — no TypeScript errors — 8a2dcfe
+- [x] 2.3 `./mvnw test -Plive-tests` — response includes `vin`, `registrationPlate`, `firstRegistrationDate` fields (use `-Plive-tests` profile; surefire excludedGroups hardcoded in default config)
 
 #### Manual
 
-- [ ] 2.4 Listing with VIN → `extracted.vin` populated, visible in data table
-- [ ] 2.5 Listing without VIN → `extracted.vin` null, `NO_VIN` risk flag still present
-- [ ] 2.6 Listing with registration plate → `extracted.registrationPlate` populated
+- [x] 2.4 Listing with VIN → `extracted.vin` populated, visible in data table — 8a2dcfe
+- [x] 2.5 Listing without VIN → `extracted.vin` null, `NO_VIN` risk flag still present — 8a2dcfe
+- [x] 2.6 Listing with registration plate → `extracted.registrationPlate` populated — 8a2dcfe
 
 ### Phase 3: CepikApiService
 
 #### Automated
 
-- [ ] 3.1 `./mvnw compile` — no errors in `cepik` package
-- [ ] 3.2 Unit test: mock hit on voivodeship 12 → correct date string returned
-- [ ] 3.3 Unit test: all 16 empty → `Optional.empty()` returned
-- [ ] 3.4 Unit test: 14 exceptions, 2 empty → `Optional.empty()`, no exception propagated
+- [x] 3.1 `./mvnw compile` — no errors in `cepik` package — a27064a
+- [x] 3.2 Unit test: mock hit on voivodeship 12 → correct date string returned — a27064a
+- [x] 3.3 Unit test: all 16 empty → `Optional.empty()` returned — a27064a
+- [x] 3.4 Unit test: 14 exceptions, 2 empty → `Optional.empty()`, no exception propagated — a27064a
 
 #### Manual
 
-- [ ] 3.5 `CepikApiService` called with known VIN → returns date string or empty without throwing (live test)
+- [x] 3.5 `CepikApiService` called with known VIN → returns date string or empty without throwing (live test) — a27064a
 
 ### Phase 4: HistoriaPojazduService
 
 #### Automated
 
-- [ ] 4.1 `./mvnw compile` — no errors
-- [ ] 4.2 Unit test `HistoriaPojazduParser`: fixture JSON → correct field mapping
-- [ ] 4.3 Unit test `HistoriaPojazduService`: session exception → `LOOKUP_FAILED`, no exception propagated
+- [x] 4.1 `./mvnw compile` — no errors — e616ea2
+- [x] 4.2 Unit test `HistoriaPojazduParser`: fixture JSON → correct field mapping — e616ea2
+- [x] 4.3 Unit test `HistoriaPojazduService`: session exception → `LOOKUP_FAILED`, no exception propagated — e616ea2
 
 #### Manual
 
-- [ ] 4.4 Valid plate + VIN + date → `status = FOUND` with populated fields (live test)
-- [ ] 4.5 Invalid inputs → `NOT_FOUND` or `LOOKUP_FAILED` without exception
+- [x] 4.4 Valid plate + VIN + date → `status = FOUND` with populated fields (live test) — e616ea2
+- [x] 4.5 Invalid inputs → `NOT_FOUND` or `LOOKUP_FAILED` without exception — e616ea2
 
 ### Phase 5: Controller Orchestration
 
 #### Automated
 
-- [ ] 5.1 `./mvnw test` — all existing controller tests pass
-- [ ] 5.2 New test: mock profile → `cepikResult.status == "LOOKUP_FAILED"` in response JSON
-- [ ] 5.3 New test: missing plate → sellerQuestions contains plate question
-- [ ] 5.4 `./mvnw test -Dgroups=live-llm` — response includes `cepikResult` field
+- [x] 5.1 `./mvnw test` — all existing controller tests pass — 6d3e948
+- [x] 5.2 New test: mock profile → `cepikResult.status == "LOOKUP_FAILED"` in response JSON — 6d3e948
+- [x] 5.3 New test: missing plate → sellerQuestions contains plate question — 6d3e948
+- [x] 5.4 `./mvnw test -Plive-tests` — response includes `cepikResult` field (use `-Plive-tests` profile)
 
 #### Manual
 
-- [ ] 5.5 Listing with no VIN → `MISSING_INPUTS`, seller questions contain VIN + plate + date prompts
-- [ ] 5.6 Listing with VIN + plate + date → `FOUND` or `LOOKUP_FAILED`, never an exception
+- [x] 5.5 Listing with no VIN → `MISSING_INPUTS`, seller questions contain VIN + plate + date prompts — 6d3e948
+- [x] 5.6 Listing with VIN + plate + date → `FOUND` or `LOOKUP_FAILED`, never an exception — 6d3e948
 
 ### Phase 6: Frontend CEPiK Panel
 
 #### Automated
 
-- [ ] 6.1 `npm run build` — no errors
-- [ ] 6.2 `npm run typecheck` — no errors
+- [x] 6.1 `npm run build` — no errors — 29ebba1
+- [x] 6.2 `npm run typecheck` — no errors — 29ebba1
 
 #### Manual
 
-- [ ] 6.3 Mock profile → CEPiK card shows degraded state with manual link
-- [ ] 6.4 Missing VIN listing → card shows `MISSING_INPUTS`, seller questions include prompts
-- [ ] 6.5 Live test with VIN + plate + date → `FOUND` or `LOOKUP_FAILED` rendered correctly
-- [ ] 6.6 Mileage expand/collapse works
-- [ ] 6.7 Damage copy never says "brak wypadków"
-- [ ] 6.8 Manual link opens `historiapojazdu.gov.pl` in new tab
+- [x] 6.3 Mock profile → CEPiK card shows degraded state with manual link — 29ebba1
+- [x] 6.4 Missing VIN listing → card shows `MISSING_INPUTS`, seller questions include prompts — 29ebba1
+- [x] 6.5 Live test with VIN + plate + date → `FOUND` or `LOOKUP_FAILED` rendered correctly — 29ebba1
+- [x] 6.6 Mileage expand/collapse works — 29ebba1
+- [x] 6.7 Damage copy never says "brak wypadków" — 29ebba1
+- [x] 6.8 Manual link opens `historiapojazdu.gov.pl` in new tab — 29ebba1

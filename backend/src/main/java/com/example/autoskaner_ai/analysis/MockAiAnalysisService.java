@@ -17,11 +17,14 @@ public class MockAiAnalysisService implements AiAnalysisService {
     private static final Pattern YEAR_PATTERN = Pattern.compile("\\b(199\\d|20[012]\\d)\\b");
     private static final Pattern PRICE_PATTERN = Pattern.compile("(\\d[\\d\\s]{2,})\\s*(zł|pln|eur|€|usd)", Pattern.CASE_INSENSITIVE);
     private static final Pattern MILEAGE_PATTERN = Pattern.compile("(\\d[\\d\\s]*)\\s*(km|tys\\.?\\s*km)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern VIN_PATTERN = Pattern.compile("\\b([A-HJ-NPR-Z0-9]{17})\\b");
+    private static final Pattern PLATE_PATTERN = Pattern.compile("\\b([A-Z]{2,3}[A-Z0-9]{4,5})\\b");
+    private static final Pattern DATE_PATTERN = Pattern.compile("\\b(\\d{2}\\.\\d{2}\\.\\d{4}|\\d{4}-\\d{2}-\\d{2})\\b");
 
     private static final List<String> CANNED_QUESTIONS = List.of(
             "Czy pojazd był uczestnikiem wypadku lub kolizji?",
             "Czy dostępna jest pełna historia serwisowa?",
-            "Czy numer VIN można zweryfikować w bazie CEPiK?",
+            "Czy pojazd ma pełną dokumentację techniczną?",
             "Jaki jest powód sprzedaży pojazdu?",
             "Czy cena jest negocjowalna?"
     );
@@ -109,13 +112,32 @@ public class MockAiAnalysisService implements AiAnalysisService {
             accidentClaim = "historia wypadków wspomniana";
         }
 
-        Boolean vinPresent = lower.contains("vin") || lower.contains("nr identyfikacyjny") ? Boolean.TRUE : null;
+        String vin = null;
+        Matcher vinMatcher = VIN_PATTERN.matcher(original);
+        if (vinMatcher.find()) {
+            vin = vinMatcher.group(1);
+        }
+
+        String plate = null;
+        Matcher plateMatcher = PLATE_PATTERN.matcher(original);
+        if (plateMatcher.find()) {
+            plate = plateMatcher.group(1);
+        }
+
+        String firstRegDate = null;
+        Matcher dateMatcher = DATE_PATTERN.matcher(original);
+        if (dateMatcher.find()) {
+            firstRegDate = dateMatcher.group(1);
+        }
+
+        Boolean vinPresent = vin != null || lower.contains("vin") || lower.contains("nr identyfikacyjny") ? Boolean.TRUE : null;
         Boolean serviceHistory = lower.contains("serwis") || lower.contains("przegląd") || lower.contains("olej") ? Boolean.TRUE : null;
 
         return new ExtractedData(
                 null, null, year, price, currency, mileage,
                 null, null, null, null,
-                serviceHistory, accidentClaim, vinPresent
+                serviceHistory, accidentClaim, vinPresent,
+                vin, plate, firstRegDate
         );
     }
 
@@ -168,12 +190,13 @@ public class MockAiAnalysisService implements AiAnalysisService {
     }
 
     private int computeCompletenessScore(ExtractedData d) {
-        int total = 6;
+        int total = 7;
         int present = 0;
         if (d.year() != null) present++;
         if (d.priceAmount() != null) present++;
         if (d.mileageKm() != null) present++;
         if (d.vinPresent() != null) present++;
+        if (d.vin() != null) present++;
         if (d.accidentClaim() != null) present++;
         if (d.serviceHistoryMentioned() != null) present++;
         return present * 100 / total;

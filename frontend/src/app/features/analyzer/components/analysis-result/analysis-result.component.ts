@@ -3,17 +3,19 @@ import { DatePipe } from '@angular/common';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
 import { ProgressBarModule } from 'primeng/progressbar';
-import { AnalysisResult, MarketPriceContext } from '../../../../shared/models/analysis.models';
+import { AnalysisResult, CepikResult, MarketPriceContext } from '../../../../shared/models/analysis.models';
+import { CepikResultComponent } from '../cepik-result/cepik-result.component';
 import { MarketPricePanelComponent } from '../market-price-panel/market-price-panel.component';
 
 @Component({
   selector: 'app-analysis-result',
-  imports: [DatePipe, CardModule, TagModule, ProgressBarModule, MarketPricePanelComponent],
+  imports: [DatePipe, CardModule, TagModule, ProgressBarModule, CepikResultComponent, MarketPricePanelComponent],
   templateUrl: './analysis-result.component.html',
   styleUrl: './analysis-result.component.scss'
 })
 export class AnalysisResultComponent {
   readonly result = input.required<AnalysisResult>();
+  readonly cepikResult = input<CepikResult | null>(null);
   readonly marketPriceContext = input<MarketPriceContext | null>(null);
 
   riskFlagsExpanded = signal(false);

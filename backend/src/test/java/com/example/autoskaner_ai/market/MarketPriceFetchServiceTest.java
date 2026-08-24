@@ -98,7 +98,7 @@ class MarketPriceFetchServiceTest {
     @Test
     void fetch_nullMake_returnsMissingInputs() {
         ExtractedData data = new ExtractedData(null, "Corolla", 2019, null, null, 95_000,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null);
 
         MarketPriceContext ctx = service.enrich(data);
 
@@ -109,7 +109,7 @@ class MarketPriceFetchServiceTest {
     @Test
     void fetch_unknownMake_returnsMissingInputs() {
         ExtractedData data = new ExtractedData("Trabant", "601", 1980, null, null, 50_000,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null);
 
         MarketPriceContext ctx = service.enrich(data);
 
@@ -139,6 +139,6 @@ class MarketPriceFetchServiceTest {
 
     private ExtractedData toyotaCorolla2019() {
         return new ExtractedData("Toyota", "Corolla", 2019, BigDecimal.valueOf(55_000), "PLN",
-                95_000, "benzyna", "automat", null, null, null, null, null);
+                95_000, "benzyna", "automat", null, null, null, null, null, null, null, null);
     }
 }

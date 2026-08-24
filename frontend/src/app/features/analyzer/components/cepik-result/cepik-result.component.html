@@ -1,0 +1,87 @@
+@if (cepikResult()) {
+  <div class="section cepik-section">
+    <h3>Historia CEPiK</h3>
+
+    @if (cepikResult()!.status === 'FOUND') {
+      <div class="cepik-card cepik-found">
+        <div class="cepik-row">
+          <span class="cepik-label">Liczba właścicieli</span>
+          <span class="cepik-value">{{ cepikResult()!.ownerCount ?? '—' }}</span>
+        </div>
+
+        @if (cepikResult()!.mileageStamps && cepikResult()!.mileageStamps!.length > 0) {
+          <div class="cepik-row">
+            <span class="cepik-label">Ostatni odczyt przebiegu</span>
+            <span class="cepik-value">
+              {{ cepikResult()!.mileageStamps![cepikResult()!.mileageStamps!.length - 1].mileageKm ?? '—' }} km
+              ({{ cepikResult()!.mileageStamps![cepikResult()!.mileageStamps!.length - 1].date }})
+            </span>
+          </div>
+          @if (cepikResult()!.mileageStamps!.length > 1) {
+            <button class="expand-link" (click)="toggleMileage()">
+              {{ mileageExpanded() ? 'Ukryj historię przebiegu' : 'Pokaż historię przebiegu (' + cepikResult()!.mileageStamps!.length + ' odczytów)' }}
+            </button>
+            @if (mileageExpanded()) {
+              <table class="mileage-table">
+                <tbody>
+                  @for (stamp of cepikResult()!.mileageStamps!; track stamp.date) {
+                    <tr>
+                      <td>{{ stamp.date }}</td>
+                      <td>{{ stamp.mileageKm ?? '—' }} km</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          }
+        }
+
+        <div class="cepik-damage">
+          @if (!cepikResult()!.damageRecords || cepikResult()!.damageRecords!.length === 0) {
+            <p class="cepik-no-damage">
+              Brak zgłoszonych szkód istotnych w CEPiK.
+              Nie wyklucza napraw niezgłoszonych do ubezpieczyciela.
+            </p>
+          } @else {
+            <p class="cepik-damage-label">Szkody istotne ({{ cepikResult()!.damageRecords!.length }}):</p>
+            @for (damage of cepikResult()!.damageRecords!; track damage.date) {
+              <div class="damage-record">
+                <span class="damage-date">{{ damage.date }}</span>
+                <span class="damage-desc">{{ damage.description ?? 'Brak opisu' }}</span>
+              </div>
+            }
+          }
+        </div>
+
+        <a [href]="cepikResult()!.lookupUrl!" target="_blank" rel="noopener" class="cepik-link">
+          Sprawdź pełną historię na historiapojazdu.gov.pl ↗
+        </a>
+      </div>
+    }
+
+    @if (cepikResult()!.status === 'MISSING_INPUTS') {
+      <div class="cepik-card cepik-missing">
+        <p>Brak danych do weryfikacji w CEPiK.</p>
+        <p class="cepik-hint">Brakujące informacje zostały dodane do listy pytań do sprzedającego.</p>
+      </div>
+    }
+
+    @if (cepikResult()!.status === 'NOT_FOUND') {
+      <div class="cepik-card cepik-not-found">
+        <p>Pojazd nie znaleziony w CEPiK.</p>
+        <a [href]="cepikResult()!.lookupUrl!" target="_blank" rel="noopener" class="cepik-link">
+          Sprawdź ręcznie na historiapojazdu.gov.pl ↗
+        </a>
+      </div>
+    }
+
+    @if (cepikResult()!.status === 'LOOKUP_FAILED') {
+      <div class="cepik-card cepik-failed">
+        <p>Weryfikacja CEPiK chwilowo niedostępna.</p>
+        <a [href]="cepikResult()!.lookupUrl!" target="_blank" rel="noopener" class="cepik-link">
+          Sprawdź ręcznie na historiapojazdu.gov.pl ↗
+        </a>
+      </div>
+    }
+  </div>
+}

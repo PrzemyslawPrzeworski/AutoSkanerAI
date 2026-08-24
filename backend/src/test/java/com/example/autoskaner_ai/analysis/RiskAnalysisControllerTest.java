@@ -31,7 +31,7 @@ class RiskAnalysisControllerTest {
     }
 
     private AnalysisResult resultWithFlags(List<RiskFlag> flags) {
-        var extracted = new ExtractedData(null, null, null, null, null, null, null, null, null, null, null, null, null);
+        var extracted = new ExtractedData(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         var scores = new CategoryScores(50, 50, 50, 50, 50);
         var verdict = new Verdict(VerdictCode.NEEDS_MORE_INFO, "sprawdź po doprecyzowaniu");
         var meta = new AnalysisMeta("mock", "mock-v1", 1L, Instant.now());

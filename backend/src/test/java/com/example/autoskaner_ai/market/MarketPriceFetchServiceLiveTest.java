@@ -26,7 +26,7 @@ class MarketPriceFetchServiceLiveTest {
                 "Toyota", "Corolla", 2019,
                 BigDecimal.valueOf(55_000), "PLN",
                 95_000,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null);
 
         MarketPriceContext ctx = service.enrich(data);
 
@@ -54,7 +54,7 @@ class MarketPriceFetchServiceLiveTest {
     void fetch_nullMake_returnsMissingInputs() {
         ExtractedData data = new ExtractedData(
                 null, "Corolla", 2019, null, null, 95_000,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null);
 
         MarketPriceContext ctx = service.enrich(data);
 

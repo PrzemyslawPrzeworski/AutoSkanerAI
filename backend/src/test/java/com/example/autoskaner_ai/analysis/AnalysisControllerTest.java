@@ -1,5 +1,8 @@
 package com.example.autoskaner_ai.analysis;
 
+import com.example.autoskaner_ai.analysis.CepikResult;
+import com.example.autoskaner_ai.analysis.CepikStatus;
+import com.example.autoskaner_ai.cepik.CepikEnrichmentService;
 import com.example.autoskaner_ai.common.GlobalExceptionHandler;
 import com.example.autoskaner_ai.market.MarketPriceEnrichmentService;
 import com.example.autoskaner_ai.market.MarketPriceStatus;
@@ -26,25 +29,30 @@ class AnalysisControllerTest {
     private MockMvc mockMvc;
     private AiAnalysisService aiAnalysisService;
     private ListingFetchService listingFetchService;
+    private CepikEnrichmentService cepikEnrichmentService;
     private MarketPriceEnrichmentService marketPriceEnrichmentService;
 
     @BeforeEach
     void setUp() {
         aiAnalysisService = mock(AiAnalysisService.class);
         listingFetchService = mock(ListingFetchService.class);
+        cepikEnrichmentService = mock(CepikEnrichmentService.class);
+        when(cepikEnrichmentService.enrich(any())).thenReturn(null);
         marketPriceEnrichmentService = mock(MarketPriceEnrichmentService.class);
         when(marketPriceEnrichmentService.enrich(any())).thenReturn(
                 new MarketPriceContext(MarketPriceStatus.OK, 45_000, 55_000, 70_000, 12,
                         "https://www.otomoto.pl/osobowe/toyota/corolla", Instant.now()));
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new AnalysisController(aiAnalysisService, listingFetchService, marketPriceEnrichmentService))
+                .standaloneSetup(new AnalysisController(aiAnalysisService, listingFetchService,
+                        cepikEnrichmentService, marketPriceEnrichmentService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
 
     private AnalysisResult fullResult() {
         var extracted = new ExtractedData("BMW", "3 Series", 2018, null, null, 120000,
-                "benzyna", null, null, null, Boolean.TRUE, "bezwypadkowy", Boolean.TRUE);
+                "benzyna", null, null, null, Boolean.TRUE, "bezwypadkowy", Boolean.TRUE,
+                "WBAAM31060GE12345", null, "2018-03-15");
         var equipment = List.of(
                 new EquipmentItem("klimatyzacja", EquipmentStatus.CONFIRMED, null),
                 new EquipmentItem("tempomat", EquipmentStatus.UNCLEAR, "Nie wspomniano w ogłoszeniu")
@@ -139,5 +147,40 @@ class AnalysisControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    void mockProfile_cepikResultIsLookupFailed() throws Exception {
+        var cepikResult = new CepikResult(
+                CepikStatus.LOOKUP_FAILED, null, null, null, null,
+                null, List.of(), List.of(), "https://historiapojazdu.gov.pl", java.time.Instant.now()
+        );
+        when(cepikEnrichmentService.enrich(any())).thenReturn(cepikResult);
+        when(aiAnalysisService.analyze(anyString())).thenReturn(fullResult());
+
+        mockMvc.perform(post("/api/analyses")
+                        .contentType("application/json")
+                        .content("{\"listingText\":\"BMW 3 Series 2018\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cepikResult.status").value("LOOKUP_FAILED"));
+    }
+
+    @Test
+    void missingPlate_injectsPlateQuestion() throws Exception {
+        var extracted = new ExtractedData("BMW", "3 Series", 2018, null, null, 120000,
+                "benzyna", null, null, null, Boolean.TRUE, "bezwypadkowy", Boolean.TRUE,
+                "WBAAM31060GE12345", null, "2018-03-15");
+        var result = new AnalysisResult(extracted, List.of(), List.of(),
+                List.of("Istniejące pytanie"), new CategoryScores(80, 80, 80, 60, 75),
+                new Verdict(VerdictCode.WORTH_CHECKING, "warto sprawdzić"),
+                new AnalysisMeta("mock", "mock-v1", 1L, java.time.Instant.now()));
+        when(aiAnalysisService.analyze(anyString())).thenReturn(result);
+        when(cepikEnrichmentService.enrich(any())).thenReturn(null);
+
+        mockMvc.perform(post("/api/analyses")
+                        .contentType("application/json")
+                        .content("{\"listingText\":\"BMW 3 Series 2018, VIN: WBAAM31060GE12345\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.analysis.sellerQuestions[?(@=='Proszę podać numer rejestracyjny pojazdu')]").exists());
     }
 }

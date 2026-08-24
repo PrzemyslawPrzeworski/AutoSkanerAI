@@ -1,7 +1,7 @@
 ---
 change_id: cepik-vin-lookup
 title: Display CEPiK vehicle history alongside analysis using extracted VIN
-status: implementing
+status: impl_reviewed
 created: 2026-06-02
 updated: 2026-06-02
 archived_at: null

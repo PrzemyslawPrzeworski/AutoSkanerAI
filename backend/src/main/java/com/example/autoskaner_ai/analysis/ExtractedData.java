@@ -15,6 +15,9 @@ public record ExtractedData(
         String sellerType,
         Boolean serviceHistoryMentioned,
         String accidentClaim,
-        Boolean vinPresent
+        Boolean vinPresent,
+        String vin,
+        String registrationPlate,
+        String firstRegistrationDate
 ) {
 }
