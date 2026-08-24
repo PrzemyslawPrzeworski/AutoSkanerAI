@@ -3,7 +3,10 @@
   <div class="result-header">
     <button pButton class="p-button-secondary" label="Nowe ogłoszenie" (click)="reset()"></button>
   </div>
-  <app-analysis-result [result]="result()!"></app-analysis-result>
+  <app-analysis-result
+    [result]="result()!"
+    [marketPriceContext]="analysisResponse()?.marketPriceContext ?? null"
+  ></app-analysis-result>
 } @else if (loading()) {
   <!-- Loading skeleton -->
   <div class="loading-container">

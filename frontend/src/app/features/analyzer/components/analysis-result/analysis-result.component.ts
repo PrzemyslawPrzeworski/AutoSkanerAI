@@ -3,16 +3,18 @@ import { DatePipe } from '@angular/common';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
 import { ProgressBarModule } from 'primeng/progressbar';
-import { AnalysisResult } from '../../../../shared/models/analysis.models';
+import { AnalysisResult, MarketPriceContext } from '../../../../shared/models/analysis.models';
+import { MarketPricePanelComponent } from '../market-price-panel/market-price-panel.component';
 
 @Component({
   selector: 'app-analysis-result',
-  imports: [DatePipe, CardModule, TagModule, ProgressBarModule],
+  imports: [DatePipe, CardModule, TagModule, ProgressBarModule, MarketPricePanelComponent],
   templateUrl: './analysis-result.component.html',
   styleUrl: './analysis-result.component.scss'
 })
 export class AnalysisResultComponent {
   readonly result = input.required<AnalysisResult>();
+  readonly marketPriceContext = input<MarketPriceContext | null>(null);
 
   riskFlagsExpanded = signal(false);
 

@@ -5,6 +5,9 @@
   <div class="verdict-meta">{{ result().meta.provider }} · {{ result().meta.model }}</div>
 </div>
 
+<!-- Market price context panel -->
+<app-market-price-panel [marketPriceContext]="marketPriceContext()" />
+
 <!-- Section 2: Category scores -->
 <div class="section">
   <h3>Oceny kategorii</h3>

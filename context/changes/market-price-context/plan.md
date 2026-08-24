@@ -297,39 +297,39 @@ export class MarketPricePanelComponent {
 
 #### Automated
 
-- [ ] 1.1 `./mvnw test` — all existing tests green; new `MarketPriceFetchServiceTest` passes
-- [ ] 1.2 `./mvnw compile` — no errors in new `market` package
-- [ ] 1.3 `npm run build` — no TypeScript errors after status field addition
+- [x] 1.1 `./mvnw test` — all existing tests green; new `MarketPriceFetchServiceTest` passes — 0365560
+- [x] 1.2 `./mvnw compile` — no errors in new `market` package — 0365560
+- [x] 1.3 `npm run build` — no TypeScript errors after status field addition — 0365560
 
 #### Manual
 
-- [ ] 1.4 Live call with Toyota Corolla 2019 → `OK` status with populated price range
-- [ ] 1.5 Null make → `MISSING_INPUTS`, no exception
+- [x] 1.4 Live call with Toyota Corolla 2019 → `OK` status with populated price range — 0365560
+- [x] 1.5 Null make → `MISSING_INPUTS`, no exception — 0365560
 
 ### Phase 2: Controller Wiring
 
 #### Automated
 
-- [ ] 2.1 `./mvnw test` — all tests green including updated controller test
-- [ ] 2.2 `./mvnw test -Dgroups=live-llm` — live response includes `marketPriceContext` field
+- [x] 2.1 `./mvnw test` — all tests green including updated controller test — 53cecea
+- [x] 2.2 `./mvnw test -Dgroups=live-llm` — live response includes `marketPriceContext` field — 53cecea
 
 #### Manual
 
-- [ ] 2.3 Mock profile POST → `marketPriceContext.status == "FETCH_FAILED"` in response JSON
-- [ ] 2.4 OpenRouter profile POST with make/model/year listing → `marketPriceContext` present with status
+- [x] 2.3 Mock profile POST → `marketPriceContext.status == "FETCH_FAILED"` in response JSON — 53cecea
+- [x] 2.4 OpenRouter profile POST with make/model/year listing → `marketPriceContext` present with status — 53cecea
 
 ### Phase 3: Frontend Market Price Panel
 
 #### Automated
 
-- [ ] 3.1 `npm run build` — no errors
-- [ ] 3.2 `npm run typecheck` — no errors
+- [x] 3.1 `npm run build` — no errors — 746404c
+- [x] 3.2 `npm run typecheck` — no errors — 746404c
 
 #### Manual
 
-- [ ] 3.3 Mock profile → price panel shows degraded state
-- [ ] 3.4 Listing with no make → price panel absent
-- [ ] 3.5 Live test Toyota Corolla → price range shown with Otomoto link
-- [ ] 3.6 Expand/collapse works
-- [ ] 3.7 Low-sample caveat shown when sampleSize < 3
-- [ ] 3.8 Otomoto link opens correct URL in new tab
+- [x] 3.3 Mock profile → price panel shows degraded state — 746404c
+- [x] 3.4 Listing with no make → price panel absent — 746404c
+- [x] 3.5 Live test Toyota Corolla → price range shown with Otomoto link — 746404c
+- [x] 3.6 Expand/collapse works — 746404c
+- [x] 3.7 Low-sample caveat shown when sampleSize < 3 — 746404c
+- [x] 3.8 Otomoto link opens correct URL in new tab — 746404c

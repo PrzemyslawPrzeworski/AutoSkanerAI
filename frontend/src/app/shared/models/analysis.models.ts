@@ -18,7 +18,10 @@ export interface CepikResult {
   fetchedAt: string;
 }
 
+export type MarketPriceStatus = 'OK' | 'FETCH_FAILED' | 'INSUFFICIENT_DATA' | 'MISSING_INPUTS';
+
 export interface MarketPriceContext {
+  status: MarketPriceStatus;
   minPricePln: number | null;
   medianPricePln: number | null;
   maxPricePln: number | null;
