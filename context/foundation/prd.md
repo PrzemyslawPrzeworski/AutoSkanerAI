@@ -90,7 +90,8 @@ The app clearly separates confirmed facts from inferences and shows the user whe
   > Socrates: No counter-argument — preferences personalise the risk and recommendation output.
 - FR-016: User can paste or enter data from a vehicle history report; app helps interpret it alongside the listing analysis. Priority: nice-to-have
   > Socrates: No counter-argument — aligns with explicit scope: no full state-registry API integration, but manual data input + interpretation is in.
-- FR-017: App queries the CEPiK / historiapojazdu.gov.pl registry directly using the vehicle identification number and displays the retrieved history alongside the listing analysis. Priority: nice-to-have
+- FR-017: App queries the CEPiK / historiapojazdu.gov.pl registry directly using the vehicle identification number (extracted from the listing) and displays the retrieved history (registration data, ownership count, mileage stamps, accident records) alongside the listing analysis. Priority: must-have
+- FR-018: App enriches the analysis with market price context by querying current Otomoto listings using the extracted make, model, year, and mileage; the search page is fetched through Jina Reader (the same infrastructure as FR-001 URL fetching) and prices are extracted from the returned markdown. Displays a comparable price range (min / median / max PLN) plus sample size so the user can judge whether the listing is priced fairly. Priority: must-have
 
 ## Non-Functional Requirements
 
@@ -117,9 +118,8 @@ Users authenticate with email and password or via a third-party OAuth provider. 
 
 ## Non-Goals
 
-- No automatic market scraping (Polish and international used-car portals) — scraping is fragile, legally grey, and unnecessary when the user pastes listings manually.
+- No broad multi-portal market scraping (Polish and international used-car portals) — market price context is narrowed to Otomoto search pages fetched via Jina Reader (FR-018). This is read-only public-listing retrieval, not a crawler; the fragility (a price-format change in Otomoto's markdown breaks the regex) and the portal-ToS exposure are accepted MVP tradeoffs, to be revisited if extraction breaks or the feature outlives the MVP. A dedicated search API (e.g. Exa) remains the post-MVP alternative if either risk materialises.
 - No claim of accident-free status from silence — the app reports confirmed accident information when present in the listing or vehicle history report, and flags the absence of that information as an unknown, never as a clean record. It does not replace physical inspection or a specialist's assessment.
-- No live CEPiK integration in MVP — users paste or enter vehicle history data manually for the first version (FR-016). Live registry queries are explicitly planned as a post-MVP nice-to-have (FR-017) once the core flow is stable.
 - No complete factory equipment database for all makes and models — equipment analysis is based on listing text and a curated reference list, not a full manufacturer specification database.
 - No monetisation or premium accounts — no payments, no subscription tiers in MVP.
 - No mobile native app — web only.

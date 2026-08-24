@@ -2,7 +2,7 @@
 
 Repo: https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues  
 Project board: https://github.com/users/PrzemyslawPrzeworski/projects/1  
-Last updated: 2026-05-25
+Last updated: 2026-06-02
 
 ---
 
@@ -30,6 +30,8 @@ Last updated: 2026-05-25
 | [#4](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/4) | S-01 | Full analysis flow: URL + text paste → AI output on screen | `slice` | `stream:A` | `status:proposed` | #1 F-01 |
 | [#5](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/5) | S-02 | Manual field entry form → same AI analysis output | `slice` | `stream:A` | `status:proposed` | #4 S-01 |
 | [#6](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/6) | S-03 | Save / view list / delete saved analyses | `slice` | `stream:B` | `status:proposed` | #4 S-01, #2 F-02, #3 F-03 |
+| [#10](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/10) | S-04 | Live CEPiK vehicle history alongside analysis | `slice` | `stream:A` | `status:proposed` | #4 S-01 |
+| [#11](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/11) | S-05 | Comparable market price range (Otomoto via Jina Reader) alongside analysis | `slice` | `stream:A` | `status:proposed` | #4 S-01 |
 | [#7](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/7) | Q-01 | Which LLM provider should LlmAnalysisService call by default? | `roadmap-question` | `stream:A` | — | Blocks #1 F-01 |
 | [#8](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/8) | Q-02 | MVP auth: email+password only, or include OAuth (Google/GitHub)? | `roadmap-question` | `stream:B` | — | Blocks #3 F-03 |
 | [#9](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/9) | Q-03 | URL fetch failure UX: manual switch to text paste, or automatic redirect? | `roadmap-question` | `stream:A` | — | Blocks #4 S-01 |

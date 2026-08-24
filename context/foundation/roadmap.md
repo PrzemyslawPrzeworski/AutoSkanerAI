@@ -35,15 +35,17 @@ AutoSkanerAI compresses used-car listing evaluation from tens of minutes to a fe
 | S-01 | core-analysis-flow        | paste URL or text → receive full AI analysis                 | F-01             | FR-001, FR-002, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, US-01 | proposed |
 | S-02 | manual-field-entry        | fill in key fields manually → receive full AI analysis       | S-01             | FR-003                                            | proposed |
 | S-03 | save-view-delete-analyses | save an analysis, view saved list, delete entries            | S-01, F-02, F-03 | FR-010, FR-011, FR-012                            | proposed |
+| S-04 | cepik-vin-lookup          | see live CEPiK vehicle history alongside analysis            | S-01             | FR-017                                            | proposed |
+| S-05 | market-price-context      | see comparable market price range alongside analysis         | S-01             | FR-018                                            | proposed |
 
 ## Streams
 
 Navigation aid — groups items that share a Prerequisites chain. Canonical ordering still lives in the dependency graph below; this table is the proposed reading order across parallel tracks.
 
-| Stream | Theme                 | Chain                           | Note                                                                              |
-|--------|-----------------------|---------------------------------|-----------------------------------------------------------------------------------|
-| A      | LLM Analysis Core     | `F-01` → `S-01` → `S-02`        | Delivers the north star (S-01) and all AI input modes. Ship this first.           |
-| B      | Account & Persistence | `F-02` → `F-03` → `S-03`        | Enables saving analyses. F-02 has no deps — Stream B can start in parallel with Stream A from day one. |
+| Stream | Theme                 | Chain                                          | Note                                                                              |
+|--------|-----------------------|------------------------------------------------|-----------------------------------------------------------------------------------|
+| A      | LLM Analysis Core     | `F-01` → `S-01` → `S-02` / `S-04` / `S-05`   | Delivers the north star (S-01) and all AI input modes. S-04 and S-05 enrich the analysis with external data. Ship S-01 first. |
+| B      | Account & Persistence | `F-02` → `F-03` → `S-03`                      | Enables saving analyses. F-02 has no deps — Stream B can start in parallel with Stream A from day one. |
 
 ## Baseline
 
@@ -147,6 +149,38 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Risk:** Has the longest prerequisite chain: F-02 → F-03 → S-03. Start Stream B (F-02, then F-03) early and in parallel with Stream A so it doesn't become the critical path blocker for completing the must-have scope. The save action must handle the unauthenticated case gracefully — either gate the button behind the auth guard or redirect to login inline.
 - **Status:** proposed
 
+---
+
+### S-04: CEPiK VIN lookup
+
+- **Outcome:** when a VIN is extracted from the listing, the app queries the official CEPiK API (`api.cepik.gov.pl`) and displays retrieved vehicle history (first registration date, ownership count, mileage stamps, accident records) alongside the analysis. If the VIN is absent or the lookup fails, the section is shown as unavailable — never silently omitted.
+- **Change ID:** `cepik-vin-lookup`
+- **PRD refs:** FR-017
+- **Prerequisites:** S-01 (VIN extraction must be working; analysis result must display before enrichment is added)
+- **Parallel with:** S-02, S-05, F-02, F-03
+- **Blockers:** —
+- **Unknowns:**
+  - What does the CEPiK API actually return — field names, structure, auth requirements? Research required before planning.
+  - How does the "unknown, not clean" guardrail apply to CEPiK data — if CEPiK returns no accident records, is that confirmation or absence?
+- **Risk:** Government APIs can be slow or unavailable. The lookup must be non-blocking — analysis renders immediately, CEPiK data loads async or is fetched in a separate call. The "unknown, not clean" guardrail must be applied to CEPiK results just as to listing text.
+- **Status:** proposed
+
+---
+
+### S-05: Market price context
+
+- **Outcome:** given extracted make, model, year, and mileage, the app builds a filtered Otomoto search URL, fetches it through Jina Reader, extracts prices from the returned markdown, and surfaces a comparable price range (e.g. "similar cars listed at 35 000–42 000 PLN") so the user can judge whether the listing price is fair, high, or suspiciously low.
+- **Change ID:** `market-price-context`
+- **PRD refs:** FR-018
+- **Prerequisites:** S-01 (extraction must be working; make/model/year/mileage fields feed the query)
+- **Parallel with:** S-02, S-04, F-02, F-03
+- **Blockers:** none — reuses the existing Jina Reader infrastructure from FR-001; no new API key required. (An earlier draft assumed the Exa search API and an `EXA_API_KEY`; research rejected that in favour of Jina on Otomoto — see `context/changes/market-price-context/research.md`.)
+- **Unknowns:** resolved during research — Otomoto slug mapping, the `### <price>\nPLN` markdown price format, and min/median/max computation are all settled in the plan.
+- **Risk:** extraction is regex-based against Otomoto's Jina-rendered markdown. A change in Otomoto's price formatting silently breaks the range and yields `INSUFFICIENT_DATA`; the small-sample caveat (`sampleSize < 3`) must stay visible in the UI so a thin result is never read as a confident range.
+- **Status:** proposed
+
+---
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID                 | Suggested issue title                                         | Ready for `/10x-plan` | Notes                              |
@@ -157,6 +191,8 @@ Foundations below assume these are present and do NOT re-scaffold them.
 | S-01       | core-analysis-flow        | Full analysis flow: URL + text paste → AI output on screen    | no                    | Needs F-01 first                   |
 | S-02       | manual-field-entry        | Manual field entry form → same AI analysis as S-01            | no                    | Needs S-01 first                   |
 | S-03       | save-view-delete-analyses | Save / view list / delete saved analyses                      | no                    | Needs S-01 + F-02 + F-03           |
+| S-04       | cepik-vin-lookup          | Live CEPiK vehicle history alongside analysis                 | no                    | Run `/10x-research cepik-vin-lookup` first       |
+| S-05       | market-price-context      | Comparable market price range alongside analysis              | no                    | Run `/10x-research market-price-context` first   |
 
 ## Open Roadmap Questions
 
@@ -168,7 +204,6 @@ No open roadmap questions. PRD shipped with 0 open questions (quality check: acc
 - **FR-014: Search advisor (budget + requirements → model/trim suggestions)** — Why parked: PRD nice-to-have; independent of the core analysis flow; post-MVP scope signal.
 - **FR-015: Personal preferences (budget, required equipment, priorities)** — Why parked: PRD nice-to-have; personalises risk and recommendation output but doesn't change the core value proposition.
 - **FR-016: Manual vehicle history report input + interpretation** — Why parked: PRD nice-to-have; adds value alongside S-01 but requires the analysis pipeline to be stable first; post-MVP.
-- **FR-017: Live CEPiK / historiapojazdu.gov.pl integration** — Why parked: PRD §Non-Goals explicitly; post-MVP after FR-016 is validated.
 - **No monetisation, no mobile native app, no sharing of analyses between users** — Why parked: PRD §Non-Goals; out of scope for MVP.
 
 ## Done

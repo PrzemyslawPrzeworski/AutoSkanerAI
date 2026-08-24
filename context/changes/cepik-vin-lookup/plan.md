@@ -588,13 +588,13 @@ The `CepikApiService` fires 16 parallel HTTP requests (one per voivodeship). Wit
 
 #### Automated
 
-- [x] 1.1 `./mvnw compile` passes with no errors
-- [x] 1.2 `npm run build` passes with no type errors
-- [x] 1.3 `./mvnw test` green (existing tests unchanged)
+- [x] 1.1 `./mvnw compile` passes with no errors — 2a068d0
+- [x] 1.2 `npm run build` passes with no type errors — 2a068d0
+- [x] 1.3 `./mvnw test` green (existing tests unchanged) — 2a068d0
 
 #### Manual
 
-- [x] 1.4 `POST /api/analyses` returns JSON with `"cepikResult": null` and `"marketPriceContext": null` fields present
+- [x] 1.4 `POST /api/analyses` returns JSON with `"cepikResult": null` and `"marketPriceContext": null` fields present — 2a068d0
 
 ### Phase 2: CEPiK Input Extraction
 
