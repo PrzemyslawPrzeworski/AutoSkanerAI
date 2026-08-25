@@ -1,0 +1,65 @@
+# Manual-only verification of the S-05 market-price path against the real Otomoto + Jina Reader.
+#
+# Why a workflow instead of a local run: r.jina.ai is unreachable from the usual dev machine
+# (corporate proxy policy blocks the "AI tools" category), and production runs
+# SPRING_PROFILES_ACTIVE=mock so the real MarketPriceFetchService never executes there. A CI
+# runner is the only network that can exercise it. No secrets are required — the market-price
+# test constructs its service directly and Jina Reader needs no API key.
+#
+# Not on push: the assertions depend on live third-party markup, so a red run here means
+# "Otomoto changed something", which must not block unrelated merges.
+name: live-market-price
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Prints the raw Jina markdown around each price so a PRICE_PATTERN mismatch is
+      # diagnosable from the log rather than guessed at. PRICE_PATTERN expects the price
+      # digits on a `###` heading line with `PLN` alone on the next line.
+      - name: Probe raw Jina markdown shape
+        run: |
+          URL='https://www.otomoto.pl/osobowe/toyota/corolla?search[filter_float_year:from]=2017&search[filter_float_year:to]=2021&search[filter_float_mileage:to]=125000'
+          ENC=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote_plus(sys.argv[1]))' "$URL")
+          curl -sS --max-time 60 \
+            -H 'Accept: text/plain,text/html,*/*;q=0.8' \
+            -H 'Accept-Language: pl-PL,pl;q=0.9,en;q=0.8' \
+            -H 'X-No-Cache: true' \
+            "https://r.jina.ai/$ENC" > jina.md
+          echo "bytes: $(wc -c < jina.md)"
+          echo "--- lines containing PLN, with 2 lines of leading context ---"
+          grep -n -B2 -A0 'PLN' jina.md | head -60 || echo 'NO PLN IN BODY'
+          echo "--- '### <digits>' + newline + 'PLN' occurrences (what PRICE_PATTERN counts) ---"
+          python3 - <<'PY'
+          import re
+          body = open('jina.md', encoding='utf-8', errors='replace').read()
+          hits = re.findall(r'###\s*([\d\s]+)\r?\nPLN', body)
+          print('PRICE_PATTERN matches:', len(hits))
+          print('first 10:', [h.strip() for h in hits[:10]])
+          PY
+
+      - name: Run market-price live test
+        run: ./mvnw -B test -Plive-tests -Dtest=MarketPriceFetchServiceLiveTest
+
+      - name: Upload fetched markdown
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jina-otomoto-markdown
+          path: backend/jina.md
+          if-no-files-found: warn
