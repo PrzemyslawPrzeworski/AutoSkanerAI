@@ -35,8 +35,8 @@ AutoSkanerAI compresses used-car listing evaluation from tens of minutes to a fe
 | S-01 | core-analysis-flow        | paste URL or text → receive full AI analysis                 | F-01             | FR-001, FR-002, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, US-01 | proposed |
 | S-02 | manual-field-entry        | fill in key fields manually → receive full AI analysis       | S-01             | FR-003                                            | proposed |
 | S-03 | save-view-delete-analyses | save an analysis, view saved list, delete entries            | S-01, F-02, F-03 | FR-010, FR-011, FR-012                            | proposed |
-| S-04 | cepik-vin-lookup          | see live CEPiK vehicle history alongside analysis            | S-01             | FR-017                                            | proposed |
-| S-05 | market-price-context      | see comparable market price range alongside analysis         | S-01             | FR-018                                            | proposed |
+| S-04 | cepik-vin-lookup          | see live CEPiK vehicle history alongside analysis            | S-01             | FR-017                                            | shipped |
+| S-05 | market-price-context      | see comparable market price range alongside analysis         | S-01             | FR-018                                            | shipped |
 
 ## Streams
 
@@ -159,11 +159,9 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Prerequisites:** S-01 (VIN extraction must be working; analysis result must display before enrichment is added)
 - **Parallel with:** S-02, S-05, F-02, F-03
 - **Blockers:** —
-- **Unknowns:**
-  - What does the CEPiK API actually return — field names, structure, auth requirements? Research required before planning.
-  - How does the "unknown, not clean" guardrail apply to CEPiK data — if CEPiK returns no accident records, is that confirmation or absence?
-- **Risk:** Government APIs can be slow or unavailable. The lookup must be non-blocking — analysis renders immediately, CEPiK data loads async or is fetched in a separate call. The "unknown, not clean" guardrail must be applied to CEPiK results just as to listing text.
-- **Status:** proposed
+- **Unknowns:** resolved during research — CEPiK exposes technical data only, so full history required session scraping of `historiapojazdu.gov.pl` (plate + VIN + first registration date). Scope grew past the original "skip session scraping in MVP" decision; see `context/changes/cepik-vin-lookup/change.md`.
+- **Risk:** Government APIs can be slow or unavailable. **Carried forward:** enrichment is still synchronous inside `AnalysisController.buildResponse()` — up to 16 CEPiK voivodeship calls plus 2 historiapojazdu calls plus the S-05 Jina fetch on one request thread. Bounded by a 12 s outer deadline; async handling remains deferred (impl-review F10). `api.cepik.gov.pl` was at 0% uptime during implementation, so the live path is unverified end-to-end.
+- **Status:** shipped (merged to `main` 2026-08-25, `d5e0fed`)
 
 ---
 
@@ -177,7 +175,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Blockers:** none — reuses the existing Jina Reader infrastructure from FR-001; no new API key required. (An earlier draft assumed the Exa search API and an `EXA_API_KEY`; research rejected that in favour of Jina on Otomoto — see `context/changes/market-price-context/research.md`.)
 - **Unknowns:** resolved during research — Otomoto slug mapping, the `### <price>\nPLN` markdown price format, and min/median/max computation are all settled in the plan.
 - **Risk:** extraction is regex-based against Otomoto's Jina-rendered markdown. A change in Otomoto's price formatting silently breaks the range and yields `INSUFFICIENT_DATA`; the small-sample caveat (`sampleSize < 3`) must stay visible in the UI so a thin result is never read as a confident range.
-- **Status:** proposed
+- **Status:** shipped (merged to `main` 2026-08-25, `51db3fb`)
 
 ---
 
@@ -191,8 +189,8 @@ Foundations below assume these are present and do NOT re-scaffold them.
 | S-01       | core-analysis-flow        | Full analysis flow: URL + text paste → AI output on screen    | no                    | Needs F-01 first                   |
 | S-02       | manual-field-entry        | Manual field entry form → same AI analysis as S-01            | no                    | Needs S-01 first                   |
 | S-03       | save-view-delete-analyses | Save / view list / delete saved analyses                      | no                    | Needs S-01 + F-02 + F-03           |
-| S-04       | cepik-vin-lookup          | Live CEPiK vehicle history alongside analysis                 | no                    | Run `/10x-research cepik-vin-lookup` first       |
-| S-05       | market-price-context      | Comparable market price range alongside analysis              | no                    | Run `/10x-research market-price-context` first   |
+| S-04       | cepik-vin-lookup          | Live CEPiK vehicle history alongside analysis                 | shipped               | Merged to `main` as `d5e0fed` |
+| S-05       | market-price-context      | Comparable market price range (Otomoto via Jina Reader)       | shipped               | Merged to `main` as `51db3fb` |
 
 ## Open Roadmap Questions
 

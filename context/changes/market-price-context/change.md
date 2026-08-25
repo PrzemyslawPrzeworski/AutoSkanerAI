@@ -1,9 +1,9 @@
 ---
 change_id: market-price-context
 title: Surface comparable market price range from Otomoto alongside analysis
-status: impl_reviewed
+status: merged
 created: 2026-06-02
-updated: 2026-06-02
+updated: 2026-08-25
 archived_at: null
 ---
 

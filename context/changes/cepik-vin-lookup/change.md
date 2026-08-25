@@ -1,9 +1,9 @@
 ---
 change_id: cepik-vin-lookup
 title: Display CEPiK vehicle history alongside analysis using extracted VIN
-status: impl_reviewed
+status: merged
 created: 2026-06-02
-updated: 2026-06-02
+updated: 2026-08-25
 archived_at: null
 ---
 
@@ -17,6 +17,7 @@ When a VIN is extracted from the listing, query the CEPiK registry and display v
 - Two separate systems: `api.cepik.gov.pl` (public, no auth, technical data only — no accidents/owners/mileage) and `historiapojazdu.gov.pl` (full history, but no public REST API — session scraping only).
 - `historiapojazdu` requires all three: registration plate + VIN + first registration date. VIN alone is not enough.
 - MVP approach: use public API for registry confirmation (VIN exists, first registration date, deregistration status), plus a "check full history" link to historiapojazdu.gov.pl for the user. Skip session scraping in MVP.
+  - **Superseded during implementation (2026-06-02):** session scraping was *not* skipped. Phase 4 shipped `HistoriaPojazduSession` + `HistoriaPojazduService`, which authenticate against `moj.gov.pl` and scrape vehicle + timeline data (commit `e616ea2`). Reason: the public `api.cepik.gov.pl` returns technical data only — no ownership count, mileage stamps, or damage records — so the stated outcome (display vehicle history) was unreachable without it. Consequences: the plate value now needs format validation before leaving the app (impl-review F7), and the session must be constructed per lookup rather than shared (F1). Recorded here because the original decision line above was left standing while the scope grew past it.
 - "Unknown not clean" guardrail: empty damage records ≠ clean — only means no damage reported to insurers. UI copy must never say "no accidents found."
 - `api.cepik.gov.pl` currently unreliable (0% uptime reported June 2026) — circuit breaker mandatory.
 - SSL legacy cipher issue in Java — needs custom SSLContext config.

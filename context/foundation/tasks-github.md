@@ -2,7 +2,7 @@
 
 Repo: https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues  
 Project board: https://github.com/users/PrzemyslawPrzeworski/projects/1  
-Last updated: 2026-06-02
+Last updated: 2026-08-25
 
 ---
 
@@ -16,6 +16,7 @@ Last updated: 2026-06-02
 | `stream:B` | `#0e8a16` | Stream B: Account & Persistence |
 | `status:ready` | `#1d76db` | Prerequisites met — safe to run `/10x-plan` |
 | `status:proposed` | `#e6e6e6` | Has unmet prerequisites |
+| `status:shipped` | `#5319e7` | Merged to `main` — issue can be closed |
 | `roadmap-question` | `#d876e3` | Open question needing a decision before planning |
 
 ---
@@ -30,8 +31,8 @@ Last updated: 2026-06-02
 | [#4](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/4) | S-01 | Full analysis flow: URL + text paste → AI output on screen | `slice` | `stream:A` | `status:proposed` | #1 F-01 |
 | [#5](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/5) | S-02 | Manual field entry form → same AI analysis output | `slice` | `stream:A` | `status:proposed` | #4 S-01 |
 | [#6](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/6) | S-03 | Save / view list / delete saved analyses | `slice` | `stream:B` | `status:proposed` | #4 S-01, #2 F-02, #3 F-03 |
-| [#10](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/10) | S-04 | Live CEPiK vehicle history alongside analysis | `slice` | `stream:A` | `status:proposed` | #4 S-01 |
-| [#11](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/11) | S-05 | Comparable market price range (Otomoto via Jina Reader) alongside analysis | `slice` | `stream:A` | `status:proposed` | #4 S-01 |
+| [#10](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/10) | S-04 | Live CEPiK vehicle history alongside analysis | `slice` | `stream:A` | `status:shipped` | #4 S-01 |
+| [#11](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/11) | S-05 | Comparable market price range (Otomoto via Jina Reader) alongside analysis | `slice` | `stream:A` | `status:shipped` | #4 S-01 |
 | [#7](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/7) | Q-01 | Which LLM provider should LlmAnalysisService call by default? | `roadmap-question` | `stream:A` | — | Blocks #1 F-01 |
 | [#8](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/8) | Q-02 | MVP auth: email+password only, or include OAuth (Google/GitHub)? | `roadmap-question` | `stream:B` | — | Blocks #3 F-03 |
 | [#9](https://github.com/PrzemyslawPrzeworski/AutoSkanerAI/issues/9) | Q-03 | URL fetch failure UX: manual switch to text paste, or automatic redirect? | `roadmap-question` | `stream:A` | — | Blocks #4 S-01 |
@@ -44,6 +45,7 @@ Last updated: 2026-06-02
 |---|---|
 | `status:ready` | All prerequisites met — run `/10x-plan <change-id>` now |
 | `status:proposed` | Prerequisites not yet met — see Prerequisites column |
+| `status:shipped` | Change merged to `main` — close the issue |
 
 When a prerequisite issue is closed (change archived via `/10x-archive`), manually relabel the dependent issue from `status:proposed` → `status:ready`.
 

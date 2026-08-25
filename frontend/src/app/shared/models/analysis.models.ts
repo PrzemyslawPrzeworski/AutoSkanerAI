@@ -3,7 +3,7 @@ export type VerdictCode = 'WORTH_CHECKING' | 'NEEDS_MORE_INFO' | 'HIGH_RISK_SKIP
 export type CepikStatus = 'FOUND' | 'NOT_FOUND' | 'LOOKUP_FAILED' | 'MISSING_INPUTS';
 
 export interface MileageStamp { date: string; mileageKm: number | null; }
-export interface DamageRecord { date: string; description: string; }
+export interface DamageRecord { date: string; description: string | null; }
 
 export interface CepikResult {
   status: CepikStatus;

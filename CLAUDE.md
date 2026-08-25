@@ -83,11 +83,22 @@ cd frontend && npm run build             # production build → dist/
 - Frontend and backend are separate apps communicating via REST. Configure CORS on the Spring side or proxy `/api` in `angular.json` for dev.
 - No database yet — add PostgreSQL (prod) + H2 (dev) when implementing FR-010 (persistence).
 - Auth not yet implemented — Spring Security + JWT or OAuth2 planned per PRD.
-- CEPiK integration (live vehicle registry queries) is post-MVP, FR-017.
+- CEPiK integration (live vehicle registry queries) is shipped, FR-017 — see "Enrichment services" below.
+
+## Enrichment services
+
+`AnalysisController.buildResponse()` calls two enrichment services synchronously and attaches both to `AnalysisResponse` as nullable fields (`cepikResult`, `marketPriceContext`). Both follow the profile-switched interface pattern of the AI layer: a mock bean under `mock`, the real bean under `@Profile("!mock")`.
+
+- **CEPiK (FR-017)** — `CepikEnrichmentService` / `MockCepikService` / `RealCepikEnrichmentService` in `com.example.autoskaner_ai.cepik`. Needs VIN + registration plate + first registration date, all extracted by the LLM. `CepikApiService` fans out to 16 voivodeship endpoints in parallel behind a 12 s outer deadline; `HistoriaPojazduService` scrapes `moj.gov.pl` with a fresh per-lookup session. Empty damage records mean **no damage reported to insurers**, never "no accidents" — UI copy must respect this.
+- **Market price (FR-018)** — `MarketPriceEnrichmentService` / `MockMarketPriceEnrichmentService` / `MarketPriceFetchService` in `com.example.autoskaner_ai.market`. Builds an Otomoto search URL from make/model/year/mileage, fetches it through Jina Reader, regex-extracts prices, returns min/median/max + sample size. Not Exa — see `context/changes/market-price-context/research.md`.
+
+Known tradeoff: both run on the request thread, so one analysis can make up to 18 CEPiK/historiapojazdu calls plus a Jina fetch. Async handling is deferred (impl-review F10).
 
 ## Current state
 
-F-01 (LLM analysis wiring) complete. `POST /api/analyses` is live under `mock`, `bedrock`, and `openrouter` profiles. PRD is at `context/foundation/prd.md` (FR-001 to FR-017). Next: S-01 (full analysis flow with frontend).
+F-01 (LLM analysis wiring), S-01 (core analysis flow), S-04 (CEPiK VIN lookup) and S-05 (market price context) are complete and on `main`. `POST /api/analyses` is live under `mock`, `bedrock`, and `openrouter` profiles. PRD is at `context/foundation/prd.md` (FR-001 to FR-018). Next: S-02 (manual field entry) or Stream B (F-02 data layer → F-03 auth → S-03 persistence).
+
+Frontend builds need Node ≥ v20.19 / v22.12 (Angular 21 requirement); `node`/`npm` are not on PATH by default in this environment.
 
 ## Deployment
 
