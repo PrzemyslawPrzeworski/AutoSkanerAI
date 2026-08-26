@@ -39,18 +39,36 @@ public class AnalysisController {
         if (request.url() != null && !request.url().isBlank()) {
             FetchResult fetch = listingFetchService.fetch(request.url());
             if (fetch.isOk()) {
-                AnalysisResult result = aiAnalysisService.analyze(fetch.text());
-                return ResponseEntity.ok(buildResponse(result, "ok"));
+                // Manual fields ride along with a URL: the user pastes the link and types the VIN
+                // the advert does not publish, so both reach the same analysis.
+                String text = request.hasManualEntry()
+                        ? ManualListingComposer.compose(request.manual(), fetch.text())
+                        : fetch.text();
+                AnalysisResult result = aiAnalysisService.analyze(text);
+                return ResponseEntity.ok(buildResponse(result, "ok", request));
             } else {
                 return ResponseEntity.ok(AnalysisResponse.urlFailed(fetch.reason()));
             }
         }
 
+        if (request.hasManualEntry()) {
+            String text = ManualListingComposer.compose(request.manual(), request.listingText());
+            AnalysisResult result = aiAnalysisService.analyze(text);
+            // "manual" even when free text came along with the form: the fields are what the user
+            // vouched for, and the frontend words the source of the analysis from this value.
+            return ResponseEntity.ok(buildResponse(result, "manual", request));
+        }
+
         AnalysisResult result = aiAnalysisService.analyze(request.listingText());
-        return ResponseEntity.ok(buildResponse(result, "text"));
+        return ResponseEntity.ok(buildResponse(result, "text", request));
     }
 
-    private AnalysisResponse buildResponse(AnalysisResult result, String fetchStatus) {
+    private AnalysisResponse buildResponse(AnalysisResult result, String fetchStatus,
+                                           AnalysisRequest request) {
+        // Before enrichment, so the registry lookup and the market-price query both use the
+        // values the user vouched for rather than the model's reading of the advert.
+        result = withExtracted(result, UserOverrides.apply(result.extracted(), request));
+
         var cepikResult = cepikEnrichmentService.enrich(result.extracted());
         var marketPriceContext = marketPriceEnrichmentService.enrich(result.extracted());
 
@@ -79,5 +97,13 @@ public class AnalysisController {
         );
 
         return new AnalysisResponse(fetchStatus, null, augmented, cepikResult, marketPriceContext);
+    }
+
+    private static AnalysisResult withExtracted(AnalysisResult result, ExtractedData extracted) {
+        if (extracted == result.extracted()) {
+            return result;
+        }
+        return new AnalysisResult(extracted, result.equipment(), result.riskFlags(),
+                result.sellerQuestions(), result.scores(), result.verdict(), result.meta());
     }
 }

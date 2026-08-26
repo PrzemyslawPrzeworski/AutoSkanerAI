@@ -124,14 +124,36 @@ export interface AnalysisResult {
 }
 
 export interface AnalysisResponse {
-  fetchStatus: 'ok' | 'url_failed' | 'text';
+  fetchStatus: 'ok' | 'url_failed' | 'text' | 'manual';
   fetchFailureReason: string | null;
   analysis: AnalysisResult | null;
   cepikResult: CepikResult | null;
   marketPriceContext: MarketPriceContext | null;
 }
 
+/** Structured manual entry — the third input mode, for when neither URL nor paste is practical. */
+export interface ManualListing {
+  make?: string;
+  model?: string;
+  year?: number;
+  priceAmount?: number;
+  priceCurrency?: string;
+  mileageKm?: number;
+  fuel?: string;
+  transmission?: string;
+  notes?: string;
+}
+
 export interface AnalysisRequest {
   url?: string;
   listingText?: string;
+  manual?: ManualListing;
+  /**
+   * The three registry inputs, typed by the user. They override the LLM extraction, which is the
+   * only way a CEPiK lookup can happen for a URL analysis: Otomoto hides the VIN from logged-out
+   * fetches, so the model can never read it.
+   */
+  vin?: string;
+  registrationPlate?: string;
+  firstRegistrationDate?: string;
 }

@@ -8,6 +8,7 @@ import com.example.autoskaner_ai.market.MarketPriceEnrichmentService;
 import com.example.autoskaner_ai.market.MarketPriceStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -15,9 +16,11 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.time.Instant;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -124,7 +127,7 @@ class AnalysisControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Błąd walidacji"))
-                .andExpect(jsonPath("$.messages[0]").value("Wymagane jest podanie url lub listingText"))
+                .andExpect(jsonPath("$.messages[0]").value("Wymagane jest podanie url, listingText lub danych pojazdu"))
                 .andExpect(jsonPath("$.timestamp").exists());
     }
 
@@ -136,7 +139,7 @@ class AnalysisControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Błąd walidacji"))
-                .andExpect(jsonPath("$.messages[0]").value("Wymagane jest podanie url lub listingText"))
+                .andExpect(jsonPath("$.messages[0]").value("Wymagane jest podanie url, listingText lub danych pojazdu"))
                 .andExpect(jsonPath("$.timestamp").exists());
     }
 
@@ -187,6 +190,116 @@ class AnalysisControllerTest {
                 .andExpect(jsonPath("$.analysis.scores.risk").value(25))
                 .andExpect(jsonPath("$.analysis.riskFlags[0].code").value("CEPIK_SIGNIFICANT_DAMAGE"))
                 .andExpect(jsonPath("$.analysis.riskFlags[1].code").value("CEPIK_CONTRADICTS_LISTING"));
+    }
+
+    // The reason this slice exists: Otomoto hides the VIN from logged-out fetches, so the VIN the
+    // user types has to reach the registry lookup. The mock LLM returns no VIN here.
+    @Test
+    void aTypedVinReachesTheCepikLookup() throws Exception {
+        var extracted = new ExtractedData("Toyota", "Corolla", 2022, null, null, 26320,
+                "hybryda", null, null, null, Boolean.TRUE, null, Boolean.FALSE,
+                null, null, null);
+        when(aiAnalysisService.analyze(anyString())).thenReturn(new AnalysisResult(extracted,
+                List.of(), List.of(), List.of(), new CategoryScores(80, 80, 80, 60, 75),
+                new Verdict(VerdictCode.WORTH_CHECKING, "warto sprawdzić"),
+                new AnalysisMeta("mock", "mock-v1", 1L, Instant.now())));
+
+        mockMvc.perform(post("/api/analyses")
+                        .contentType("application/json")
+                        .content("""
+                                {"listingText":"Toyota Corolla 2022",
+                                 "vin":"NMTBZ3BE40R000000",
+                                 "registrationPlate":"WX00000",
+                                 "firstRegistrationDate":"2022-04-12"}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.analysis.extracted.vin").value("NMTBZ3BE40R000000"))
+                .andExpect(jsonPath("$.analysis.extracted.vinPresent").value(true))
+                .andExpect(jsonPath("$.analysis.extracted.registrationPlate").value("WX00000"))
+                .andExpect(jsonPath("$.analysis.extracted.firstRegistrationDate").value("2022-04-12"))
+                // All three present, so none of the "proszę podać..." questions may be appended.
+                .andExpect(jsonPath("$.analysis.sellerQuestions").isEmpty());
+
+        var forLookup = ArgumentCaptor.forClass(ExtractedData.class);
+        verify(cepikEnrichmentService).enrich(forLookup.capture());
+        assertThat(forLookup.getValue().vin()).isEqualTo("NMTBZ3BE40R000000");
+        assertThat(forLookup.getValue().registrationPlate()).isEqualTo("WX00000");
+        assertThat(forLookup.getValue().firstRegistrationDate()).isEqualTo("2022-04-12");
+    }
+
+    @Test
+    void manualFieldsAloneAreEnoughToAnalyse() throws Exception {
+        when(aiAnalysisService.analyze(anyString())).thenReturn(fullResult());
+
+        mockMvc.perform(post("/api/analyses")
+                        .contentType("application/json")
+                        .content("""
+                                {"manual":{"make":"Toyota","model":"Corolla","year":2022,
+                                           "mileageKm":26320,"priceAmount":82900}}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fetchStatus").value("manual"))
+                .andExpect(jsonPath("$.analysis.verdict.code").value("WORTH_CHECKING"))
+                // The manual values win over what the mock LLM read back out of the composed text.
+                .andExpect(jsonPath("$.analysis.extracted.make").value("Toyota"))
+                .andExpect(jsonPath("$.analysis.extracted.year").value(2022));
+
+        var prompt = ArgumentCaptor.forClass(String.class);
+        verify(aiAnalysisService).analyze(prompt.capture());
+        assertThat(prompt.getValue())
+                .contains("Marka: Toyota")
+                .contains("Przebieg: 26320 km")
+                .contains("Cena: 82900 PLN");
+    }
+
+    @Test
+    void returns400_whenManualEntryIsAllBlank() throws Exception {
+        mockMvc.perform(post("/api/analyses")
+                        .contentType("application/json")
+                        .content("{\"manual\":{\"make\":\"  \"}}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.messages[0]").value("Wymagane jest podanie url, listingText lub danych pojazdu"));
+    }
+
+    @Test
+    void returns400_whenManualYearIsImpossible() throws Exception {
+        mockMvc.perform(post("/api/analyses")
+                        .contentType("application/json")
+                        .content("{\"manual\":{\"make\":\"Toyota\",\"year\":1823}}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.messages[0]").value("manual.year: rok poza zakresem"));
+    }
+
+    // A mistyped VIN must not 400 away an analysis that is still useful; the registry reports
+    // MISSING_INPUTS and the seller question asks for it again.
+    @Test
+    void aMalformedVinIsNotAValidationError() throws Exception {
+        when(aiAnalysisService.analyze(anyString())).thenReturn(fullResult());
+
+        mockMvc.perform(post("/api/analyses")
+                        .contentType("application/json")
+                        .content("{\"listingText\":\"Toyota Corolla\",\"vin\":\"NMTB-TOO-SHORT\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.analysis").exists());
+    }
+
+    @Test
+    void manualFieldsRideAlongWithASuccessfulUrlFetch() throws Exception {
+        when(listingFetchService.fetch(anyString())).thenReturn(FetchResult.ok("Treść z Otomoto"));
+        when(aiAnalysisService.analyze(anyString())).thenReturn(fullResult());
+
+        mockMvc.perform(post("/api/analyses")
+                        .contentType("application/json")
+                        .content("""
+                                {"url":"https://otomoto.pl/listing/123",
+                                 "manual":{"notes":"Widziałem rysę na drzwiach"}}"""))
+                .andExpect(status().isOk())
+                // Still "ok": the advert was fetched, the form only added to it.
+                .andExpect(jsonPath("$.fetchStatus").value("ok"));
+
+        var prompt = ArgumentCaptor.forClass(String.class);
+        verify(aiAnalysisService).analyze(prompt.capture());
+        assertThat(prompt.getValue())
+                .contains("Widziałem rysę na drzwiach")
+                .contains("Treść z Otomoto");
     }
 
     @Test

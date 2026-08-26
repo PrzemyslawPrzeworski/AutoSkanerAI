@@ -3,6 +3,35 @@
   <div class="result-header">
     <button pButton class="p-button-secondary" label="Nowe ogłoszenie" (click)="reset()"></button>
   </div>
+
+  @if (registryInputsMissing()) {
+    <!-- The registry could not be queried. Rather than an unexplained empty panel, ask for the
+         three fields it needs — this is the step that turns a URL analysis into a real history
+         check, because Otomoto never publishes the VIN to a logged-out fetch. -->
+    <section class="registry-prompt">
+      <h3>Sprawdź historię pojazdu w rejestrze</h3>
+      <p class="registry-prompt-lead">
+        Historii nie udało się sprawdzić, bo brakuje danych identyfikacyjnych pojazdu.
+        <strong>Nie znaczy to, że pojazd jest bez historii szkód</strong> — znaczy, że rejestru
+        jeszcze nie zapytano.
+      </p>
+      <app-vehicle-data-form mode="registry" [(draft)]="vehicleDraft" />
+      <button
+        pButton
+        label="Sprawdź historię pojazdu"
+        class="p-button-primary"
+        [disabled]="loading()"
+        (click)="recheckWithRegistryData()"
+      ></button>
+      <small class="registry-prompt-note">
+        Analiza zostanie wykonana ponownie z uzupełnionymi danymi — potrwa to około 30 sekund.
+      </small>
+      @if (error()) {
+        <p-message severity="error" [text]="error()!"></p-message>
+      }
+    </section>
+  }
+
   <app-analysis-result
     [result]="analysisResponse()!.analysis!"
     [cepikResult]="analysisResponse()?.cepikResult ?? null"
@@ -51,6 +80,15 @@
         (input)="listingText.set($any($event.target).value)"
       ></textarea>
     </div>
+
+    <button type="button" class="vehicle-toggle" (click)="toggleVehicleFields()">
+      {{ vehicleFieldsOpen() ? '▲' : '▼' }} Dane pojazdu — VIN, rejestracja, dane techniczne
+      (opcjonalnie)
+    </button>
+
+    @if (vehicleFieldsOpen()) {
+      <app-vehicle-data-form mode="full" [(draft)]="vehicleDraft" />
+    }
 
     <button
       pButton

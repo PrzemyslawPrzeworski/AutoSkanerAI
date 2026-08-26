@@ -22,7 +22,9 @@ describe('AnalysisService', () => {
     const mockResponse: AnalysisResponse = {
       fetchStatus: 'text',
       fetchFailureReason: null,
-      analysis: null
+      analysis: null,
+      cepikResult: null,
+      marketPriceContext: null
     };
 
     service.analyze({ listingText: 'BMW 3 2020' }).subscribe(res => {
@@ -40,7 +42,30 @@ describe('AnalysisService', () => {
 
     const req = httpMock.expectOne('/api/analyses');
     expect(req.request.body).toEqual({ url: 'https://otomoto.pl/listing/1' });
-    req.flush({ fetchStatus: 'url_failed', fetchFailureReason: 'blocked', analysis: null });
+    req.flush({
+      fetchStatus: 'url_failed', fetchFailureReason: 'blocked', analysis: null,
+      cepikResult: null, marketPriceContext: null
+    });
+  });
+
+  it('sends manual fields and registry overrides when provided', () => {
+    service
+      .analyze({
+        url: 'https://otomoto.pl/listing/1',
+        manual: { make: 'Toyota', year: 2022 },
+        vin: 'NMTBZ3BE40R000000',
+        registrationPlate: 'WX00000',
+        firstRegistrationDate: '2022-04-12'
+      })
+      .subscribe();
+
+    const req = httpMock.expectOne('/api/analyses');
+    expect(req.request.body.manual).toEqual({ make: 'Toyota', year: 2022 });
+    expect(req.request.body.vin).toBe('NMTBZ3BE40R000000');
+    req.flush({
+      fetchStatus: 'ok', fetchFailureReason: null, analysis: null,
+      cepikResult: null, marketPriceContext: null
+    });
   });
 
   it('propagates 400 HttpErrorResponse', () => {

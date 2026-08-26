@@ -31,6 +31,58 @@
   margin-top: 1rem;
 }
 
+// display: block, width: fit-content — as an inline-block button this shared a line with whatever
+// followed it, and clicks landed on the neighbour. Same trap as .expand-link in cepik-result.
+.vehicle-toggle {
+  display: block;
+  width: fit-content;
+  padding: 0.45rem 0.75rem;
+  background: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #374151;
+  cursor: pointer;
+
+  &:hover {
+    background: #f3f4f6;
+  }
+}
+
+.registry-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+
+  h3 {
+    margin: 0;
+    font-size: 1.0625rem;
+    color: #92400e;
+  }
+
+  app-vehicle-data-form {
+    width: 100%;
+  }
+}
+
+.registry-prompt-lead {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #78350f;
+}
+
+.registry-prompt-note {
+  font-size: 0.75rem;
+  color: #92400e;
+}
+
 .result-header {
   margin-bottom: 1.5rem;
 }
