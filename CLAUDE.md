@@ -29,7 +29,9 @@ The AI layer uses a Spring interface with three Profile-switched implementations
 - `BedrockClaudeAnalysisService` — Claude Haiku 4.5 via AWS Bedrock, activate with `SPRING_PROFILES_ACTIVE=bedrock`
 - `OpenRouterAnalysisService` — any OpenRouter model, activate with `SPRING_PROFILES_ACTIVE=openrouter`
 
-Required env vars: `AWS_PROFILE` (or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`) for `bedrock`; `OPENROUTER_API_KEY` for `openrouter`.
+Required env vars: `AWS_PROFILE` (or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`) for `bedrock`; `OPENROUTER_API_KEY` for `openrouter`. The openrouter key has **no default** in `application-openrouter.properties`, so an unset value fails context startup rather than degrading.
+
+Production runs `openrouter`. `bedrock` is dev-only: the sole AWS credential source here is a corporate SSO profile (`kn.awsapps.com`, role `KN-DevelopmentEngineer`) issuing short-lived credentials, so it cannot back a hosted service — do not copy AWS credentials into Render to work around this.
 
 ## API endpoints
 
@@ -101,11 +103,18 @@ cd frontend && npm run build             # production build → dist/
 
 Known tradeoff: both run on the request thread, so one analysis makes up to 3 historiapojazdu calls plus a Jina fetch. Async handling is deferred (impl-review F10).
 
-Verification status (2026-08-25): historiapojazdu is confirmed working end-to-end against the live registry. The market-price path is **unverified** — `r.jina.ai` is blocked by proxy policy from the dev machine, and production runs `SPRING_PROFILES_ACTIVE=mock`, so the real `MarketPriceFetchService` has never executed anywhere.
+Verification status (2026-08-26): both paths are confirmed against production, which now runs `SPRING_PROFILES_ACTIVE=openrouter`. A real analysis returned `marketPriceContext.status=OK` with `sampleSize=40` (so `PRICE_PATTERN` does match live Otomoto markdown) and `cepikResult.status=MISSING_INPUTS` for a listing with no VIN/plate/date. historiapojazdu is separately confirmed end-to-end against the live registry.
+
+Two caveats on the market-price range:
+
+- The `min` is not trustworthy. That run returned `min=22900` for 2017–2021 Corollas under 125 000 km, well below any plausible asking price. `PRICE_PATTERN` cannot tell an asking price from a monthly instalment or a damaged-car listing, and the `1_000..10_000_000` guard is far too wide to catch it. The median tracks reality (68 900 against a 72 900 listing); treat `min`/`max` as outlier-contaminated.
+- `median = prices.get(prices.size() / 2)` is the upper-middle element, not a median, for even sample sizes.
 
 ## Current state
 
-F-01 (LLM analysis wiring), S-01 (core analysis flow), S-04 (CEPiK VIN lookup) and S-05 (market price context) are complete and on `main`. `POST /api/analyses` is live under `mock`, `bedrock`, and `openrouter` profiles. PRD is at `context/foundation/prd.md` (FR-001 to FR-018). Next: S-02 (manual field entry) or Stream B (F-02 data layer → F-03 auth → S-03 persistence).
+F-01 (LLM analysis wiring), S-01 (core analysis flow), S-04 (CEPiK VIN lookup) and S-05 (market price context) are complete, on `main`, and **verified live in production** as of 2026-08-26 — previously all four were merged but dark, because Render pinned `SPRING_PROFILES_ACTIVE=mock`. `POST /api/analyses` is live under `mock`, `bedrock`, and `openrouter` profiles.
+
+A real analysis takes ~27 s end to end (~16 s LLM + a Jina fetch for the market range), all on the request thread. Free-tier LLM slugs are the main fragility: see `application-openrouter.properties`. PRD is at `context/foundation/prd.md` (FR-001 to FR-018). Next: S-02 (manual field entry) or Stream B (F-02 data layer → F-03 auth → S-03 persistence).
 
 Frontend builds need Node ≥ v20.19 / v22.12 (Angular 21 requirement); `node`/`npm` are not on PATH by default in this environment.
 
