@@ -62,7 +62,14 @@ class RealCepikEnrichmentServiceTest {
             "12-05-2016, 2016-05-12",
             "12/05/2016, 2016-05-12",
             "2016-05-12, 2016-05-12",
-            "  12.05.2016  , 2016-05-12"
+            "  12.05.2016  , 2016-05-12",
+            // Verbatim from a live Otomoto listing (toyota-corolla-ID6HG6ZH, 2026-08-26): the
+            // page shows the date as Polish prose, so this is the common case for URL fetches,
+            // not an exotic one.
+            "12 kwietnia 2022, 2022-04-12",
+            "12 Kwietnia 2022, 2022-04-12",
+            "1 września 2019, 2019-09-01",
+            "12 kwiecień 2022, 2022-04-12"
     })
     void normalisesListingDateFormatsToIsoBeforeLookup(String raw, String expectedIso) {
         when(historiaPojazduService.lookup(any(), any(), any())).thenReturn(
@@ -77,7 +84,10 @@ class RealCepikEnrichmentServiceTest {
     // A doomed request would come back as LOOKUP_FAILED, which the UI words as "registry
     // temporarily unavailable" — blaming the registry for a value we could see was wrong.
     @ParameterizedTest
-    @ValueSource(strings = {"31.02.2016", "maj 2016", "2016", "05.2016", "not a date"})
+    // "kwiecień 2022" has no day, so there is no date to send. Guessing the 1st would put a
+    // fabricated value in front of the registry and blame it for the 400 that came back.
+    @ValueSource(strings = {"31.02.2016", "maj 2016", "2016", "05.2016", "not a date",
+            "kwiecień 2022", "kwietnia 2022", "31 lutego 2016"})
     void unparseableDateAsksTheUserInsteadOfCallingTheRegistry(String raw) {
         var result = service.enrich(extracted(VALID_VIN, "WA12345", raw));
 

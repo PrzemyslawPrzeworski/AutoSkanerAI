@@ -59,7 +59,7 @@ public class AnalysisPrompt {
                 }
 
                 INSTRUKCJE:
-                - extracted: wyodrębnij fakty z ogłoszenia. Użyj null dla każdego pola, którego nie możesz ustalić. vin: wyodrębnij pełny numer VIN (17 znaków) jeśli podany. registrationPlate: numer rejestracyjny jeśli podany. firstRegistrationDate: data pierwszej rejestracji w formacie z ogłoszenia.
+                - extracted: wyodrębnij fakty z ogłoszenia. Użyj null dla każdego pola, którego nie możesz ustalić. vin: wyodrębnij pełny numer VIN (17 znaków) jeśli podany. registrationPlate: numer rejestracyjny jeśli podany. firstRegistrationDate: data pierwszej rejestracji w formacie yyyy-MM-dd — przekonwertuj z zapisu użytego w ogłoszeniu (np. "12 kwietnia 2022" → "2022-04-12", "15.03.2018" → "2018-03-15"). Jeśli ogłoszenie podaje tylko miesiąc lub rok, użyj null; nie zgaduj dnia.
                 - equipment: oceń wyposażenie wymienione lub nieobecne w ogłoszeniu.
                 - riskFlags: zidentyfikuj sygnały ostrzegawcze (np. brak VIN, zbyt niska cena, brak historii serwisowej).
                 - sellerQuestions: wygeneruj 3–5 konkretnych pytań do sprzedawcy po polsku.
@@ -72,7 +72,7 @@ public class AnalysisPrompt {
                     "priceCurrency": "PLN", "mileageKm": 120000, "fuel": "benzyna", "transmission": "automatyczna",
                     "originCountry": null, "sellerType": "prywatny", "serviceHistoryMentioned": true,
                     "accidentClaim": "bezwypadkowy wg sprzedającego", "vinPresent": true,
-                    "vin": "WBAAM31060GE12345", "registrationPlate": "WA12345", "firstRegistrationDate": "15.03.2018" },
+                    "vin": "WBAAM31060GE12345", "registrationPlate": "WA12345", "firstRegistrationDate": "2018-03-15" },
                   "equipment": [
                     { "name": "klimatyzacja", "status": "CONFIRMED", "note": null },
                     { "name": "tempomat", "status": "UNCLEAR", "note": "Nie wspomniano w ogłoszeniu" }

@@ -10,8 +10,11 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -31,11 +34,31 @@ public class RealCepikEnrichmentService implements CepikEnrichmentService {
 
     // ISO first so a well-formed value is not reinterpreted; the rest are the formats Polish
     // listings actually use. Strict resolution, so 31.02.2016 is rejected rather than shifted.
+    // The prose forms are not hypothetical: a live Otomoto listing on 2026-08-26 rendered the
+    // date as "12 kwietnia 2022", which failed every numeric pattern and cost the user a CEPiK
+    // lookup. MMMM is the genitive Polish dates are actually written in; LLLL is the nominative,
+    // for a seller who writes "12 kwiecień 2022".
     private static final List<DateTimeFormatter> ACCEPTED_DATE_FORMATS = List.of(
             DateTimeFormatter.ISO_LOCAL_DATE,
-            DateTimeFormatter.ofPattern("dd.MM.uuuu").withResolverStyle(java.time.format.ResolverStyle.STRICT),
-            DateTimeFormatter.ofPattern("dd-MM-uuuu").withResolverStyle(java.time.format.ResolverStyle.STRICT),
-            DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(java.time.format.ResolverStyle.STRICT));
+            strict("dd.MM.uuuu"),
+            strict("dd-MM-uuuu"),
+            strict("dd/MM/uuuu"),
+            polishProse("d MMMM uuuu"),
+            polishProse("d LLLL uuuu"));
+
+    private static DateTimeFormatter strict(String pattern) {
+        return DateTimeFormatter.ofPattern(pattern).withResolverStyle(ResolverStyle.STRICT);
+    }
+
+    // Case-insensitive because "12 Kwietnia 2022" is just as likely as lower case, and a
+    // capital letter is not a reason to tell the user their date is unusable.
+    private static DateTimeFormatter polishProse(String pattern) {
+        return new DateTimeFormatterBuilder()
+                .parseCaseInsensitive()
+                .appendPattern(pattern)
+                .toFormatter(Locale.forLanguageTag("pl"))
+                .withResolverStyle(ResolverStyle.STRICT);
+    }
 
     private final HistoriaPojazduService historiaPojazduService;
 
