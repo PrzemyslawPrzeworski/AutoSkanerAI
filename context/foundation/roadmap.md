@@ -3,7 +3,7 @@ project: AutoSkanerAI
 version: 1
 status: draft
 created: 2026-05-25
-updated: 2026-05-25
+updated: 2026-08-26
 prd_version: 1
 main_goal: market-feedback
 top_blocker: time
@@ -29,14 +29,16 @@ AutoSkanerAI compresses used-car listing evaluation from tens of minutes to a fe
 
 | ID   | Change ID                 | Outcome (user can …)                                         | Prerequisites    | PRD refs                                          | Status   |
 |------|---------------------------|--------------------------------------------------------------|------------------|---------------------------------------------------|----------|
-| F-01 | llm-analysis-wiring       | (foundation) LlmAnalysisService calls real LLM API           | —                | FR-004, FR-006, FR-007, FR-008, FR-009            | ready    |
+| F-01 | llm-analysis-wiring       | (foundation) LlmAnalysisService calls real LLM API           | —                | FR-004, FR-006, FR-007, FR-008, FR-009            | shipped  |
 | F-02 | data-layer-setup          | (foundation) PostgreSQL + JPA + Flyway migrations in place   | —                | FR-010, FR-011, FR-012                            | ready    |
 | F-03 | auth-scaffold             | (foundation) login/register wired; protected routes in place | F-02             | FR-010                                            | proposed |
-| S-01 | core-analysis-flow        | paste URL or text → receive full AI analysis                 | F-01             | FR-001, FR-002, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, US-01 | proposed |
-| S-02 | manual-field-entry        | fill in key fields manually → receive full AI analysis       | S-01             | FR-003                                            | proposed |
+| S-01 | core-analysis-flow        | paste URL or text → receive full AI analysis                 | F-01             | FR-001, FR-002, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, US-01 | shipped  |
+| S-02 | manual-field-entry        | fill in key fields manually → receive full AI analysis       | S-01             | FR-003                                            | ready    |
 | S-03 | save-view-delete-analyses | save an analysis, view saved list, delete entries            | S-01, F-02, F-03 | FR-010, FR-011, FR-012                            | proposed |
-| S-04 | cepik-vin-lookup          | see live CEPiK vehicle history alongside analysis            | S-01             | FR-017                                            | shipped |
-| S-05 | market-price-context      | see comparable market price range alongside analysis         | S-01             | FR-018                                            | shipped |
+| S-04 | cepik-vin-lookup          | see live CEPiK vehicle history alongside analysis            | S-01             | FR-017                                            | shipped  |
+| S-05 | market-price-context      | see comparable market price range alongside analysis         | S-01             | FR-018                                            | shipped  |
+
+Remaining must-have scope is four items: **S-02** (unblocked, standalone) and the chain **F-02 → F-03 → S-03**. Everything else above is merged to `main` and verified against production.
 
 ## Streams
 
@@ -70,10 +72,9 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Prerequisites:** —
 - **Parallel with:** F-02
 - **Blockers:** —
-- **Unknowns:**
-  - Which LLM provider to call by default — Claude API (`ANTHROPIC_API_KEY`) or OpenAI (`OPENAI_API_KEY`)? Both keys are in `.env`. Decision affects prompt design and error handling. — Owner: user. Block: no (mock profile available as fallback during development).
-- **Risk:** The LLM output schema must be locked before S-01's frontend display layer is built. If the schema changes after S-01 starts, both backend prompt and frontend rendering need rework. Define and freeze the schema as the first deliverable of this foundation.
-- **Status:** ready
+- **Unknowns:** resolved — neither Claude API nor OpenAI direct. Three profile-switched implementations shipped (`mock`, `bedrock`, `openrouter`); production runs `openrouter`. `bedrock` is dev-only because the only AWS credential source here is a corporate SSO profile issuing short-lived credentials, which cannot back a hosted service.
+- **Risk:** retired — the schema was locked before S-01's display layer and has not changed since. **Carried forward:** free-tier OpenRouter slugs are the main production fragility. Two failure axes are handled separately (transient 429/5xx → retry the same model honouring `Retry-After`; permanent 404/400 → skip to the next candidate; 401/403 or malformed shape → fail fast), because an immediate retry against a saturated free pool turned single 429s into 502s on 2026-08-26.
+- **Status:** shipped (closed out `bd9b6e3`; later hardening in `64feb46`, `f9e3762`, `315f9b3`, `a8525ee`)
 
 ---
 
@@ -116,24 +117,25 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Prerequisites:** F-01
 - **Parallel with:** F-02, F-03 (both can run concurrently — neither depends on S-01 at this stage)
 - **Blockers:** —
-- **Unknowns:**
-  - URL fetching fallback UX: when a URL cannot be scraped (Otomoto/OLX block bots), does the app automatically redirect to a text-paste input, or does the user manually switch? — Owner: user. Block: no (can ship with a simple manual-switch UI and improve later).
-- **Risk:** This slice IS the product. If LLM extraction quality is low on real Polish listings (hallucinated fields, missed risk flags, wrong verdict), the entire product value is in question. Validate against at least 3–5 real listings before marking done. The output schema from F-01 must be stable before the frontend rendering is built.
-- **Status:** proposed
+- **Unknowns:** resolved — URLs are fetched through Jina Reader (`https://r.jina.ai/<url>`), which handles JS rendering and Cloudflare. A failed fetch returns `fetchStatus: "url_failed"` with a null analysis and the frontend shows the text-paste fallback.
+- **Risk:** partially retired. Extraction quality on real Polish listings is good — verified against live Otomoto listings; the LLM correctly reads price, mileage, plate, prose dates and equipment. **Carried forward:** the scoring layer trusts the listing's own claims, which is how a car advertised as `bezwypadkowy` scored `risk: 88 / WORTH_CHECKING` while the registry showed a szkoda istotna. Fixed for CEPiK facts by `CepikRiskAdjuster` (2026-08-26), but the general lesson stands: any future enrichment must be folded into the score explicitly, because the LLM scores before enrichment runs and never sees it.
+- **Carried forward:** `POST /api/analysis/risk` was to be removed once S-01 shipped. It is still live.
+- **Status:** shipped (closed out `2175a70`; later hardening in `e81748c`, `e02135f`, `5f5e733`)
 
 ---
 
 ### S-02: Manual field entry
 
-- **Outcome:** user can fill in key listing fields manually via a structured form (make, model, year, price, mileage, fuel, transmission, and any additional free-text notes) and receive the same full AI analysis as S-01.
+- **Outcome:** user can fill in key listing fields manually via a structured form (make, model, year, price, mileage, fuel, transmission, and any additional free-text notes) and receive the same full AI analysis as S-01. **Scope extended 2026-08-26:** the form must also accept **VIN, registration plate, and first registration date**, prefilled from the LLM extraction where available and overriding it where the user types a value.
 - **Change ID:** `manual-field-entry`
-- **PRD refs:** FR-003
+- **PRD refs:** FR-003, and FR-017 in practice (see below)
 - **Prerequisites:** S-01
 - **Parallel with:** S-03 (once S-01 is done, manual entry and persistence can be developed concurrently if capacity allows)
 - **Blockers:** —
 - **Unknowns:** —
-- **Risk:** Lowest-risk slice in the roadmap. The analysis backend (F-01 + S-01) is already wired; only the input collection form changes. Can be shipped quickly after S-01. No new backend logic required unless the manual-entry payload shape differs from the text/URL path.
-- **Status:** proposed
+- **Why the scope grew:** this entry was written before S-04's research established that vehicle history needs a plate + VIN + first-registration-date triple. **Otomoto encrypts the VIN for logged-out fetches** (verified 2026-08-26 on `toyota-corolla-ID6HG6ZH`: the plate and a prose date come through, `vinPresent: true` with `vin: null`), and no public plate→VIN service exists in Poland. So a URL-only analysis structurally cannot produce a CEPiK result, and S-02 is not a convenience slice — **it is the only legitimate path to making S-04 fire on real listings.** Without it CEPiK works only when a seller happens to type the VIN into the description, roughly 1 listing in 10.
+- **Risk:** still the lowest-risk slice: the enrichment path keys off `ExtractedData`, so accepting overrides needs no change to CEPiK or market-price logic. The one real trap is precedence — a user-typed value must win over the LLM's guess, and a blank field must not overwrite a good extraction with null.
+- **Status:** ready
 
 ---
 
@@ -153,15 +155,20 @@ Foundations below assume these are present and do NOT re-scaffold them.
 
 ### S-04: CEPiK VIN lookup
 
-- **Outcome:** when a VIN is extracted from the listing, the app queries the official CEPiK API (`api.cepik.gov.pl`) and displays retrieved vehicle history (first registration date, ownership count, mileage stamps, accident records) alongside the analysis. If the VIN is absent or the lookup fails, the section is shown as unavailable — never silently omitted.
+- **Outcome (as delivered):** when the LLM extracts **all three** of VIN + registration plate + first registration date, the app opens a fresh `moj.gov.pl` session, queries `historiapojazdu.gov.pl`, and displays the registry's vehicle history alongside the analysis — registry identity (make, model, type, year, province), registration and inspection status, OC validity, owner count, dated mileage stamps, registered significant damages with insurer and damage categories, theft and odometer-rollback markers, and the full event timeline. Any missing or malformed input yields `MISSING_INPUTS` and a seller question; a broken lookup yields `LOOKUP_FAILED`, worded differently from `NOT_FOUND`. The section is always shown, never silently omitted, and **`null` (not checked) renders differently from `[]` (registry reported nothing)**.
 - **Change ID:** `cepik-vin-lookup`
 - **PRD refs:** FR-017
 - **Prerequisites:** S-01 (VIN extraction must be working; analysis result must display before enrichment is added)
 - **Parallel with:** S-02, S-05, F-02, F-03
 - **Blockers:** —
-- **Unknowns:** resolved during research — CEPiK exposes technical data only, so full history required session scraping of `historiapojazdu.gov.pl` (plate + VIN + first registration date). Scope grew past the original "skip session scraping in MVP" decision; see `context/changes/cepik-vin-lookup/change.md`.
-- **Risk:** Government APIs can be slow or unavailable. **Carried forward:** enrichment is still synchronous inside `AnalysisController.buildResponse()` — up to 16 CEPiK voivodeship calls plus 2 historiapojazdu calls plus the S-05 Jina fetch on one request thread. Bounded by a 12 s outer deadline; async handling remains deferred (impl-review F10). `api.cepik.gov.pl` was at 0% uptime during implementation, so the live path is unverified end-to-end.
-- **Status:** shipped (merged to `main` 2026-08-25, `d5e0fed`)
+- **Unknowns:** resolved during research and then again in production. `api.cepik.gov.pl` exposes technical data only and **cannot look up a vehicle by VIN at all** (verified against the live endpoint 2026-08-25: none of the `pojazdy` resource's 68 attributes is a VIN, `filter[numer-vin]` is rejected, `wojewodztwo` is mandatory). So full history required session scraping of `historiapojazdu.gov.pl` with the plate + VIN + first-registration-date triple, past the original "skip session scraping in MVP" decision; see `context/changes/cepik-vin-lookup/change.md`. Two further contract details only surfaced live: the API version sits in the URL path and rotates (`1.0.17` → `1.1.0`, now discovered from the bootstrap HTML rather than pinned), and `firstRegistrationDate` is accepted only as `yyyy-MM-dd`.
+- **Risk:** Government APIs can be slow or unavailable — realised, and worse than expected in a way the original entry did not anticipate. **The `FOUND` branch had never run against a real vehicle until 2026-08-26, and every field name in `HistoriaPojazduParser` was invented.** The registry actually returns `technicalData.basicData` and `timelineData.events[]`; the parser looked for `zdarzenia` / `szkodyIstotne` / `przebieg`, found nothing, and produced `damageRecords: []`, which the UI rendered as "brak zgłoszonych szkód istotnych" for a car carrying a registered szkoda istotna. **The tests passed throughout, because the fixtures were hand-written to match the invented names.** Fixed 2026-08-26 against verbatim captured payloads; fixtures in `src/test/resources/cepik/` must now stay verbatim captures, and no field mapping may be added without a capture showing that name.
+- **Carried forward:**
+  - Enrichment is still synchronous inside `AnalysisController.buildResponse()` — up to 3 historiapojazdu calls plus the S-05 Jina fetch on one request thread, ~27 s end to end. Async handling remains deferred (impl-review F10).
+  - `HistoriaPojazduServiceLiveTest` still only asserts `NOT_FOUND`. A `FOUND` assertion needs a real plate+VIN+date triple, which cannot be committed to a public repo, so the branch that broke stays unguarded by a live test.
+  - The registry-vs-listing mileage cross-check lives only in the frontend component and does not feed the score.
+- **Lesson:** a green test suite over fabricated fixtures is worse than no test, because it converts "unverified" into "verified" on the status board. The same shape as the live-test rule already in `CLAUDE.md` — a test that tolerates the failure mode it exists to catch is decoration.
+- **Status:** shipped (closed out `d5e0fed` 2026-08-25; `FOUND` path first verified against the live registry 2026-08-26; parser fix `8870d35`, UI fixes `48b32dc`, scoring fix `5b7a3b3`)
 
 ---
 
@@ -174,8 +181,11 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Parallel with:** S-02, S-04, F-02, F-03
 - **Blockers:** none — reuses the existing Jina Reader infrastructure from FR-001; no new API key required. (An earlier draft assumed the Exa search API and an `EXA_API_KEY`; research rejected that in favour of Jina on Otomoto — see `context/changes/market-price-context/research.md`.)
 - **Unknowns:** resolved during research — Otomoto slug mapping, the `### <price>\nPLN` markdown price format, and min/median/max computation are all settled in the plan.
-- **Risk:** extraction is regex-based against Otomoto's Jina-rendered markdown. A change in Otomoto's price formatting silently breaks the range and yields `INSUFFICIENT_DATA`; the small-sample caveat (`sampleSize < 3`) must stay visible in the UI so a thin result is never read as a confident range.
-- **Status:** shipped (merged to `main` 2026-08-25, `51db3fb`)
+- **Risk:** extraction is regex-based against Otomoto's Jina-rendered markdown. A change in Otomoto's price formatting silently breaks the range and yields `INSUFFICIENT_DATA`; the small-sample caveat (`sampleSize < 3`) must stay visible in the UI so a thin result is never read as a confident range. Verified live 2026-08-26: `status=OK` with `sampleSize=40`, so `PRICE_PATTERN` does match current Otomoto markdown, and the median tracks reality (68 900 against a 72 900 listing).
+- **Carried forward — two known defects, surfaced not fixed:**
+  - **`min` is not trustworthy.** A live run returned `min=39900` against `median=82900`, and an earlier one `min=22900` for 2017–2021 Corollas under 125 000 km. `PRICE_PATTERN` cannot tell an asking price from a monthly instalment or a damaged-car listing, and the `1_000..10_000_000` guard is far too wide to catch it. `max` is contaminated the same way. Treat the median as the only reliable output until this is fixed — either an IQR/percentile trim or a tighter plausibility band derived from the median.
+  - **`median = prices.get(prices.size() / 2)` is the upper-middle element, not a median,** for even sample sizes. Cheap fix; wrong by one element today.
+- **Status:** shipped (closed out `51db3fb` 2026-08-25; verified live 2026-08-26)
 
 ---
 
@@ -183,18 +193,29 @@ Foundations below assume these are present and do NOT re-scaffold them.
 
 | Roadmap ID | Change ID                 | Suggested issue title                                         | Ready for `/10x-plan` | Notes                              |
 |------------|---------------------------|---------------------------------------------------------------|-----------------------|------------------------------------|
-| F-01       | llm-analysis-wiring       | Wire LlmAnalysisService to real Claude/OpenAI API             | yes                   | Run `/10x-plan llm-analysis-wiring` |
-| F-02       | data-layer-setup          | Add PostgreSQL + Spring Data JPA + Flyway to backend          | yes                   | Run `/10x-plan data-layer-setup`   |
-| F-03       | auth-scaffold             | Wire Spring Security + JWT; Angular login/register + guards   | no                    | Needs F-02 first                   |
-| S-01       | core-analysis-flow        | Full analysis flow: URL + text paste → AI output on screen    | no                    | Needs F-01 first                   |
-| S-02       | manual-field-entry        | Manual field entry form → same AI analysis as S-01            | no                    | Needs S-01 first                   |
-| S-03       | save-view-delete-analyses | Save / view list / delete saved analyses                      | no                    | Needs S-01 + F-02 + F-03           |
-| S-04       | cepik-vin-lookup          | Live CEPiK vehicle history alongside analysis                 | shipped               | Merged to `main` as `d5e0fed` |
-| S-05       | market-price-context      | Comparable market price range (Otomoto via Jina Reader)       | shipped               | Merged to `main` as `51db3fb` |
+| F-01       | llm-analysis-wiring       | Wire LlmAnalysisService to real Claude/OpenAI API             | shipped               | Merged as `bd9b6e3`; runs `openrouter` in production |
+| F-02       | data-layer-setup          | Add PostgreSQL + Spring Data JPA + Flyway to backend          | yes                   | Run `/10x-plan data-layer-setup`. Confirmed unstarted 2026-08-26 — `pom.xml` still has no JPA, Flyway, PostgreSQL or H2 dependency |
+| F-03       | auth-scaffold             | Wire Spring Security + JWT; Angular login/register + guards   | no                    | Needs F-02 first. Confirmed unstarted — no Spring Security or JWT dependency |
+| S-01       | core-analysis-flow        | Full analysis flow: URL + text paste → AI output on screen    | shipped               | Merged as `2175a70`               |
+| S-02       | manual-field-entry        | Manual entry form (incl. VIN / plate / first registration) → same AI analysis | yes    | Run `/10x-plan manual-field-entry`. Unblocked and the highest-value remaining slice: it is what makes S-04 fire on real listings |
+| S-03       | save-view-delete-analyses | Save / view list / delete saved analyses                      | no                    | Needs F-02 + F-03 (S-01 is done)  |
+| S-04       | cepik-vin-lookup          | Live CEPiK vehicle history alongside analysis                 | shipped               | Merged as `d5e0fed`; `FOUND` path fixed and verified 2026-08-26 |
+| S-05       | market-price-context      | Comparable market price range (Otomoto via Jina Reader)       | shipped               | Merged as `51db3fb`; two carried-forward defects in `min`/`median` |
+
+Not roadmap items, but tracked here so they are not lost — small carried-forward fixes with no slice of their own:
+
+| Fix | Where | Why it matters |
+|-----|-------|----------------|
+| Trim outliers from the market price range; fix the even-sample median | `MarketPriceFetchService` | `min`/`max` are currently misleading enough to be worth hiding until fixed |
+| Remove the deprecated `POST /api/analysis/risk` facade | `RiskAnalysisController` | It was to go when S-01 shipped; it is still live and duplicates a subset of `POST /api/analyses` |
+| `GET /health` returns 500, not 404 | Actuator config | An uptime probe pointed at it reads as "app broken" rather than "wrong path" |
 
 ## Open Roadmap Questions
 
-No open roadmap questions. PRD shipped with 0 open questions (quality check: accepted 2026-05-24). Slice-level unknowns (LLM provider choice, URL fallback UX, OAuth scope) are tracked in individual slice/foundation entries above and are non-blocking — they do not gate any `/10x-plan` invocation.
+The PRD shipped with 0 open questions (quality check: accepted 2026-05-24), and slice-level unknowns are tracked in the entries above. Two questions have opened since, both from live operation on 2026-08-26 — neither gates a `/10x-plan` invocation:
+
+- **Is a ~27 s synchronous analysis acceptable for the MVP, or does async/streaming move into must-have scope?** Every enrichment runs on the request thread (impl-review F10 deferred it). It works, but it is close to the limit of what a user will wait through without feedback. — Owner: user. Block: no.
+- **Stay on free-tier OpenRouter slugs, or spend a few dollars on a paid model?** The free pool is the main production fragility (retired slugs, saturated pools returning 429) and the largest single component of the 27 s. — Owner: user. Block: no.
 
 ## Parked
 
