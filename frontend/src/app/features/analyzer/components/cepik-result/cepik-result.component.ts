@@ -126,12 +126,18 @@ export class CepikResultComponent {
     return a.includes(b) || b.includes(a);
   }
 
+  /**
+   * Only the direction that favours the seller — registry higher than advertised — and only past
+   * a tolerance. Sellers round ("26 000 km" against a registry reading of 26 320), and the
+   * registry reading is months old, so a small gap is normal and warning about it trains the
+   * user to ignore the warning that matters.
+   */
   readonly hasMileageMismatchRisk = computed(() => {
     const last = this.lastMileage();
     const listed = this.listing()?.mileageKm;
     if (!last?.mileageKm || !listed) return false;
-    // Only flag the direction that favours the seller: registry higher than advertised.
-    return last.mileageKm > listed;
+    const tolerance = Math.max(2000, listed * 0.05);
+    return last.mileageKm - listed > tolerance;
   });
 
   yesNo(value: boolean | null): string {

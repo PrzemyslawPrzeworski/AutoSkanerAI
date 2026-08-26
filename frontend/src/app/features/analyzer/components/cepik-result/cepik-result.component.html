@@ -167,7 +167,7 @@
 
         @if (events().length > 0) {
           <button class="expand-link" (click)="toggleTimeline()">
-            {{ timelineExpanded() ? 'Ukryj pełną historię zdarzeń' : 'Pokaż pełną historię zdarzeń (' + events().length + ')' }}
+            {{ timelineExpanded() ? '▲ Ukryj pełną historię zdarzeń' : '▼ Pokaż pełną historię zdarzeń (' + events().length + ' zdarzeń)' }}
           </button>
           @if (timelineExpanded()) {
             <ul class="timeline">
@@ -193,9 +193,35 @@
           }
         }
 
-        <a [href]="cepikResult()!.lookupUrl!" target="_blank" rel="noopener" class="cepik-link">
-          Sprawdź pełną historię na historiapojazdu.gov.pl ↗
-        </a>
+        <!-- historiapojazdu cannot be deep-linked: its form is a POST-based session flow, so no
+             URL carries the VIN and this link always lands on an empty form. Say so, and put the
+             three values the form asks for within copy range instead of pretending otherwise. -->
+        <div class="cepik-manual">
+          <p class="cepik-manual-title">Chcesz zweryfikować to samodzielnie w rejestrze?</p>
+          <p class="cepik-hint">
+            historiapojazdu.gov.pl nie pozwala otworzyć konkretnego pojazdu linkiem — formularz
+            trzeba wypełnić ręcznie. Poniżej dane, o które zapyta:
+          </p>
+          <dl class="cepik-manual-fields">
+            <div>
+              <dt>Numer VIN</dt>
+              <dd>{{ str(cepikResult()!.vin) }}</dd>
+            </div>
+            @if (listing()?.registrationPlate) {
+              <div>
+                <dt>Numer rejestracyjny</dt>
+                <dd>{{ listing()!.registrationPlate }}</dd>
+              </div>
+            }
+            <div>
+              <dt>Data pierwszej rejestracji</dt>
+              <dd>{{ str(cepikResult()!.firstRegistrationDatePl) }}</dd>
+            </div>
+          </dl>
+          <a [href]="cepikResult()!.lookupUrl!" target="_blank" rel="noopener" class="cepik-link">
+            Otwórz historiapojazdu.gov.pl ↗
+          </a>
+        </div>
       </div>
     }
 
