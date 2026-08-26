@@ -44,7 +44,8 @@ class AnalysisControllerTest {
                         "https://www.otomoto.pl/osobowe/toyota/corolla", Instant.now()));
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new AnalysisController(aiAnalysisService, listingFetchService,
-                        cepikEnrichmentService, marketPriceEnrichmentService))
+                        cepikEnrichmentService, marketPriceEnrichmentService,
+                        new CepikRiskAdjuster()))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -161,6 +162,31 @@ class AnalysisControllerTest {
                         .content("{\"listingText\":\"BMW 3 Series 2018\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cepikResult.status").value("LOOKUP_FAILED"));
+    }
+
+    // The unit tests cover the caps; this one covers the wiring, which is where the original bug
+    // lived — the adjustment existing but never being applied is indistinguishable from no fix.
+    @Test
+    void foundCepikDamage_downgradesTheVerdictInTheResponse() throws Exception {
+        var damage = new DamageRecord("2023-02-07", "Powstanie szkody istotnej", "PZU",
+                List.of("Uszkodzenie elementów układu nośnego"));
+        var cepikResult = new CepikResult(CepikStatus.FOUND, "WBAAM31060GE12345", "2018-03-15",
+                null, null, 2, List.of(), List.of(damage), "https://historiapojazdu.gov.pl",
+                Instant.now(), "BMW", "BMW 320I", "SAMOCHÓD OSOBOWY", 2018,
+                "Zarejestrowany", "aktualne", Boolean.TRUE, Boolean.FALSE, Boolean.FALSE,
+                "mazowieckie", List.of());
+        when(cepikEnrichmentService.enrich(any())).thenReturn(cepikResult);
+        when(aiAnalysisService.analyze(anyString())).thenReturn(fullResult());
+
+        mockMvc.perform(post("/api/analyses")
+                        .contentType("application/json")
+                        .content("{\"listingText\":\"BMW 3 Series 2018, bezwypadkowy\"}"))
+                .andExpect(status().isOk())
+                // fullResult() claims "bezwypadkowy", so the contradiction rule applies too.
+                .andExpect(jsonPath("$.analysis.verdict.code").value("HIGH_RISK_SKIP"))
+                .andExpect(jsonPath("$.analysis.scores.risk").value(25))
+                .andExpect(jsonPath("$.analysis.riskFlags[0].code").value("CEPIK_SIGNIFICANT_DAMAGE"))
+                .andExpect(jsonPath("$.analysis.riskFlags[1].code").value("CEPIK_CONTRADICTS_LISTING"));
     }
 
     @Test

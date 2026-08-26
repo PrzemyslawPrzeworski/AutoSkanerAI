@@ -20,15 +20,18 @@ public class AnalysisController {
     private final ListingFetchService listingFetchService;
     private final CepikEnrichmentService cepikEnrichmentService;
     private final MarketPriceEnrichmentService marketPriceEnrichmentService;
+    private final CepikRiskAdjuster cepikRiskAdjuster;
 
     public AnalysisController(AiAnalysisService aiAnalysisService,
                               ListingFetchService listingFetchService,
                               CepikEnrichmentService cepikEnrichmentService,
-                              MarketPriceEnrichmentService marketPriceEnrichmentService) {
+                              MarketPriceEnrichmentService marketPriceEnrichmentService,
+                              CepikRiskAdjuster cepikRiskAdjuster) {
         this.aiAnalysisService = aiAnalysisService;
         this.listingFetchService = listingFetchService;
         this.cepikEnrichmentService = cepikEnrichmentService;
         this.marketPriceEnrichmentService = marketPriceEnrichmentService;
+        this.cepikRiskAdjuster = cepikRiskAdjuster;
     }
 
     @PostMapping
@@ -50,6 +53,10 @@ public class AnalysisController {
     private AnalysisResponse buildResponse(AnalysisResult result, String fetchStatus) {
         var cepikResult = cepikEnrichmentService.enrich(result.extracted());
         var marketPriceContext = marketPriceEnrichmentService.enrich(result.extracted());
+
+        // The LLM scored the listing before the registry was queried, so it never saw these
+        // findings. Fold them in before anything else reads scores or verdict.
+        result = cepikRiskAdjuster.apply(result, cepikResult);
 
         List<String> augmentedQuestions = new ArrayList<>(result.sellerQuestions());
         var vin = result.extracted().vin();
