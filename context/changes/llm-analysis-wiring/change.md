@@ -16,6 +16,7 @@ F-01 from `context/foundation/roadmap.md`. Unblocks S-01 (`core-analysis-flow`).
 **Q-01 decision (closed 2026-05-31, GitHub #7 / Linear AUT-11):**
 - Production default: Claude Haiku 4.5 via AWS Bedrock, region `eu-central-1`, model ID `eu.anthropic.claude-haiku-4-5-20251001-v1:0`, configurable via `BEDROCK_MODEL_ID` env var.
 - Experimentation provider: OpenRouter (single OpenAI-compatible client, `OPENROUTER_MODEL` env var, default `meta-llama/llama-3.3-70b-instruct:free`).
+  - **Superseded 2026-08-26:** that slug was withdrawn from OpenRouter's free tier and now returns 404, so the `openrouter` profile was dead on arrival wherever the default was used. Default is now `z-ai/glm-5.2:free`. OpenRouter retires `:free` slugs without notice — treat a 404 from the model endpoint as "slug gone", not a transport fault.
 - Three Spring profiles: `mock`, `bedrock`, `openrouter` (rename existing `llm` profile → `bedrock`).
 - Shared, provider-agnostic classes: `AnalysisPrompt` and `AnalysisResponseParser`.
 - No Spring AI / LangChain4j abstraction layer (YAGNI).

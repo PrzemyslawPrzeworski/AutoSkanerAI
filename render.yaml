@@ -7,11 +7,14 @@ services:
     healthCheckPath: /actuator/health
     autoDeploy: true
     envVars:
+      # Real LLM analysis + real CEPiK + real market-price enrichment. Under "mock" the
+      # deployed app served regex-extracted canned analyses, and both @Profile("!mock")
+      # enrichment beans never instantiated.
       - key: SPRING_PROFILES_ACTIVE
-        value: mock
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: OPENAI_API_KEY
+        value: openrouter
+      # Required — application-openrouter.properties resolves ${OPENROUTER_API_KEY} with no
+      # default, so the context fails to start if this is unset.
+      - key: OPENROUTER_API_KEY
         sync: false
       - key: FRONTEND_URL
         sync: false
