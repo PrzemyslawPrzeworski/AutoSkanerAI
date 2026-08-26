@@ -151,10 +151,8 @@ class AnalysisControllerTest {
 
     @Test
     void mockProfile_cepikResultIsLookupFailed() throws Exception {
-        var cepikResult = new CepikResult(
-                CepikStatus.LOOKUP_FAILED, null, null, null, null,
-                null, List.of(), List.of(), "https://historiapojazdu.gov.pl", java.time.Instant.now()
-        );
+        var cepikResult = CepikResult.withoutData(
+                CepikStatus.LOOKUP_FAILED, null, "https://historiapojazdu.gov.pl");
         when(cepikEnrichmentService.enrich(any())).thenReturn(cepikResult);
         when(aiAnalysisService.analyze(anyString())).thenReturn(fullResult());
 

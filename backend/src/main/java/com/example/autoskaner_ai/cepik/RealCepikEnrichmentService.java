@@ -114,9 +114,6 @@ public class RealCepikEnrichmentService implements CepikEnrichmentService {
     // "we looked and there was nothing", which for damage records is exactly the
     // "unknown is not clean" confusion the product must never present.
     private CepikResult missingInputs(String vin) {
-        return new CepikResult(
-                CepikStatus.MISSING_INPUTS, vin, null, null, null,
-                null, null, null, LOOKUP_URL, Instant.now()
-        );
+        return CepikResult.withoutData(CepikStatus.MISSING_INPUTS, vin, LOOKUP_URL);
     }
 }

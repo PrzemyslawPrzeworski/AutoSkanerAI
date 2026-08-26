@@ -33,8 +33,7 @@ class RealCepikEnrichmentServiceTest {
     @Test
     void looksUpHistoriaPojazduWhenAllThreeInputsPresent() {
         when(historiaPojazduService.lookup(any(), any(), any())).thenReturn(
-                new CepikResult(CepikStatus.FOUND, VALID_VIN, "2018-03-15", null, "POLSKA",
-                        2, List.of(), List.of(), "https://historiapojazdu.gov.pl", Instant.now()));
+                CepikResult.withoutData(CepikStatus.FOUND, VALID_VIN, "https://historiapojazdu.gov.pl"));
 
         var result = service.enrich(extracted(VALID_VIN, "WA12345", "2018-03-15"));
 
@@ -73,8 +72,7 @@ class RealCepikEnrichmentServiceTest {
     })
     void normalisesListingDateFormatsToIsoBeforeLookup(String raw, String expectedIso) {
         when(historiaPojazduService.lookup(any(), any(), any())).thenReturn(
-                new CepikResult(CepikStatus.NOT_FOUND, VALID_VIN, null, null, null,
-                        null, null, null, "https://historiapojazdu.gov.pl", Instant.now()));
+                CepikResult.withoutData(CepikStatus.NOT_FOUND, VALID_VIN, "https://historiapojazdu.gov.pl"));
 
         service.enrich(extracted(VALID_VIN, "WA12345", raw));
 

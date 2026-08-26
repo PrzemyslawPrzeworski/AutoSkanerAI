@@ -3,8 +3,29 @@ export type VerdictCode = 'WORTH_CHECKING' | 'NEEDS_MORE_INFO' | 'HIGH_RISK_SKIP
 export type CepikStatus = 'FOUND' | 'NOT_FOUND' | 'LOOKUP_FAILED' | 'MISSING_INPUTS';
 
 export interface MileageStamp { date: string; mileageKm: number | null; }
-export interface DamageRecord { date: string; description: string | null; }
+export interface DamageRecord {
+  // Nullable: the backend reads this from the registry event's date field, which may be absent.
+  date: string | null;
+  description: string | null;
+  insurer: string | null;
+  categories: string[] | null;
+}
 
+export interface EventDetail { name: string; value: string | null; }
+export interface VehicleEvent {
+  date: string | null;
+  type: string | null;
+  name: string | null;
+  details: EventDetail[] | null;
+}
+
+/**
+ * Mirrors the backend record. `null` and `[]` are NOT interchangeable for `damageRecords` and
+ * `mileageStamps`: `[]` means the registry timeline was read and held nothing, `null` means
+ * nothing was ever checked. Templates must branch on all three states — rendering a `null` as
+ * "brak zgłoszonych szkód" is how this app once reported a clean history for a car with a
+ * registered szkoda istotna.
+ */
 export interface CepikResult {
   status: CepikStatus;
   vin: string | null;
@@ -16,6 +37,17 @@ export interface CepikResult {
   damageRecords: DamageRecord[] | null;
   lookupUrl: string | null;
   fetchedAt: string;
+  make: string | null;
+  model: string | null;
+  vehicleType: string | null;
+  yearOfManufacture: number | null;
+  registrationStatus: string | null;
+  technicalInspectionStatus: string | null;
+  ocInsuranceValid: boolean | null;
+  vehicleLost: boolean | null;
+  odometerRolledBack: boolean | null;
+  registrationProvince: string | null;
+  events: VehicleEvent[] | null;
 }
 
 export type MarketPriceStatus = 'OK' | 'FETCH_FAILED' | 'INSUFFICIENT_DATA' | 'MISSING_INPUTS';

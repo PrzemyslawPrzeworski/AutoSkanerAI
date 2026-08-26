@@ -9,12 +9,22 @@ import org.springframework.web.client.RestClient;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class HistoriaPojazduSession {
 
     private static final Logger log = LoggerFactory.getLogger(HistoriaPojazduSession.class);
     private static final String SESSION_PATH = "/uslugi/engine/ng/index?xFormsAppName=HistoriaPojazdu";
-    private static final String API_BASE = "/nforms/api/HistoriaPojazdu/1.0.17/data";
+
+    // The API path is versioned and moj.gov.pl bumps it without notice — it was 1.0.17 when this
+    // was written and 1.1.0 by 2026-08-26. The bootstrap HTML names the current version in its
+    // asset URLs, so read it there rather than pinning a literal that silently rots.
+    private static final Pattern API_VERSION =
+            Pattern.compile("/nforms/api/HistoriaPojazdu/([0-9]+(?:\\.[0-9]+)*)/");
+    private static final String FALLBACK_API_VERSION = "1.1.0";
+
+    private String apiBase = "/nforms/api/HistoriaPojazdu/" + FALLBACK_API_VERSION + "/data";
 
     private final RestClient.Builder builder;
 
@@ -45,14 +55,15 @@ public class HistoriaPojazduSession {
                     .defaultHeader(HttpHeaders.COOKIE, String.join("; ", cookies))
                     .build();
 
-            ResponseEntity<Void> nfResponse = client.post()
+            ResponseEntity<String> nfResponse = client.post()
                     .uri(SESSION_PATH)
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .body("NF_WID=" + nfWid)
                     .retrieve()
-                    .toBodilessEntity();
+                    .toEntity(String.class);
 
             extractCookies(nfResponse.getHeaders());
+            extractApiVersion(nfResponse.getBody());
             extractXsrfToken();
 
             client = builder
@@ -68,7 +79,7 @@ public class HistoriaPojazduSession {
     public Map<String, Object> fetchVehicleData(String plate, String vin, String firstRegDate) {
         try {
             return client.post()
-                    .uri(API_BASE + "/vehicle-data")
+                    .uri(apiBase + "/vehicle-data")
                     .header("X-Xsrf-Token", xsrfToken)
                     .header("Nf_wid", nfWid)
                     .body(Map.of("registrationNumber", plate, "VINNumber", vin, "firstRegistrationDate", firstRegDate))
@@ -83,7 +94,7 @@ public class HistoriaPojazduSession {
     public Map<String, Object> fetchTimelineData(String plate, String vin, String firstRegDate) {
         try {
             return client.post()
-                    .uri(API_BASE + "/timeline-data")
+                    .uri(apiBase + "/timeline-data")
                     .header("X-Xsrf-Token", xsrfToken)
                     .header("Nf_wid", nfWid)
                     .body(Map.of("registrationNumber", plate, "VINNumber", vin, "firstRegistrationDate", firstRegDate))
@@ -94,9 +105,24 @@ public class HistoriaPojazduSession {
         }
     }
 
+    // Keeps the fallback if the markup ever stops naming the version, so a layout change
+    // degrades to a possibly-stale path rather than an outright broken one.
+    private void extractApiVersion(String bootstrapHtml) {
+        if (bootstrapHtml == null) {
+            return;
+        }
+        Matcher matcher = API_VERSION.matcher(bootstrapHtml);
+        if (matcher.find()) {
+            apiBase = "/nforms/api/HistoriaPojazdu/" + matcher.group(1) + "/data";
+        } else {
+            log.warn("Could not read the historiapojazdu API version from the bootstrap page; "
+                    + "falling back to {}", FALLBACK_API_VERSION);
+        }
+    }
+
     public void close() {
         try {
-            client.get().uri(API_BASE + "/close").retrieve().toBodilessEntity();
+            client.get().uri(apiBase + "/close").retrieve().toBodilessEntity();
         } catch (Exception e) {
             log.debug("Session close failed (non-critical): {}", e.getMessage());
         }

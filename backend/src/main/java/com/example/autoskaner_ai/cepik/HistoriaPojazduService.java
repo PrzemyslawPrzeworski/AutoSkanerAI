@@ -73,9 +73,6 @@ public class HistoriaPojazduService {
     // damage list reads as "checked, nothing found", which is the one thing the product
     // must never imply when it does not actually know.
     private CepikResult result(CepikStatus status, String vin) {
-        return new CepikResult(
-                status, vin, null, null, null,
-                null, null, null, LOOKUP_URL, Instant.now()
-        );
+        return CepikResult.withoutData(status, vin, LOOKUP_URL);
     }
 }
