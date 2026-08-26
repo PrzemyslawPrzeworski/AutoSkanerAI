@@ -140,9 +140,26 @@ describe('AnalyzerComponent', () => {
     comp.submit();
 
     expect(comp.error()).toContain('17 znaków');
-    expect(comp.vehicleFieldsOpen()).toBe(true);
     expect(analysisSpy.analyze).not.toHaveBeenCalled();
   });
+
+  // The plate and the first registration date are published in the advert; the VIN is not. So the
+  // VIN on its own has to be a complete thing to type — never a form the user must finish.
+  it('a VIN on its own is enough, with no plate or registration date', fakeAsync(() => {
+    const comp = create();
+    analysisSpy.analyze.mockReturnValue(of(response()));
+
+    comp.url.set('https://www.otomoto.pl/x');
+    comp.vehicleDraft.update(d => ({ ...d, vin: 'NMTBZ3BE40R000000' }));
+    comp.submit();
+    tick();
+
+    expect(comp.error()).toBeNull();
+    const sent = analysisSpy.analyze.mock.calls.at(-1)![0] as AnalysisRequest;
+    expect(sent.vin).toBe('NMTBZ3BE40R000000');
+    expect(sent.registrationPlate).toBeUndefined();
+    expect(sent.firstRegistrationDate).toBeUndefined();
+  }));
 
   it('typed registry fields are sent as overrides', fakeAsync(() => {
     const comp = create();
@@ -179,7 +196,9 @@ describe('AnalyzerComponent', () => {
     expect(comp.vehicleDraft().vin).toBe('');
   }));
 
-  it('the recheck refuses to run without all three registry fields', fakeAsync(() => {
+  // Naming the one field that is actually missing, rather than restating that three are required
+  // at a user looking at two filled boxes.
+  it('the recheck names only the fields that are still missing', fakeAsync(() => {
     const comp = create();
     analysisSpy.analyze.mockReturnValue(of(response({ cepikResult: missingInputs })));
     comp.listingText.set('BMW 3 2020');
@@ -189,8 +208,30 @@ describe('AnalyzerComponent', () => {
 
     comp.recheckWithRegistryData();
 
-    expect(comp.error()).toContain('wszystkie trzy');
+    expect(comp.error()).toContain('numer VIN');
+    // Both came from the advert, so neither is asked for again.
+    expect(comp.error()).not.toContain('numer rejestracyjny');
+    expect(comp.error()).not.toContain('data pierwszej rejestracji');
     expect(analysisSpy.analyze).not.toHaveBeenCalled();
+  }));
+
+  it('the recheck runs once the VIN is typed, using the plate and date from the advert', fakeAsync(() => {
+    const comp = create();
+    analysisSpy.analyze.mockReturnValue(of(response({ cepikResult: missingInputs })));
+    comp.listingText.set('BMW 3 2020');
+    comp.submit();
+    tick();
+    analysisSpy.analyze.mockClear();
+
+    comp.vehicleDraft.update(d => ({ ...d, vin: 'NMTBZ3BE40R000000' }));
+    comp.recheckWithRegistryData();
+    tick();
+
+    expect(comp.error()).toBeNull();
+    const sent = analysisSpy.analyze.mock.calls.at(-1)![0] as AnalysisRequest;
+    expect(sent.vin).toBe('NMTBZ3BE40R000000');
+    expect(sent.registrationPlate).toBe('WX00000');
+    expect(sent.firstRegistrationDate).toBe('2020-05-01');
   }));
 
   it('HTTP 400 maps to Polish validation message', fakeAsync(() => {

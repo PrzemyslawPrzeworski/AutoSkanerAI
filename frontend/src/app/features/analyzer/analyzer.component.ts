@@ -11,8 +11,8 @@ import {
   VehicleDataDraft,
   draftToRequest,
   emptyDraft,
-  hasRegistryTriple,
   isDraftEmpty,
+  missingRegistryFields,
   prefillFromExtracted,
   vinError
 } from '../../shared/models/vehicle-data';
@@ -37,7 +37,7 @@ export class AnalyzerComponent implements OnDestroy {
   url = signal('');
   listingText = signal('');
   vehicleDraft = signal<VehicleDataDraft>(emptyDraft());
-  vehicleFieldsOpen = signal(false);
+  listingFieldsOpen = signal(false);
   loading = signal(false);
   loadingMessage = signal('Analizuję ogłoszenie...');
   fetchFailedBanner = signal<string | null>(null);
@@ -71,8 +71,8 @@ export class AnalyzerComponent implements OnDestroy {
     this.stopRotation();
   }
 
-  toggleVehicleFields(): void {
-    this.vehicleFieldsOpen.update(open => !open);
+  toggleListingFields(): void {
+    this.listingFieldsOpen.update(open => !open);
   }
 
   submit(): void {
@@ -82,7 +82,7 @@ export class AnalyzerComponent implements OnDestroy {
 
     if (!urlVal && !textVal && isDraftEmpty(draft)) {
       this.error.set('Wklej URL, treść ogłoszenia albo wypełnij dane pojazdu');
-      this.vehicleFieldsOpen.set(true);
+      this.listingFieldsOpen.set(true);
       return;
     }
 
@@ -91,7 +91,6 @@ export class AnalyzerComponent implements OnDestroy {
     const vinProblem = this.vinError();
     if (vinProblem) {
       this.error.set(vinProblem);
-      this.vehicleFieldsOpen.set(true);
       return;
     }
 
@@ -138,9 +137,14 @@ export class AnalyzerComponent implements OnDestroy {
    * adjustment, and that only happens on the analysis path. The copy warns about the wait.
    */
   recheckWithRegistryData(): void {
-    if (!hasRegistryTriple(this.vehicleDraft())) {
+    // The fields are prefilled from the extraction, so an empty one means the advert did not carry
+    // it either — naming exactly those beats repeating "all three are required" at a user who is
+    // looking at two filled boxes. The registry really does need all three, so this still blocks:
+    // submitting without them buys a 30 s wait and the same MISSING_INPUTS back.
+    const missing = missingRegistryFields(this.vehicleDraft());
+    if (missing.length) {
       this.error.set(
-        'Do sprawdzenia historii potrzebne są wszystkie trzy dane: VIN, numer rejestracyjny i data pierwszej rejestracji.'
+        `Rejestr potrzebuje jeszcze: ${missing.join(', ')}. Bez tego nie da się go zapytać.`
       );
       return;
     }
@@ -151,7 +155,7 @@ export class AnalyzerComponent implements OnDestroy {
     this.url.set('');
     this.listingText.set('');
     this.vehicleDraft.set(emptyDraft());
-    this.vehicleFieldsOpen.set(false);
+    this.listingFieldsOpen.set(false);
     this.loading.set(false);
     this.loadingMessage.set(this.loadingMessages[0]);
     this.fetchFailedBanner.set(null);

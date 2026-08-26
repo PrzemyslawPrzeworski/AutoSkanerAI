@@ -35,11 +35,18 @@ export function emptyDraft(): VehicleDataDraft {
   };
 }
 
-/** The three fields historiapojazdu.gov.pl needs. All three, or there is no lookup. */
-export function hasRegistryTriple(draft: VehicleDataDraft): boolean {
-  return (
-    !!draft.vin.trim() && !!draft.registrationPlate.trim() && !!draft.firstRegistrationDate.trim()
-  );
+/**
+ * historiapojazdu.gov.pl needs all three of VIN + plate + first registration date. The user should
+ * only ever have to type the VIN, though: the other two are published in the advert and arrive via
+ * {@link prefillFromExtracted}. So this names the fields that are *actually* still missing rather
+ * than demanding the user fill a form they already filled.
+ */
+export function missingRegistryFields(draft: VehicleDataDraft): string[] {
+  const missing: string[] = [];
+  if (!draft.vin.trim()) missing.push('numer VIN');
+  if (!draft.registrationPlate.trim()) missing.push('numer rejestracyjny');
+  if (!draft.firstRegistrationDate.trim()) missing.push('data pierwszej rejestracji');
+  return missing;
 }
 
 export function isDraftEmpty(draft: VehicleDataDraft): boolean {

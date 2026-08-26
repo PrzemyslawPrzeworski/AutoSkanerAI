@@ -49,6 +49,36 @@
   }
 }
 
+// The registry block on the input screen. Bordered and titled so it reads as one purpose rather
+// than as three more optional inputs below the textarea.
+.registry-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.1rem 1.25rem;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #1e3a5f;
+  }
+}
+
+.registry-block-lead {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: #475569;
+}
+
+.registry-block-note {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
 .registry-prompt {
   display: flex;
   flex-direction: column;

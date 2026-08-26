@@ -15,6 +15,10 @@
         <strong>Nie znaczy to, że pojazd jest bez historii szkód</strong> — znaczy, że rejestru
         jeszcze nie zapytano.
       </p>
+      <p class="registry-prompt-lead">
+        Rejestr wymaga wszystkich trzech danych. To, co udało się odczytać z ogłoszenia, jest już
+        wpisane poniżej — uzupełnij tylko puste pola.
+      </p>
       <app-vehicle-data-form mode="registry" [(draft)]="vehicleDraft" />
       <button
         pButton
@@ -81,13 +85,29 @@
       ></textarea>
     </div>
 
-    <button type="button" class="vehicle-toggle" (click)="toggleVehicleFields()">
-      {{ vehicleFieldsOpen() ? '▲' : '▼' }} Dane pojazdu — VIN, rejestracja, dane techniczne
-      (opcjonalnie)
+    <!-- Named by what it gets the user, not by which fields it holds, and not collapsed: this is
+         the highest-value thing on the screen, because a URL alone can never produce a registry
+         result. -->
+    <section class="registry-block">
+      <h3>Sprawdź też historię w rejestrze (CEPiK)</h3>
+      <p class="registry-block-lead">
+        Podaj numer VIN, a do analizy dołączymy zgłoszone szkody, zapisy przebiegu z badań
+        technicznych i status polisy OC z rejestru. Numer rejestracyjny i datę pierwszej rejestracji
+        odczytamy z ogłoszenia — dopytamy o nie tylko wtedy, gdy ich tam nie będzie.
+      </p>
+      <app-vehicle-data-form mode="vin" [(draft)]="vehicleDraft" />
+      <small class="registry-block-note">
+        Bez VIN-u analiza wykona się normalnie, tylko bez części dotyczącej rejestru.
+      </small>
+    </section>
+
+    <button type="button" class="vehicle-toggle" (click)="toggleListingFields()">
+      {{ listingFieldsOpen() ? '▲' : '▼' }} Nie mam linku ani treści ogłoszenia — wpiszę dane
+      pojazdu ręcznie
     </button>
 
-    @if (vehicleFieldsOpen()) {
-      <app-vehicle-data-form mode="full" [(draft)]="vehicleDraft" />
+    @if (listingFieldsOpen()) {
+      <app-vehicle-data-form mode="listing" [(draft)]="vehicleDraft" />
     }
 
     <button

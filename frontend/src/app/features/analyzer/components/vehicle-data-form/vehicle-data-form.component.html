@@ -1,65 +1,62 @@
 <div class="vehicle-fields">
-  <p class="registry-hint">
-    Te trzy dane odblokowują sprawdzenie historii pojazdu w rejestrze (CEPiK). Otomoto nie
-    publikuje numeru VIN bez logowania, więc bez ręcznego wpisania nie da się go odczytać z
-    ogłoszenia — przepisz go z dowodu rejestracyjnego lub ze zdjęć w ogłoszeniu.
-  </p>
+  @if (mode() !== 'listing') {
+    <div class="field-grid">
+      <div class="field field-wide">
+        <label for="vd-vin">Numer VIN</label>
+        <input
+          id="vd-vin"
+          pInputText
+          class="w-full mono"
+          maxlength="20"
+          placeholder="17 znaków, np. NMTBZ3BE40R000000"
+          [value]="draft().vin"
+          (input)="set('vin', $any($event.target).value)"
+        />
+        @if (vinError()) {
+          <small class="field-error">{{ vinError() }}</small>
+        } @else {
+          <small class="field-note">
+            Znajdziesz go w dowodzie rejestracyjnym, na zdjęciach w ogłoszeniu albo zapytasz o niego
+            sprzedającego. Otomoto nie udostępnia VIN-u bez logowania, więc jest to jedyna dana,
+            której nie odczytamy z ogłoszenia.
+          </small>
+        }
+      </div>
 
-  <div class="field-grid">
-    <div class="field field-wide">
-      <label for="vd-vin">Numer VIN</label>
-      <input
-        id="vd-vin"
-        pInputText
-        class="w-full mono"
-        maxlength="20"
-        placeholder="17 znaków, np. NMTBZ3BE40R000000"
-        [value]="draft().vin"
-        (input)="set('vin', $any($event.target).value)"
-      />
-      @if (vinError()) {
-        <small class="field-error">{{ vinError() }}</small>
+      @if (mode() === 'registry') {
+        <div class="field">
+          <label for="vd-plate">Numer rejestracyjny</label>
+          <input
+            id="vd-plate"
+            pInputText
+            class="w-full mono"
+            maxlength="16"
+            placeholder="np. WX00000"
+            [value]="draft().registrationPlate"
+            (input)="set('registrationPlate', $any($event.target).value)"
+          />
+        </div>
+
+        <div class="field">
+          <label for="vd-first-reg">Data pierwszej rejestracji</label>
+          <!-- Deliberately a text input, not type="date": the field is prefilled from the extraction,
+               which can hold a prose date like "12 kwietnia 2022". A date input renders anything it
+               cannot parse as empty, so the user would see a blank box and assume nothing carried
+               over. The backend normalises prose and dd.MM.yyyy anyway. -->
+          <input
+            id="vd-first-reg"
+            pInputText
+            class="w-full mono"
+            maxlength="32"
+            placeholder="RRRR-MM-DD"
+            [value]="draft().firstRegistrationDate"
+            (input)="set('firstRegistrationDate', $any($event.target).value)"
+          />
+          <small class="field-note">Dowód rejestracyjny, pole B.</small>
+        </div>
       }
     </div>
-
-    <div class="field">
-      <label for="vd-plate">Numer rejestracyjny</label>
-      <input
-        id="vd-plate"
-        pInputText
-        class="w-full mono"
-        maxlength="16"
-        placeholder="np. WX00000"
-        [value]="draft().registrationPlate"
-        (input)="set('registrationPlate', $any($event.target).value)"
-      />
-    </div>
-
-    <div class="field">
-      <label for="vd-first-reg">Data pierwszej rejestracji</label>
-      <!-- Deliberately a text input, not type="date": the field is prefilled from the extraction,
-           which can hold a prose date like "12 kwietnia 2022". A date input renders anything it
-           cannot parse as empty, so the user would see a blank box and assume nothing carried
-           over. The backend normalises prose and dd.MM.yyyy anyway. -->
-      <input
-        id="vd-first-reg"
-        pInputText
-        class="w-full mono"
-        maxlength="32"
-        placeholder="RRRR-MM-DD"
-        [value]="draft().firstRegistrationDate"
-        (input)="set('firstRegistrationDate', $any($event.target).value)"
-      />
-      <small class="field-note">Widoczna w dowodzie rejestracyjnym (pole B) oraz w ogłoszeniu.</small>
-    </div>
-  </div>
-
-  @if (mode() === 'full') {
-    <p class="section-hint">
-      Pozostałe pola są opcjonalne. Wypełnij je, jeśli nie masz linku ani treści ogłoszenia — albo
-      jeśli chcesz poprawić to, co system odczytał z ogłoszenia. Wpisana wartość ma pierwszeństwo.
-    </p>
-
+  } @else {
     <div class="field-grid">
       <div class="field">
         <label for="vd-make">Marka</label>
@@ -109,7 +106,7 @@
     </div>
 
     <div class="field">
-      <label for="vd-notes">Dodatkowe informacje</label>
+      <label for="vd-notes">Opis pojazdu</label>
       <textarea
         id="vd-notes"
         pTextarea
