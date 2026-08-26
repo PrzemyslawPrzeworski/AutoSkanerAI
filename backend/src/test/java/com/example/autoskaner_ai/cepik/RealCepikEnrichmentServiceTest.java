@@ -4,6 +4,9 @@ import com.example.autoskaner_ai.analysis.CepikResult;
 import com.example.autoskaner_ai.analysis.CepikStatus;
 import com.example.autoskaner_ai.analysis.ExtractedData;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -47,6 +50,38 @@ class RealCepikEnrichmentServiceTest {
 
         assertThat(result.status()).isEqualTo(CepikStatus.MISSING_INPUTS);
         assertThat(result.vin()).isEqualTo(VALID_VIN);
+        verifyNoInteractions(historiaPojazduService);
+    }
+
+    // historiapojazdu's nfv_regex validator 400s on anything but yyyy-MM-dd, and the prompt
+    // asks the LLM for the date "w formacie z ogłoszenia" — so dd.MM.yyyy is the common case,
+    // not the edge case. Before normalisation every real lookup failed with LOOKUP_FAILED.
+    @ParameterizedTest
+    @CsvSource({
+            "12.05.2016, 2016-05-12",
+            "12-05-2016, 2016-05-12",
+            "12/05/2016, 2016-05-12",
+            "2016-05-12, 2016-05-12",
+            "  12.05.2016  , 2016-05-12"
+    })
+    void normalisesListingDateFormatsToIsoBeforeLookup(String raw, String expectedIso) {
+        when(historiaPojazduService.lookup(any(), any(), any())).thenReturn(
+                new CepikResult(CepikStatus.NOT_FOUND, VALID_VIN, null, null, null,
+                        null, null, null, "https://historiapojazdu.gov.pl", Instant.now()));
+
+        service.enrich(extracted(VALID_VIN, "WA12345", raw));
+
+        verify(historiaPojazduService).lookup("WA12345", VALID_VIN, expectedIso);
+    }
+
+    // A doomed request would come back as LOOKUP_FAILED, which the UI words as "registry
+    // temporarily unavailable" — blaming the registry for a value we could see was wrong.
+    @ParameterizedTest
+    @ValueSource(strings = {"31.02.2016", "maj 2016", "2016", "05.2016", "not a date"})
+    void unparseableDateAsksTheUserInsteadOfCallingTheRegistry(String raw) {
+        var result = service.enrich(extracted(VALID_VIN, "WA12345", raw));
+
+        assertThat(result.status()).isEqualTo(CepikStatus.MISSING_INPUTS);
         verifyNoInteractions(historiaPojazduService);
     }
 
