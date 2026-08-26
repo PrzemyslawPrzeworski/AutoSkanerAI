@@ -183,9 +183,10 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Blockers:** none — reuses the existing Jina Reader infrastructure from FR-001; no new API key required. (An earlier draft assumed the Exa search API and an `EXA_API_KEY`; research rejected that in favour of Jina on Otomoto — see `context/changes/market-price-context/research.md`.)
 - **Unknowns:** resolved during research — Otomoto slug mapping, the `### <price>\nPLN` markdown price format, and min/median/max computation are all settled in the plan.
 - **Risk:** extraction is regex-based against Otomoto's Jina-rendered markdown. A change in Otomoto's price formatting silently breaks the range and yields `INSUFFICIENT_DATA`; the small-sample caveat (`sampleSize < 3`) must stay visible in the UI so a thin result is never read as a confident range. Verified live 2026-08-26: `status=OK` with `sampleSize=40`, so `PRICE_PATTERN` does match current Otomoto markdown, and the median tracks reality (68 900 against a 72 900 listing).
-- **Carried forward — two known defects, surfaced not fixed:**
-  - **`min` is not trustworthy.** A live run returned `min=39900` against `median=82900`, and an earlier one `min=22900` for 2017–2021 Corollas under 125 000 km. `PRICE_PATTERN` cannot tell an asking price from a monthly instalment or a damaged-car listing, and the `1_000..10_000_000` guard is far too wide to catch it. `max` is contaminated the same way. Treat the median as the only reliable output until this is fixed — either an IQR/percentile trim or a tighter plausibility band derived from the median.
-  - **`median = prices.get(prices.size() / 2)` is the upper-middle element, not a median,** for even sample sizes. Cheap fix; wrong by one element today.
+- **Both carried-forward defects fixed 2026-08-26 (`MarketPriceStatistics`, 12 new unit tests):**
+  - **`min`/`max` were contaminated.** A live run returned `min=39900` against `median=82900`, an earlier one `min=22900` for 2017–2021 Corollas. Now trimmed in two passes: a ±3× median band for order-of-magnitude junk (financing instalments render in the same `### <n>\nPLN` block and clear the `1_000..10_000_000` guard), then Tukey's 1.5×IQR fence on samples of 8+ for salvage/wrong-trim listings. `sampleSize` counts the kept prices so the small-sample caveat stays honest; the discarded count is logged.
+  - **`median = prices.get(prices.size() / 2)`** is now a real median, averaged over both middle elements on an even sample.
+  - Still worth knowing: the trim is statistical, not semantic. It cannot tell a legitimately cheap high-mileage example from a salvage title — it only says "this is not what the rest of this market asks".
 - **Status:** shipped (closed out `51db3fb` 2026-08-25; verified live 2026-08-26)
 
 ---
@@ -201,14 +202,14 @@ Foundations below assume these are present and do NOT re-scaffold them.
 | S-02       | manual-field-entry        | Manual entry form (incl. VIN / plate / first registration) → same AI analysis | shipped | Merged as `d259bdc`. This is what makes S-04 fire on real listings |
 | S-03       | save-view-delete-analyses | Save / view list / delete saved analyses                      | no                    | Needs F-02 + F-03 (S-01 is done)  |
 | S-04       | cepik-vin-lookup          | Live CEPiK vehicle history alongside analysis                 | shipped               | Merged as `d5e0fed`; `FOUND` path fixed and verified 2026-08-26 |
-| S-05       | market-price-context      | Comparable market price range (Otomoto via Jina Reader)       | shipped               | Merged as `51db3fb`; two carried-forward defects in `min`/`median` |
+| S-05       | market-price-context      | Comparable market price range (Otomoto via Jina Reader)       | shipped               | Merged as `51db3fb`; the two `min`/`median` defects fixed 2026-08-26 |
 
 Not roadmap items, but tracked here so they are not lost — small carried-forward fixes with no slice of their own:
 
 | Fix | Where | Why it matters |
 |-----|-------|----------------|
-| Wire a frontend test runner | `package.json`, `angular.json` | `tsconfig.spec.json` declares vitest globals, vitest is not installed and there is no `test` target, so the three `*.spec.ts` files have never executed. The frontend has zero enforced coverage today |
-| Trim outliers from the market price range; fix the even-sample median | `MarketPriceFetchService` | `min`/`max` are currently misleading enough to be worth hiding until fixed |
+| ~~Wire a frontend test runner~~ | `package.json`, `angular.json` | **Done 2026-08-26.** `@angular/build:unit-test` + vitest + jsdom; `npm test -- --watch=false` runs 26 tests in 3 files. The specs had never executed, and two of them did not compile. No `fakeAsync`/`tick` — the app is zoneless (no zone.js), so `fakeAsync` throws |
+| ~~Trim outliers from the market price range; fix the even-sample median~~ | `MarketPriceStatistics` | **Done 2026-08-26.** See S-05 above. Verified by 12 unit tests; not yet re-verified against a live Otomoto page |
 | Remove the deprecated `POST /api/analysis/risk` facade | `RiskAnalysisController` | It was to go when S-01 shipped; it is still live and duplicates a subset of `POST /api/analyses` |
 | `GET /health` returns 500, not 404 | Actuator config | An uptime probe pointed at it reads as "app broken" rather than "wrong path" |
 

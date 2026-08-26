@@ -14,7 +14,6 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -76,16 +75,17 @@ public class MarketPriceFetchService implements MarketPriceEnrichmentService {
             return new MarketPriceContext(MarketPriceStatus.INSUFFICIENT_DATA, null, null, null, null, queryUrl, Instant.now());
         }
 
-        Collections.sort(prices);
-        int min = prices.get(0);
-        int max = prices.get(prices.size() - 1);
-        int median = prices.get(prices.size() / 2);
-        int sampleSize = prices.size();
+        MarketPriceStatistics.Stats stats = MarketPriceStatistics.of(prices);
 
-        log.info("Market price fetch ok make={} model={} year={} sampleSize={} min={} median={} max={}",
-                makeSlug, modelSlug, extracted.year(), sampleSize, min, median, max);
+        // discarded is logged, not returned: it is a diagnostic for whether the trim is doing its
+        // job on live markdown, and a "we ignored 4 listings" line in the UI would raise a question
+        // the panel cannot answer.
+        log.info("Market price fetch ok make={} model={} year={} sampleSize={} discarded={} min={} median={} max={}",
+                makeSlug, modelSlug, extracted.year(), stats.sampleSize(), stats.discardedCount(),
+                stats.minPln(), stats.medianPln(), stats.maxPln());
 
-        return new MarketPriceContext(MarketPriceStatus.OK, min, median, max, sampleSize, queryUrl, Instant.now());
+        return new MarketPriceContext(MarketPriceStatus.OK, stats.minPln(), stats.medianPln(),
+                stats.maxPln(), stats.sampleSize(), queryUrl, Instant.now());
     }
 
     private String buildUrl(String makeSlug, String modelSlug, Integer year, Integer mileageKm) {

@@ -44,6 +44,36 @@ class MarketPriceFetchServiceTest {
             PLN
             """;
 
+    // Otomoto renders a financing instalment in the same "### <n> PLN" block as an asking price,
+    // and 1 299 clears the 1 000 floor. Before the trim this became the reported minimum.
+    private static final String JINA_MARKDOWN_WITH_INSTALMENT = """
+            # Oferty Toyota Corolla
+
+            ## Oferta 1
+            ### 78 000
+            PLN
+            ### 1 299
+            PLN
+            ## Oferta 2
+            ### 80 000
+            PLN
+            ## Oferta 3
+            ### 82 000
+            PLN
+            ## Oferta 4
+            ### 84 000
+            PLN
+            ## Oferta 5
+            ### 86 000
+            PLN
+            ## Oferta 6
+            ### 88 000
+            PLN
+            ## Oferta 7
+            ### 90 000
+            PLN
+            """;
+
     @BeforeEach
     void setUp() {
         RestClient.Builder builder = RestClient.builder();
@@ -69,6 +99,22 @@ class MarketPriceFetchServiceTest {
         assertThat(ctx.sampleSize()).isEqualTo(5);
         assertThat(ctx.queryUrl()).isNotNull();
         assertThat(ctx.fetchedAt()).isNotNull();
+        mockServer.verify();
+    }
+
+    @Test
+    void fetch_markdownWithAnInstalment_reportsTheAskingPriceRange() {
+        mockServer.expect(method(HttpMethod.GET))
+                .andExpect(requestTo(containsString("r.jina.ai")))
+                .andRespond(withSuccess(JINA_MARKDOWN_WITH_INSTALMENT, MediaType.TEXT_PLAIN));
+
+        MarketPriceContext ctx = service.enrich(toyotaCorolla2019());
+
+        assertThat(ctx.status()).isEqualTo(MarketPriceStatus.OK);
+        assertThat(ctx.minPricePln()).isEqualTo(78_000);
+        assertThat(ctx.maxPricePln()).isEqualTo(90_000);
+        // sampleSize describes the listings the range came from, so the instalment is gone here too.
+        assertThat(ctx.sampleSize()).isEqualTo(7);
         mockServer.verify();
     }
 
