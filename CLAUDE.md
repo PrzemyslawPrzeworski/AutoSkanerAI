@@ -31,6 +31,14 @@ The AI layer uses a Spring interface with three Profile-switched implementations
 
 Required env vars: `AWS_PROFILE` (or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`) for `bedrock`; `OPENROUTER_API_KEY` for `openrouter`. The openrouter key has **no default** in `application-openrouter.properties`, so an unset value fails context startup rather than degrading.
 
+`OpenRouterAnalysisService` retries and falls back along two independent axes, because free slugs fail in two unrelated ways:
+
+- **Transient** (429, 5xx, IO/timeout) — retry the *same* model once, waiting out `Retry-After` (capped at 6 s, and never past the deadline). An immediate retry is useless against a saturated pool; that is what turned single 429s into production 502s on 2026-08-26.
+- **Permanent for this model** (404 = slug retired, 400 = request rejected) — skip the retry, go straight to the next candidate in `llm.openrouter.fallback-models`.
+- **Fatal** (401/403, or a malformed response shape) — fail immediately. A rejected key rejects every model, and walking the chain only multiplies latency before the same error. Schema failures from `AnalysisResponseParser` also propagate: a prompt/parser mismatch is not fixed by another model.
+
+`llm.openrouter.deadline-seconds` bounds how far the chain walks; it is checked only *between* models, so the primary is always attempted. `AnalysisMeta.model` records the model that actually answered, not the configured primary.
+
 Production runs `openrouter`. `bedrock` is dev-only: the sole AWS credential source here is a corporate SSO profile (`kn.awsapps.com`, role `KN-DevelopmentEngineer`) issuing short-lived credentials, so it cannot back a hosted service — do not copy AWS credentials into Render to work around this.
 
 ## API endpoints
