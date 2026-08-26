@@ -108,6 +108,7 @@ cd backend && ./mvnw test                # unit tests
 # Frontend
 cd frontend && npm start                 # dev server on :4200
 cd frontend && npm run build             # production build → dist/
+cd frontend && npm test -- --watch=false # unit tests (vitest via @angular/build:unit-test)
 ```
 
 ## Architecture decisions
@@ -144,10 +145,12 @@ Verification status (2026-08-26): both paths are confirmed against production, w
 
 The registry-vs-listing mileage check currently lives only in the frontend component (`max(2000 km, 5%)` tolerance, registry-higher direction only) and does not feed the score. If it moves into scoring, delete the TypeScript copy rather than keeping two.
 
-Two caveats on the market-price range:
+The market-price range is trimmed in `MarketPriceStatistics` before it is reported, because the raw regex output is not a set of asking prices. Two passes, because there are two kinds of contamination:
 
-- The `min` is not trustworthy. That run returned `min=22900` for 2017–2021 Corollas under 125 000 km, well below any plausible asking price. `PRICE_PATTERN` cannot tell an asking price from a monthly instalment or a damaged-car listing, and the `1_000..10_000_000` guard is far too wide to catch it. The median tracks reality (68 900 against a 72 900 listing); treat `min`/`max` as outlier-contaminated.
-- `median = prices.get(prices.size() / 2)` is the upper-middle element, not a median, for even sample sizes.
+- **A band of ±3× the median** drops order-of-magnitude junk — a monthly financing instalment renders in the same `### <n>\nPLN` block as a price and clears the `1_000..10_000_000` guard easily. An IQR fence cannot catch this: enough junk drags the quartiles down with it, while the median is what junk cannot move. If the band would leave fewer than 3 prices the sample is reported untrimmed — a tight range invented from three survivors that happened to agree is worse than a visibly wide one.
+- **Tukey's 1.5×IQR fence** (samples of 8+, skipped when IQR is 0) drops the right-order-of-magnitude-wrong-car cases: salvage titles, other trims. This is what fixes the live `min=39900` against `median=82900`.
+
+`sampleSize` counts the **kept** prices, so the UI's "small sample" caveat describes the listings the numbers actually came from. The discarded count is logged, not returned. The median is a real median — averaged over both middle elements on an even sample, where the old `prices.get(size / 2)` was the upper-middle element.
 
 ## Current state
 
@@ -159,7 +162,10 @@ A real analysis takes ~27 s end to end (~16 s LLM + a Jina fetch for the market 
 
 Frontend builds need Node ≥ v20.19 / v22.12 (Angular 21 requirement); `node`/`npm` are not on PATH by default in this environment.
 
-**There is no working frontend test setup.** `tsconfig.spec.json` declares `types: ["vitest/globals"]`, but vitest is not in `package.json` and `angular.json` has no `test` target, so `npm test` cannot run and the three `*.spec.ts` files have never executed. They are kept current by hand against the vitest API; treat them as unverified until a runner is wired.
+Frontend tests run on **vitest through `@angular/build:unit-test`** (`test` target in `angular.json`, jsdom — no browser needed). 26 tests in 3 spec files, ~2 s. Two things to know:
+
+- **No `fakeAsync` / `tick`.** The app has no zone.js at all (Angular 21 is zoneless by default), so `fakeAsync` throws "zone-testing.js is needed". Adding zone.js only for tests would make tests run under different change-detection semantics than production. Every service call in the specs is a synchronous `of(...)`, so awaiting nothing is correct — if a spec ever needs real async, use `await fixture.whenStable()`.
+- **Vitest matchers, not jasmine.** `vi.fn()`, `mockReturnValue`, `toBe(true)` — `toBeTrue()` does not exist and fails to compile, which is how the stale specs were caught.
 
 ## Deployment
 

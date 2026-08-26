@@ -10,7 +10,8 @@ function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisResult {
       make: 'BMW', model: '3', year: 2020, priceAmount: 45000, priceCurrency: 'PLN',
       mileageKm: 120000, fuel: 'benzyna', transmission: 'manual',
       originCountry: 'Polska', sellerType: 'prywatny',
-      serviceHistoryMentioned: true, accidentClaim: 'bezwypadkowy', vinPresent: true
+      serviceHistoryMentioned: true, accidentClaim: 'bezwypadkowy', vinPresent: true,
+      vin: null, registrationPlate: null, firstRegistrationDate: null
     },
     equipment: [
       { name: 'klimatyzacja', status: 'CONFIRMED', note: null },
@@ -46,13 +47,13 @@ describe('AnalysisResultComponent', () => {
   it('WORTH_CHECKING verdict → green class on verdict card', () => {
     create(makeResult({ verdict: { code: 'WORTH_CHECKING', label: 'warto sprawdzić' } }));
     const card = fixture.debugElement.query(By.css('.verdict-card'));
-    expect(card.classes['verdict-green']).toBeTrue();
+    expect(card.classes['verdict-green']).toBe(true);
   });
 
   it('HIGH_RISK_SKIP verdict → red class on verdict card', () => {
     create(makeResult({ verdict: { code: 'HIGH_RISK_SKIP', label: 'wysokie ryzyko' } }));
     const card = fixture.debugElement.query(By.css('.verdict-card'));
-    expect(card.classes['verdict-red']).toBeTrue();
+    expect(card.classes['verdict-red']).toBe(true);
   });
 
   it('null extracted.make renders as —', () => {

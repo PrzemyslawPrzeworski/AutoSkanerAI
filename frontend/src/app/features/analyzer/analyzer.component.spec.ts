@@ -1,4 +1,4 @@
-import { TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
@@ -90,19 +90,18 @@ describe('AnalyzerComponent', () => {
     expect(analysisSpy.analyze).not.toHaveBeenCalled();
   });
 
-  it('text submit → response signal set', fakeAsync(() => {
+  it('text submit → response signal set', () => {
     const comp = create();
     analysisSpy.analyze.mockReturnValue(of(response()));
 
     comp.listingText.set('BMW 3 2020');
     comp.submit();
-    tick();
 
     expect(comp.analysisResponse()?.analysis).toEqual(mockResult);
     expect(comp.loading()).toBe(false);
-  }));
+  });
 
-  it('URL submit → url_failed sets fetchFailedBanner', fakeAsync(() => {
+  it('URL submit → url_failed sets fetchFailedBanner', () => {
     const comp = create();
     analysisSpy.analyze.mockReturnValue(
       of(response({ fetchStatus: 'url_failed', fetchFailureReason: 'blocked', analysis: null }))
@@ -110,25 +109,23 @@ describe('AnalyzerComponent', () => {
 
     comp.url.set('https://otomoto.pl/listing/1');
     comp.submit();
-    tick();
 
     expect(comp.fetchFailedBanner()).toBeTruthy();
     expect(comp.analysisResponse()).toBeNull();
-  }));
+  });
 
   // Manual fields alone are a valid third input mode — no URL, no pasted advert.
-  it('manual fields alone are enough to submit', fakeAsync(() => {
+  it('manual fields alone are enough to submit', () => {
     const comp = create();
     analysisSpy.analyze.mockReturnValue(of(response({ fetchStatus: 'manual' })));
 
     comp.vehicleDraft.update(d => ({ ...d, make: 'Toyota', year: '2022' }));
     comp.submit();
-    tick();
 
     expect(comp.error()).toBeNull();
     const sent = analysisSpy.analyze.mock.calls.at(-1)![0] as AnalysisRequest;
     expect(sent.manual).toEqual(expect.objectContaining({ make: 'Toyota', year: 2022 }));
-  }));
+  });
 
   // A mistyped VIN would cost a full analysis and come back with an empty history panel that
   // reads as the registry's fault, so it is caught before the request goes out.
@@ -145,23 +142,22 @@ describe('AnalyzerComponent', () => {
 
   // The plate and the first registration date are published in the advert; the VIN is not. So the
   // VIN on its own has to be a complete thing to type — never a form the user must finish.
-  it('a VIN on its own is enough, with no plate or registration date', fakeAsync(() => {
+  it('a VIN on its own is enough, with no plate or registration date', () => {
     const comp = create();
     analysisSpy.analyze.mockReturnValue(of(response()));
 
     comp.url.set('https://www.otomoto.pl/x');
     comp.vehicleDraft.update(d => ({ ...d, vin: 'NMTBZ3BE40R000000' }));
     comp.submit();
-    tick();
 
     expect(comp.error()).toBeNull();
     const sent = analysisSpy.analyze.mock.calls.at(-1)![0] as AnalysisRequest;
     expect(sent.vin).toBe('NMTBZ3BE40R000000');
     expect(sent.registrationPlate).toBeUndefined();
     expect(sent.firstRegistrationDate).toBeUndefined();
-  }));
+  });
 
-  it('typed registry fields are sent as overrides', fakeAsync(() => {
+  it('typed registry fields are sent as overrides', () => {
     const comp = create();
     analysisSpy.analyze.mockReturnValue(of(response()));
 
@@ -173,37 +169,34 @@ describe('AnalyzerComponent', () => {
       firstRegistrationDate: '2020-05-01'
     }));
     comp.submit();
-    tick();
 
     const sent = analysisSpy.analyze.mock.calls.at(-1)![0] as AnalysisRequest;
     expect(sent.vin).toBe('NMTBZ3BE40R000000');
     expect(sent.registrationPlate).toBe('WX00000');
     expect(sent.firstRegistrationDate).toBe('2020-05-01');
-  }));
+  });
 
-  it('MISSING_INPUTS offers the registry follow-up and prefills what was extracted', fakeAsync(() => {
+  it('MISSING_INPUTS offers the registry follow-up and prefills what was extracted', () => {
     const comp = create();
     analysisSpy.analyze.mockReturnValue(of(response({ cepikResult: missingInputs })));
 
     comp.listingText.set('BMW 3 2020');
     comp.submit();
-    tick();
 
     expect(comp.registryInputsMissing()).toBe(true);
     // The advert carried the plate and the date; only the VIN is left for the user to type.
     expect(comp.vehicleDraft().registrationPlate).toBe('WX00000');
     expect(comp.vehicleDraft().firstRegistrationDate).toBe('2020-05-01');
     expect(comp.vehicleDraft().vin).toBe('');
-  }));
+  });
 
   // Naming the one field that is actually missing, rather than restating that three are required
   // at a user looking at two filled boxes.
-  it('the recheck names only the fields that are still missing', fakeAsync(() => {
+  it('the recheck names only the fields that are still missing', () => {
     const comp = create();
     analysisSpy.analyze.mockReturnValue(of(response({ cepikResult: missingInputs })));
     comp.listingText.set('BMW 3 2020');
     comp.submit();
-    tick();
     analysisSpy.analyze.mockClear();
 
     comp.recheckWithRegistryData();
@@ -213,28 +206,26 @@ describe('AnalyzerComponent', () => {
     expect(comp.error()).not.toContain('numer rejestracyjny');
     expect(comp.error()).not.toContain('data pierwszej rejestracji');
     expect(analysisSpy.analyze).not.toHaveBeenCalled();
-  }));
+  });
 
-  it('the recheck runs once the VIN is typed, using the plate and date from the advert', fakeAsync(() => {
+  it('the recheck runs once the VIN is typed, using the plate and date from the advert', () => {
     const comp = create();
     analysisSpy.analyze.mockReturnValue(of(response({ cepikResult: missingInputs })));
     comp.listingText.set('BMW 3 2020');
     comp.submit();
-    tick();
     analysisSpy.analyze.mockClear();
 
     comp.vehicleDraft.update(d => ({ ...d, vin: 'NMTBZ3BE40R000000' }));
     comp.recheckWithRegistryData();
-    tick();
 
     expect(comp.error()).toBeNull();
     const sent = analysisSpy.analyze.mock.calls.at(-1)![0] as AnalysisRequest;
     expect(sent.vin).toBe('NMTBZ3BE40R000000');
     expect(sent.registrationPlate).toBe('WX00000');
     expect(sent.firstRegistrationDate).toBe('2020-05-01');
-  }));
+  });
 
-  it('HTTP 400 maps to Polish validation message', fakeAsync(() => {
+  it('HTTP 400 maps to Polish validation message', () => {
     const comp = create();
     const err = new HttpErrorResponse({
       status: 400,
@@ -244,31 +235,28 @@ describe('AnalyzerComponent', () => {
 
     comp.url.set('https://not-really');
     comp.submit();
-    tick();
 
     expect(comp.error()).toContain('url: nieprawidłowy');
-  }));
+  });
 
-  it('HTTP 502 maps to LLM unavailable message', fakeAsync(() => {
+  it('HTTP 502 maps to LLM unavailable message', () => {
     const comp = create();
     const err = new HttpErrorResponse({ status: 502, error: {} });
     analysisSpy.analyze.mockReturnValue(throwError(() => err));
 
     comp.listingText.set('test');
     comp.submit();
-    tick();
 
     expect(comp.error()).toContain('niedostępny');
-  }));
+  });
 
-  it('reset clears all state, including the typed vehicle data', fakeAsync(() => {
+  it('reset clears all state, including the typed vehicle data', () => {
     const comp = create();
     analysisSpy.analyze.mockReturnValue(of(response()));
 
     comp.listingText.set('BMW');
     comp.vehicleDraft.update(d => ({ ...d, vin: 'NMTBZ3BE40R000000' }));
     comp.submit();
-    tick();
     expect(comp.analysisResponse()).not.toBeNull();
 
     comp.reset();
@@ -279,5 +267,5 @@ describe('AnalyzerComponent', () => {
     expect(comp.analysisResponse()).toBeNull();
     expect(comp.error()).toBeNull();
     expect(comp.fetchFailedBanner()).toBeNull();
-  }));
+  });
 });
