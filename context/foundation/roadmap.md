@@ -33,12 +33,12 @@ AutoSkanerAI compresses used-car listing evaluation from tens of minutes to a fe
 | F-02 | data-layer-setup          | (foundation) PostgreSQL + JPA + Flyway migrations in place   | —                | FR-010, FR-011, FR-012                            | ready    |
 | F-03 | auth-scaffold             | (foundation) login/register wired; protected routes in place | F-02             | FR-010                                            | proposed |
 | S-01 | core-analysis-flow        | paste URL or text → receive full AI analysis                 | F-01             | FR-001, FR-002, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, US-01 | shipped  |
-| S-02 | manual-field-entry        | fill in key fields manually → receive full AI analysis       | S-01             | FR-003                                            | ready    |
+| S-02 | manual-field-entry        | fill in key fields manually → receive full AI analysis       | S-01             | FR-003                                            | shipped  |
 | S-03 | save-view-delete-analyses | save an analysis, view saved list, delete entries            | S-01, F-02, F-03 | FR-010, FR-011, FR-012                            | proposed |
 | S-04 | cepik-vin-lookup          | see live CEPiK vehicle history alongside analysis            | S-01             | FR-017                                            | shipped  |
 | S-05 | market-price-context      | see comparable market price range alongside analysis         | S-01             | FR-018                                            | shipped  |
 
-Remaining must-have scope is four items: **S-02** (unblocked, standalone) and the chain **F-02 → F-03 → S-03**. Everything else above is merged to `main` and verified against production.
+Remaining must-have scope is the chain **F-02 → F-03 → S-03**. Everything else above is merged to `main` and verified against production.
 
 ## Streams
 
@@ -134,8 +134,9 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Blockers:** —
 - **Unknowns:** —
 - **Why the scope grew:** this entry was written before S-04's research established that vehicle history needs a plate + VIN + first-registration-date triple. **Otomoto encrypts the VIN for logged-out fetches** (verified 2026-08-26 on `toyota-corolla-ID6HG6ZH`: the plate and a prose date come through, `vinPresent: true` with `vin: null`), and no public plate→VIN service exists in Poland. So a URL-only analysis structurally cannot produce a CEPiK result, and S-02 is not a convenience slice — **it is the only legitimate path to making S-04 fire on real listings.** Without it CEPiK works only when a seller happens to type the VIN into the description, roughly 1 listing in 10.
-- **Risk:** still the lowest-risk slice: the enrichment path keys off `ExtractedData`, so accepting overrides needs no change to CEPiK or market-price logic. The one real trap is precedence — a user-typed value must win over the LLM's guess, and a blank field must not overwrite a good extraction with null.
-- **Status:** ready
+- **Risk:** retired. It was the lowest-risk slice as predicted — the enrichment path keys off `ExtractedData`, so accepting overrides needed no change to CEPiK or market-price logic. The precedence trap was the only real one: a typed value wins, a blank field never nulls a good extraction. `accidentClaim` is deliberately left out of the overrides, because it is the *listing's* claim and `CepikRiskAdjuster` compares it against the registry — a user "correcting" it would erase the contradiction finding.
+- **Carried forward:** the "Sprawdź historię pojazdu" follow-up re-runs the whole analysis (~30 s) rather than calling a lookup-only endpoint, because CEPiK findings only reach `scores` / `verdict` through `CepikRiskAdjuster` on the analysis path. A cheaper enrich-only endpoint would need the adjustment moved or duplicated.
+- **Status:** shipped (closed out `d259bdc` 2026-08-26; manual mode, overrides and both validation failures verified against production the same day — `fetchStatus: "manual"`, prose date normalised, `marketPriceContext.status=OK`)
 
 ---
 
@@ -197,7 +198,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 | F-02       | data-layer-setup          | Add PostgreSQL + Spring Data JPA + Flyway to backend          | yes                   | Run `/10x-plan data-layer-setup`. Confirmed unstarted 2026-08-26 — `pom.xml` still has no JPA, Flyway, PostgreSQL or H2 dependency |
 | F-03       | auth-scaffold             | Wire Spring Security + JWT; Angular login/register + guards   | no                    | Needs F-02 first. Confirmed unstarted — no Spring Security or JWT dependency |
 | S-01       | core-analysis-flow        | Full analysis flow: URL + text paste → AI output on screen    | shipped               | Merged as `2175a70`               |
-| S-02       | manual-field-entry        | Manual entry form (incl. VIN / plate / first registration) → same AI analysis | yes    | Run `/10x-plan manual-field-entry`. Unblocked and the highest-value remaining slice: it is what makes S-04 fire on real listings |
+| S-02       | manual-field-entry        | Manual entry form (incl. VIN / plate / first registration) → same AI analysis | shipped | Merged as `d259bdc`. This is what makes S-04 fire on real listings |
 | S-03       | save-view-delete-analyses | Save / view list / delete saved analyses                      | no                    | Needs F-02 + F-03 (S-01 is done)  |
 | S-04       | cepik-vin-lookup          | Live CEPiK vehicle history alongside analysis                 | shipped               | Merged as `d5e0fed`; `FOUND` path fixed and verified 2026-08-26 |
 | S-05       | market-price-context      | Comparable market price range (Otomoto via Jina Reader)       | shipped               | Merged as `51db3fb`; two carried-forward defects in `min`/`median` |
@@ -206,6 +207,7 @@ Not roadmap items, but tracked here so they are not lost — small carried-forwa
 
 | Fix | Where | Why it matters |
 |-----|-------|----------------|
+| Wire a frontend test runner | `package.json`, `angular.json` | `tsconfig.spec.json` declares vitest globals, vitest is not installed and there is no `test` target, so the three `*.spec.ts` files have never executed. The frontend has zero enforced coverage today |
 | Trim outliers from the market price range; fix the even-sample median | `MarketPriceFetchService` | `min`/`max` are currently misleading enough to be worth hiding until fixed |
 | Remove the deprecated `POST /api/analysis/risk` facade | `RiskAnalysisController` | It was to go when S-01 shipped; it is still live and duplicates a subset of `POST /api/analyses` |
 | `GET /health` returns 500, not 404 | Actuator config | An uptime probe pointed at it reads as "app broken" rather than "wrong path" |
