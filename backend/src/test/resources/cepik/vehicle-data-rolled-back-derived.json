@@ -1,0 +1,65 @@
+{
+  "_provenance": { "parent": "vehicle-data-found.json", "edit": "technicalData.basicData.odometerReadings[0].rolledBack false -> true" },
+  "technicalData": {
+    "basicData": {
+      "registrationStatus": "Zarejestrowany",
+      "technicalInspectionStatus": "aktualne",
+      "hasCurrentOCPolicy": true,
+      "vehicleLost": false,
+      "vehicleTemporarilyWithdrawn": false,
+      "make": "TOYOTA",
+      "model": "TOYOTA COROLLA",
+      "type": "SAMOCHÓD OSOBOWY",
+      "subtype": "KARETA (SEDAN)",
+      "purpose": null,
+      "identifyingFeature": "NMTBZ3BE40R000000",
+      "yearOfManufacture": 2022,
+      "odometerReadings": [
+        {
+          "value": 26320,
+          "unit": "km",
+          "odometerNumber": "FIRST",
+          "error": false,
+          "errorMessage": null,
+          "rolledBack": true
+        }
+      ]
+    },
+    "detailedData": {
+      "engineCapacity": 1798,
+      "maxNetEnginePower": 72,
+      "euroEmissionLevel": "EURO 6 AP",
+      "fuelType": "benzyna",
+      "avgCO2Emission": 99,
+      "avgFuelConsumption": 4.4,
+      "altFuelType": "energia elektryczna",
+      "altFuelAvgCO2Emission": null,
+      "altFuelAvgFuelConsumption": null,
+      "secondAltFuelType": null,
+      "secondAltFuelAvgCO2Emission": null,
+      "secondAltFuelAvgFuelConsumption": null,
+      "totalNumberOfSeats": 5,
+      "numberOfSeats": 5,
+      "numberOfStandingPlaces": null,
+      "curbWeight": 1387,
+      "permissibleTotalPayload": null,
+      "permissibleGrossWeight": 1835,
+      "maxBrakedTrailerWeight": 750,
+      "maxUnbrakedTrailerWeight": 450,
+      "numberOfAxles": 2,
+      "wheelbase": 2700,
+      "maxAxleLoad": 10,
+      "homologationCertificateNumber": "e6*2007/46*0316*05",
+      "homologationCategory": "M1",
+      "homologationVersion": "ZWE211L-DEXNBW(1F)",
+      "homologationVariant": "ZWE211(E)",
+      "homologationType": "ZE1EE(EU,M)",
+      "vehicleDocumentType": "Dowód rejestracyjny",
+      "vehicleDocumentIssueDate": "2024-01-08",
+      "vehicleDocumentConditionMarking": "Odebrany",
+      "maximumGrossWeight": 1835,
+      "averageTrackWidth": 1537,
+      "euroNormForCommunities": false
+    }
+  }
+}

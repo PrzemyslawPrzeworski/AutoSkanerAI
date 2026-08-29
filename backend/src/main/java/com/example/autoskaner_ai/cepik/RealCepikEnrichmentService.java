@@ -74,18 +74,33 @@ public class RealCepikEnrichmentService implements CepikEnrichmentService {
         }
         String vin = normalisedVin.get();
 
-        String plate = extracted.registrationPlate();
-        if (plate == null || plate.isBlank() || !PLATE_PATTERN.matcher(plate.strip().toUpperCase()).matches()) {
+        Optional<String> normalisedPlate = normalisePlate(extracted.registrationPlate());
+        if (normalisedPlate.isEmpty()) {
             return missingInputs(vin);
         }
-        plate = plate.strip().toUpperCase();
 
         Optional<String> isoDate = toIsoDate(extracted.firstRegistrationDate());
         if (isoDate.isEmpty()) {
             return missingInputs(vin);
         }
 
-        return historiaPojazduService.lookup(plate, vin, isoDate.get());
+        return historiaPojazduService.lookup(normalisedPlate.get(), vin, isoDate.get());
+    }
+
+    // Mirrors VinValidator.normalise, and deliberately so: a plate is printed with a space
+    // ("WA 12345") and typed the way it is printed, so matching the pattern against the raw value
+    // turned the commonest form of a correct plate into MISSING_INPUTS and no lookup at all —
+    // while the same user typing a spaced VIN was fine. The registry receives the normalised
+    // form; sending the spaced one back would just move the rejection to their validator.
+    private static Optional<String> normalisePlate(String raw) {
+        if (raw == null) {
+            return Optional.empty();
+        }
+        String normalised = raw.trim().toUpperCase().replaceAll("[\\s\\-]", "");
+        if (PLATE_PATTERN.matcher(normalised).matches()) {
+            return Optional.of(normalised);
+        }
+        return Optional.empty();
     }
 
     // The prompt asks the LLM for the date "w formacie z ogłoszenia", and Polish listings

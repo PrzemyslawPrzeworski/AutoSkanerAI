@@ -93,9 +93,35 @@ class RealCepikEnrichmentServiceTest {
         verifyNoInteractions(historiaPojazduService);
     }
 
+    // A plate is printed with a space and typed the way it is printed, so "WA 12345" is the
+    // commonest form of a correct plate — and it used to yield MISSING_INPUTS and no lookup at
+    // all, while the same user typing a spaced VIN was fine. The registry must receive the
+    // normalised form; sending the spaced one back only moves the rejection to their validator.
+    @ParameterizedTest
+    @ValueSource(strings = {"WA 12345", "wa12345", "  WA-12345  ", "wa 12345", "WA12345"})
+    void plateIsNormalisedTheSameWayTheVinIs(String raw) {
+        when(historiaPojazduService.lookup(any(), any(), any())).thenReturn(
+                CepikResult.withoutData(CepikStatus.NOT_FOUND, VALID_VIN, "https://historiapojazdu.gov.pl"));
+
+        service.enrich(extracted(VALID_VIN, raw, "2018-03-15"));
+
+        verify(historiaPojazduService).lookup("WA12345", VALID_VIN, "2018-03-15");
+    }
+
+    // Stripping whitespace must not make a genuinely malformed plate acceptable: "W A 1" would
+    // become "WA1", which is still too short, and "?? ??" stays unusable.
+    @ParameterizedTest
+    @ValueSource(strings = {"??", "W A 1", "WA", "", "   ", "WA-1234567890"})
+    void malformedPlateShortCircuits(String raw) {
+        var result = service.enrich(extracted(VALID_VIN, raw, "2018-03-15"));
+
+        assertThat(result.status()).isEqualTo(CepikStatus.MISSING_INPUTS);
+        verifyNoInteractions(historiaPojazduService);
+    }
+
     @Test
-    void malformedPlateShortCircuits() {
-        var result = service.enrich(extracted(VALID_VIN, "??", "2018-03-15"));
+    void absentPlateShortCircuits() {
+        var result = service.enrich(extracted(VALID_VIN, null, "2018-03-15"));
 
         assertThat(result.status()).isEqualTo(CepikStatus.MISSING_INPUTS);
         verifyNoInteractions(historiaPojazduService);

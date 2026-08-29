@@ -1,0 +1,211 @@
+{
+  "_provenance": { "parent": "timeline-data-found.json", "edit": "deleted the single szkoda-istotna event (parent lines 48-65); nothing else touched" },
+  "timelineData": {
+    "events": [
+      {
+        "eventDate": "2022-03-30",
+        "eventDetails": [
+          {
+            "name": "Właściciel",
+            "value": "osoba fizyczna",
+            "additionalInformation": []
+          },
+          {
+            "name": "Województwo, w którym pojazd zarejestrowano",
+            "value": "świętokrzyskie",
+            "additionalInformation": []
+          }
+        ],
+        "comment": null,
+        "eventName": "Pierwszy właściciel w Polsce (pozostał właścicielem do 19.04.2023)",
+        "eventType": "pierwszy-wlasciciel"
+      },
+      {
+        "eventDate": "2022-03-30",
+        "eventDetails": [
+          {
+            "name": "Właściciel",
+            "value": "osoba fizyczna",
+            "additionalInformation": []
+          }
+        ],
+        "comment": null,
+        "eventName": "Dodanie współwłaściciela (pozostał współwłaścicielem do 04.01.2024)",
+        "eventType": "dodanie-wspolwlasciciela"
+      },
+      {
+        "eventDate": "2022-04-12",
+        "eventDetails": [
+          {
+            "name": "Termin następnego badania technicznego",
+            "value": "12.04.2025",
+            "additionalInformation": []
+          }
+        ],
+        "comment": null,
+        "eventName": "Pierwsza rejestracja w Polsce",
+        "eventType": "pierwsza-rejestracja-w-polsce"
+      },
+      {
+        "eventDate": "2023-03-06",
+        "eventDetails": [],
+        "comment": null,
+        "eventName": "Zbycie i nabycie pojazdu",
+        "eventType": "zbycie-i-nabycie"
+      },
+      {
+        "eventDate": "2023-03-06",
+        "eventDetails": [],
+        "comment": null,
+        "eventName": "Zbycie pojazdu",
+        "eventType": "zbycie"
+      },
+      {
+        "eventDate": "2023-03-06",
+        "eventDetails": [],
+        "comment": null,
+        "eventName": "Nabycie pojazdu",
+        "eventType": "nabycie"
+      },
+      {
+        "eventDate": "2023-04-19",
+        "eventDetails": [],
+        "comment": null,
+        "eventName": "Zbycie i nabycie pojazdu",
+        "eventType": "zbycie-i-nabycie"
+      },
+      {
+        "eventDate": "2023-04-19",
+        "eventDetails": [],
+        "comment": null,
+        "eventName": "Nabycie pojazdu",
+        "eventType": "nabycie"
+      },
+      {
+        "eventDate": "2023-04-19",
+        "eventDetails": [
+          {
+            "name": "Właściciel",
+            "value": "osoba fizyczna",
+            "additionalInformation": []
+          },
+          {
+            "name": "Województwo, w którym pojazd zarejestrowano",
+            "value": "mazowieckie",
+            "additionalInformation": []
+          }
+        ],
+        "comment": null,
+        "eventName": "Zmiana właściciela",
+        "eventType": "zmiana-wlasciciela"
+      },
+      {
+        "eventDate": "2023-04-19",
+        "eventDetails": [],
+        "comment": null,
+        "eventName": "Zbycie pojazdu",
+        "eventType": "zbycie"
+      },
+      {
+        "eventDate": "2024-01-03",
+        "eventDetails": [
+          {
+            "name": "Wynik badania",
+            "value": "pozytywny",
+            "additionalInformation": []
+          },
+          {
+            "name": "Rodzaj badania",
+            "value": "Po uczestniczeniu w wypadku",
+            "additionalInformation": []
+          },
+          {
+            "name": "Numer SKP",
+            "value": "WZ/010",
+            "additionalInformation": []
+          },
+          {
+            "name": "Odczytany stan drogomierza",
+            "value": "12330 km",
+            "additionalInformation": []
+          }
+        ],
+        "comment": "(Uwaga. Stan drogomierza przy badaniu technicznym gromadzimy od 2014)",
+        "eventName": "Dodatkowe badanie techniczne",
+        "eventType": "badanie-techniczne-dodatkowe"
+      },
+      {
+        "eventDate": "2025-04-14",
+        "eventDetails": [
+          {
+            "name": "Wynik badania",
+            "value": "pozytywny",
+            "additionalInformation": []
+          },
+          {
+            "name": "Rodzaj badania",
+            "value": "Wykonana naprawa w grupach 3 i 10",
+            "additionalInformation": []
+          },
+          {
+            "name": "Numer SKP",
+            "value": "WND/014",
+            "additionalInformation": []
+          },
+          {
+            "name": "Odczytany stan drogomierza",
+            "value": "26320 km",
+            "additionalInformation": []
+          }
+        ],
+        "comment": "(Uwaga. Stan drogomierza przy badaniu technicznym gromadzimy od 2014)",
+        "eventName": "Dodatkowe badanie techniczne",
+        "eventType": "badanie-techniczne-dodatkowe"
+      },
+      {
+        "eventDate": "2025-04-14",
+        "eventDetails": [
+          {
+            "name": "Wynik badania",
+            "value": "pozytywny",
+            "additionalInformation": []
+          },
+          {
+            "name": "Numer SKP",
+            "value": "WND/014",
+            "additionalInformation": []
+          },
+          {
+            "name": "Odczytany stan drogomierza",
+            "value": "26320 km",
+            "additionalInformation": []
+          }
+        ],
+        "comment": "(Uwaga. Stan drogomierza przy badaniu technicznym gromadzimy od 2014)",
+        "eventName": "Okresowe badanie techniczne (ważne do 12.04.2027)",
+        "eventType": "badanie-techniczne-okresowe"
+      }
+    ],
+    "yearOfManufacture": 2022,
+    "reportGenerationDate": "2026-08-26",
+    "totalOwners": 2,
+    "totalCoOwners": 1,
+    "currentOwners": 1,
+    "currentCoOwners": 0,
+    "validOcInsurance": true,
+    "technicalInspectionStatus": "aktualne",
+    "vehicleLost": false,
+    "insuranceExpiryDate": "2027-05-16",
+    "registrationProvince": "mazowieckie",
+    "odometerReadings": [
+      {
+        "value": 26320,
+        "unit": "km",
+        "odometerNumber": "FIRST",
+        "error": false,
+        "errorMessage": null,
+        "rolledBack": false
+      }
+    ]
+  }
+}

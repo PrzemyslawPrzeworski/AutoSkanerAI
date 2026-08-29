@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +20,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * against a shape the registry has never returned, and the app reported an empty damage list for
  * a vehicle carrying a szkoda istotna. Fixtures here must stay copies of real responses — if a
  * new case is needed, capture it rather than composing it.
+ *
+ * <p>Cases the capture cannot supply on its own are driven by {@code *-derived.json} fixtures,
+ * produced from a named capture by deleting a node or changing a value and never by composing
+ * one. See {@code src/test/resources/cepik/README.md} for the convention and why it exists.
  *
  * <p>One deliberate edit to the captures: the VIN is replaced with a synthetic
  * NMTBZ3BE40R000000. This repo is public and the rest of the payload is a real seller's vehicle
@@ -120,11 +125,17 @@ class HistoriaPojazduParserTest {
         assertThat(result.make()).isEqualTo("TOYOTA");
     }
 
+    // A 204 or an empty 200 leaves both payloads unreadable. Reporting FOUND then builds a
+    // "found in the registry" panel with every field empty, which reads as a clean history — so
+    // this asserts LOOKUP_FAILED. Not NOT_FOUND: a definitive "no such vehicle" arrives as a 404
+    // carrying HIPO-0002 and is classified by HistoriaPojazduService, not here.
     @Test
-    void nullPayloadsDoNotThrowAndCarryNoData() {
+    void nothingReadableIsALookupFailureNotAnEmptyFound() {
         var result = parser.parse(null, null, VIN);
 
-        assertThat(result.status()).isEqualTo(CepikStatus.FOUND);
+        assertThat(result.status())
+                .as("an empty FOUND is a clean-history claim we have no basis for")
+                .isEqualTo(CepikStatus.LOOKUP_FAILED);
         assertThat(result.vin()).isEqualTo(VIN);
         assertThat(result.damageRecords()).isNull();
         assertThat(result.mileageStamps()).isNull();
@@ -132,19 +143,61 @@ class HistoriaPojazduParserTest {
         assertThat(result.make()).isNull();
     }
 
-    // A timeline that parsed and genuinely holds no damage event is the one case where an empty
-    // list is the truth, and it must stay distinguishable from the null above.
+    // Guards against the fix above widening: one readable payload is still a real answer, and
+    // must keep reporting FOUND from whichever side arrived.
     @Test
-    void timelineWithoutDamageEventsYieldsEmptyListNotNull() {
-        Map<String, Object> noDamage = Map.of("timelineData", Map.of(
-                "events", List.of(Map.of(
-                        "eventDate", "2022-04-12",
-                        "eventType", "pierwsza-rejestracja-w-polsce",
-                        "eventName", "Pierwsza rejestracja w Polsce",
-                        "eventDetails", List.of()))));
+    void oneReadablePayloadIsStillAFoundVehicle() {
+        assertThat(parser.parse(vehicleData, null, VIN).status()).isEqualTo(CepikStatus.FOUND);
+        assertThat(parser.parse(null, timelineData, VIN).status()).isEqualTo(CepikStatus.FOUND);
+    }
 
-        var result = parser.parse(vehicleData, noDamage, VIN);
+    // A timeline that parsed and genuinely holds no damage event is the one case where an empty
+    // list is the truth, and it must stay distinguishable from the null above. The fixture is the
+    // capture with its single szkoda-istotna event deleted — not a composed map, because composing
+    // one from the parser's own key names is the 2026-08-26 failure in miniature.
+    @Test
+    void timelineWithoutDamageEventsYieldsEmptyListNotNull() throws IOException {
+        var result = parser.parse(vehicleData, fixture("timeline-data-clean-derived.json"), VIN);
 
         assertThat(result.damageRecords()).isNotNull().isEmpty();
+        // Still recognisably this car's timeline, so the empty list is a real report.
+        assertThat(result.events()).hasSize(13);
+        assertThat(result.mileageStamps()).isNotEmpty();
+    }
+
+    // The failure the canary exists for: if the registry renames its event types, every match in
+    // the parser silently stops firing and damagesFrom returns an empty list, which the UI renders
+    // as "brak zgłoszonych szkód istotnych" for a car that still carries a szkoda istotna. Same
+    // false-clean shape as 2026-08-26, reached without anyone inventing a field name.
+    @Test
+    void driftedEventVocabularyIsUnknownNotClean() throws IOException {
+        var result = parser.parse(vehicleData, fixture("timeline-data-drifted-derived.json"), VIN);
+
+        assertThat(result.damageRecords())
+                .as("an empty list would claim the registry reported no damage; it reported one")
+                .isNull();
+        assertThat(result.mileageStamps()).isNull();
+        // The events themselves still reach the user — we cannot interpret them, not lose them.
+        assertThat(result.events()).hasSize(14);
+    }
+
+    // No registered vehicle has a timeline with zero events, so an empty list is a shape we do not
+    // understand rather than a history with nothing in it. Unknown, not clean.
+    @Test
+    void anEmptyEventListIsUnknownNotClean() {
+        var result = parser.parse(vehicleData, withEvents(timelineData, List.of()), VIN);
+
+        assertThat(result.damageRecords()).isNull();
+        assertThat(result.mileageStamps()).isNull();
+    }
+
+    /** Value-level edit of a loaded capture: every key stays as captured, only `events` changes. */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> withEvents(Map<String, Object> capture, List<?> events) {
+        var outer = new LinkedHashMap<String, Object>(capture);
+        var inner = new LinkedHashMap<String, Object>((Map<String, Object>) outer.get("timelineData"));
+        inner.put("events", events);
+        outer.put("timelineData", inner);
+        return outer;
     }
 }

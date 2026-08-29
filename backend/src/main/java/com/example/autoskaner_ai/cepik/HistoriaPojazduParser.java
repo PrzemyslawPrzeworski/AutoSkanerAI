@@ -5,6 +5,8 @@ import com.example.autoskaner_ai.analysis.CepikStatus;
 import com.example.autoskaner_ai.analysis.DamageRecord;
 import com.example.autoskaner_ai.analysis.MileageStamp;
 import com.example.autoskaner_ai.analysis.VehicleEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -13,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,12 +35,38 @@ import java.util.regex.Pattern;
 @Profile("!mock")
 public class HistoriaPojazduParser {
 
+    private static final Logger log = LoggerFactory.getLogger(HistoriaPojazduParser.class);
+
     private static final String LOOKUP_URL = "https://historiapojazdu.gov.pl";
 
     /** Damage events are identified by type; the registry uses a kebab-case Polish vocabulary. */
     private static final String DAMAGE_EVENT_TYPE = "szkoda-istotna";
     private static final String INSPECTION_EVENT_PREFIX = "badanie-techniczne";
     private static final String FIRST_REGISTRATION_PL_EVENT = "pierwsza-rejestracja-w-polsce";
+
+    /**
+     * Every {@code eventType} value present in the captured timeline (all ten of them, across the
+     * fourteen events in {@code timeline-data-found.json}) — a record of what was observed, not a
+     * new mapping. Only three are interpreted below; the rest are here because they are evidence
+     * that the vocabulary is the one this parser was written against.
+     *
+     * <p>Its job is to catch the 2026-08-26 failure reached <em>without</em> anyone inventing a
+     * field name. If the registry renames or restructures its event types, every match below stops
+     * firing silently and {@code damagesFrom} returns an empty list, which the UI renders as "brak
+     * zgłoszonych szkód istotnych" for a car that may carry a szkoda istotna. So a timeline whose
+     * events carry none of these types is reported as unknown rather than clean.
+     */
+    private static final Set<String> KNOWN_EVENT_TYPES = Set.of(
+            "pierwszy-wlasciciel",
+            "dodanie-wspolwlasciciela",
+            "pierwsza-rejestracja-w-polsce",
+            "szkoda-istotna",
+            "zbycie-i-nabycie",
+            "zbycie",
+            "nabycie",
+            "zmiana-wlasciciela",
+            "badanie-techniczne-dodatkowe",
+            "badanie-techniczne-okresowe");
 
     // Detail row labels, as returned. Matched case-insensitively on a prefix so a trailing
     // wording change ("Kategorie" -> "Kategorie szkody") does not silently drop the value.
@@ -52,12 +81,29 @@ public class HistoriaPojazduParser {
         Map<String, Object> basic = nested(nested(vehicleData, "technicalData"), "basicData");
         Map<String, Object> timeline = nested(timelineData, "timelineData");
 
-        List<VehicleEvent> events = readEvents(timeline);
+        // The registry answered but neither payload was readable — a 204, an empty 200, or a shape
+        // with neither node in it. Reporting FOUND here builds a "found in the registry" panel with
+        // every field empty, which reads as a clean history. LOOKUP_FAILED rather than NOT_FOUND
+        // because a definitive "no such vehicle" arrives as a 404 carrying HIPO-0002 and is
+        // classified by HistoriaPojazduService; this is the registry answering unintelligibly.
+        if (basic == null && timeline == null) {
+            log.warn("historiapojazdu returned no readable technicalData.basicData and no timelineData"
+                    + " — reporting LOOKUP_FAILED rather than an empty FOUND");
+            return CepikResult.withoutData(CepikStatus.LOOKUP_FAILED, vin, LOOKUP_URL);
+        }
 
-        // Null, not empty, when the timeline could not be read: an empty damage list is a
-        // positive claim that the registry reported nothing, and we cannot make it here.
-        List<DamageRecord> damageRecords = events == null ? null : damagesFrom(events);
-        List<MileageStamp> mileageStamps = events == null ? null : mileageFrom(events);
+        List<VehicleEvent> events = readEvents(timeline);
+        boolean vocabularyRecognised = recognisesVocabulary(events);
+        if (events != null && !vocabularyRecognised) {
+            log.warn("historiapojazdu timeline carries {} event(s) and not one of a recognised type"
+                    + " — reporting damage and mileage as unknown, not as none", events.size());
+        }
+
+        // Null, not empty, when the timeline could not be read or its vocabulary is not the one
+        // observed in the captures: an empty damage list is a positive claim that the registry
+        // reported nothing, and in neither case can we make it.
+        List<DamageRecord> damageRecords = vocabularyRecognised ? damagesFrom(events) : null;
+        List<MileageStamp> mileageStamps = vocabularyRecognised ? mileageFrom(events) : null;
 
         return new CepikResult(
                 CepikStatus.FOUND,
@@ -102,6 +148,24 @@ public class HistoriaPojazduParser {
                     readDetails(map.get("eventDetails"))));
         }
         return Collections.unmodifiableList(events);
+    }
+
+    /**
+     * @return true only if at least one event carries a type observed in the captured payload.
+     *     An empty event list takes the same branch as an unrecognised one: no registered vehicle
+     *     has a timeline with zero events, so that is a shape we do not understand rather than a
+     *     history with nothing in it.
+     */
+    private boolean recognisesVocabulary(List<VehicleEvent> events) {
+        if (events == null) {
+            return false;
+        }
+        for (VehicleEvent event : events) {
+            if (event.type() != null && KNOWN_EVENT_TYPES.contains(event.type())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<VehicleEvent.EventDetail> readDetails(Object raw) {
