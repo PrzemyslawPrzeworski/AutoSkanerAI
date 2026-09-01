@@ -700,32 +700,32 @@ than before.
 
 #### Automated
 
-- [x] 1.1 Suite green with no regressions
-- [x] 1.2 `HistoriaPojazduParserTest` and `RealCepikEnrichmentServiceTest` pass with the new cases
-- [x] 1.3 `git diff --stat src/main` limited to the two intended files
-- [x] 1.4 Every cepik fixture is verbatim-unsuffixed or `-derived` with `_provenance`
+- [x] 1.1 Suite green with no regressions — 4a40ec9
+- [x] 1.2 `HistoriaPojazduParserTest` and `RealCepikEnrichmentServiceTest` pass with the new cases — 4a40ec9
+- [x] 1.3 `git diff --stat src/main` limited to the two intended files — 4a40ec9
+- [x] 1.4 Every cepik fixture is verbatim-unsuffixed or `-derived` with `_provenance` — 4a40ec9
 
 #### Manual
 
-- [x] 1.5 Each derived fixture differs from its parent only by deletions and value changes
-- [x] 1.6 The canary's known-type list matches the ten types in the capture, with no invented entry
-- [x] 1.7 A `mock`-profile run still starts and returns an analysis
+- [x] 1.5 Each derived fixture differs from its parent only by deletions and value changes — 4a40ec9
+- [x] 1.6 The canary's known-type list matches the ten types in the capture, with no invented entry — 4a40ec9
+- [x] 1.7 A `mock`-profile run still starts and returns an analysis — 4a40ec9
 
 ### Phase 2: Captures → HTTP response, and the wire contract
 
 #### Automated
 
-- [ ] 2.1 Suite green
-- [ ] 2.2 `CepikDamageReachesTheResponseTest`, `HistoriaPojazduSessionTest`, extended `HistoriaPojazduServiceTest` pass
-- [ ] 2.3 Mutation check: swapped payload arguments fail the integration test
-- [ ] 2.4 Mutation check: a wrong `DAMAGE_EVENT_TYPE` fails rather than reporting `[]`
-- [ ] 2.5 Mutation check: global `non_null` inclusion fails the present-and-null assertion
+- [x] 2.1 Suite green
+- [x] 2.2 `CepikDamageReachesTheResponseTest`, `HistoriaPojazduSessionTest`, extended `HistoriaPojazduServiceTest` pass
+- [x] 2.3 Mutation check: swapped payload arguments fail the integration test
+- [x] 2.4 Mutation check: a wrong `DAMAGE_EVENT_TYPE` fails rather than reporting `[]`
+- [x] 2.5 Mutation check: global `non_null` inclusion fails the present-and-null assertion
 
 #### Manual
 
-- [ ] 2.6 The stubbed bootstrap HTML names a version other than the fallback
-- [ ] 2.7 The `HIPO-0002` fixture body matches what the registry actually returned
-- [ ] 2.8 Each assertion's oracle is obvious to a stranger reading the test
+- [x] 2.6 The stubbed bootstrap HTML names a version other than the fallback
+- [x] 2.7 The `HIPO-0002` fixture body matches what the registry actually returned
+- [x] 2.8 Each assertion's oracle is obvious to a stranger reading the test
 
 ### Phase 3: Re-oracle the risk adjuster
 

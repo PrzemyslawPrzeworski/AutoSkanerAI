@@ -3,6 +3,11 @@ package com.example.autoskaner_ai.cepik;
 import com.example.autoskaner_ai.analysis.CepikStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -83,5 +88,46 @@ class HistoriaPojazduServiceTest {
 
         assertThat(result.damageRecords()).isNull();
         assertThat(result.mileageStamps()).isNull();
+    }
+
+    // Every test above drives the session to throw, so until this one `lookup`'s success path
+    // never ran here and `close()` was only ever asserted on the failure route — a session leaked
+    // per successful lookup would have gone unnoticed. Uses a real parser, because a mocked one
+    // makes the outcome whatever the stub says.
+    //
+    // What this test cannot catch: which HTTP call each payload came from. The session is mocked,
+    // so swapping the two fetch calls themselves — asking timeline-data for the vehicle payload —
+    // is invisible here. That coverage lives in CepikDamageReachesTheResponseTest, where
+    // MockRestServiceServer's ordered expectations pin the request order at the network edge.
+    // (Swapping the two arguments to parser.parse *is* caught here, but only incidentally: the two
+    // captures have disjoint top-level keys, so a swap makes both unreadable and trips the
+    // nothing-readable guard rather than being recognised as the wrong way round.)
+    @Test
+    void aSuccessfulLookupParsesTheDamageAndStillClosesTheSession() throws IOException {
+        var withRealParser = new HistoriaPojazduService(mock(RestClient.Builder.class),
+                new HistoriaPojazduParser()) {
+            @Override
+            HistoriaPojazduSession createSession() { return session; }
+        };
+        when(session.fetchVehicleData(any(), any(), any()))
+                .thenReturn(fixture("vehicle-data-found.json"));
+        when(session.fetchTimelineData(any(), any(), any()))
+                .thenReturn(fixture("timeline-data-found.json"));
+
+        var result = withRealParser.lookup("WX00000", "NMTBZ3BE40R000000", "2022-04-12");
+
+        assertThat(result.status()).isEqualTo(CepikStatus.FOUND);
+        assertThat(result.damageRecords()).hasSize(1);
+        assertThat(result.damageRecords().getFirst().date()).isEqualTo("2023-02-07");
+        assertThat(result.make()).isEqualTo("TOYOTA");
+        verify(session).close();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> fixture(String name) throws IOException {
+        try (InputStream in = HistoriaPojazduServiceTest.class.getResourceAsStream("/cepik/" + name)) {
+            assertThat(in).as("missing fixture %s", name).isNotNull();
+            return new ObjectMapper().readValue(in, Map.class);
+        }
     }
 }

@@ -14,6 +14,16 @@ value, so the shape under test is unaffected. Do not paste a real VIN back in.
 Capture a new one rather than composing one, and **do not add a field mapping to
 `HistoriaPojazduParser` without a captured payload showing that field name.**
 
+One provenance caveat, stated because the rule above is only worth anything if its exceptions
+are named: `not-found-hipo-0002.json` is a **transcription, not a byte capture**. The registry's
+404 body was never saved to a file — the only record of it is the message text embedded in
+`HistoriaPojazduServiceTest.returnsNotFoundWhenRegistryReportsHipo0002`, which was lifted from a
+real `HttpClientErrorException` (`404 Not Found: "{…}"`). The two keys and both values come from
+there verbatim; the whitespace and key order are whatever that message showed. Nothing reads
+this file's *shape* — `HistoriaPojazduService.indicatesVehicleNotFound` string-sniffs the cause
+chain for `HIPO-0002` — so the transcription is load-bearing only for that one substring. If a
+real 404 is ever captured, replace this file with it.
+
 ## Derived fixtures — `*-derived.json`
 
 Produced from a named verbatim parent by exactly one of two operations:
