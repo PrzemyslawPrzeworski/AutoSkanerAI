@@ -715,32 +715,32 @@ than before.
 
 #### Automated
 
-- [x] 2.1 Suite green
-- [x] 2.2 `CepikDamageReachesTheResponseTest`, `HistoriaPojazduSessionTest`, extended `HistoriaPojazduServiceTest` pass
-- [x] 2.3 Mutation check: swapped payload arguments fail the integration test
-- [x] 2.4 Mutation check: a wrong `DAMAGE_EVENT_TYPE` fails rather than reporting `[]`
-- [x] 2.5 Mutation check: global `non_null` inclusion fails the present-and-null assertion
+- [x] 2.1 Suite green — 8df36f9
+- [x] 2.2 `CepikDamageReachesTheResponseTest`, `HistoriaPojazduSessionTest`, extended `HistoriaPojazduServiceTest` pass — 8df36f9
+- [x] 2.3 Mutation check: swapped payload arguments fail the integration test — 8df36f9
+- [x] 2.4 Mutation check: a wrong `DAMAGE_EVENT_TYPE` fails rather than reporting `[]` — 8df36f9
+- [x] 2.5 Mutation check: global `non_null` inclusion fails the present-and-null assertion — 8df36f9
 
 #### Manual
 
-- [x] 2.6 The stubbed bootstrap HTML names a version other than the fallback
-- [x] 2.7 The `HIPO-0002` fixture body matches what the registry actually returned
-- [x] 2.8 Each assertion's oracle is obvious to a stranger reading the test
+- [x] 2.6 The stubbed bootstrap HTML names a version other than the fallback — 8df36f9
+- [x] 2.7 The `HIPO-0002` fixture body matches what the registry actually returned — 8df36f9
+- [x] 2.8 Each assertion's oracle is obvious to a stranger reading the test — 8df36f9
 
 ### Phase 3: Re-oracle the risk adjuster
 
 #### Automated
 
-- [ ] 3.1 Suite green
-- [ ] 3.2 The mean-of-four expression no longer appears in `CepikRiskAdjusterTest`
-- [ ] 3.3 Each cap literal appears exactly once across the test tree
-- [ ] 3.4 Mutation check: `CAP_SIGNIFICANT_DAMAGE` 35→15 fails the ordering test
-- [ ] 3.5 Mutation check: deleting the `Math.min` fails the new never-raise test
+- [x] 3.1 Suite green
+- [x] 3.2 The mean-of-four expression no longer appears in `CepikRiskAdjusterTest`
+- [x] 3.3 Each cap literal appears exactly once across the test tree
+- [x] 3.4 Mutation check: `CAP_SIGNIFICANT_DAMAGE` 35→15 fails the ordering test
+- [x] 3.5 Mutation check: deleting the `Math.min` fails the new never-raise test
 
 #### Manual
 
-- [ ] 3.6 The pinned-integers test's comment leaves no reader thinking the values are proven
-- [ ] 3.7 The ordering test would survive shifting all five caps by a constant, deliberately
+- [x] 3.6 The pinned-integers test's comment leaves no reader thinking the values are proven
+- [x] 3.7 The ordering test would survive shifting all five caps by a constant, deliberately
 
 ### Phase 4: Backport the corrections to `test-plan.md`
 
