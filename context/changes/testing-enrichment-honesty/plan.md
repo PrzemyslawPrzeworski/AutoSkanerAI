@@ -746,12 +746,12 @@ than before.
 
 #### Automated
 
-- [x] 4.1 No "none yet" / "does not exist yet" remains in §4 or §6.2
-- [x] 4.2 No "TBD" remains in §6.2 or §6.5
-- [x] 4.3 `git diff` for this phase touches only `context/`
+- [x] 4.1 No "none yet" / "does not exist yet" remains in §4 or §6.2 — ebcc576
+- [x] 4.2 No "TBD" remains in §6.2 or §6.5 — ebcc576
+- [x] 4.3 `git diff` for this phase touches only `context/` — ebcc576
 
 #### Manual
 
-- [x] 4.4 §6.2 and §6.5 are sufficient without opening this plan
-- [x] 4.5 Risk #2's row describes a failure mode that is still open
-- [x] 4.6 §3's ordering rationale no longer rests on a false claim
+- [x] 4.4 §6.2 and §6.5 are sufficient without opening this plan — ebcc576
+- [x] 4.5 Risk #2's row describes a failure mode that is still open — ebcc576
+- [x] 4.6 §3's ordering rationale no longer rests on a false claim — ebcc576
