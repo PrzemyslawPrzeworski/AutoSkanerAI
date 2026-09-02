@@ -6,7 +6,7 @@
 >
 > Refresh: re-run `/10x-test-plan --refresh` when stale (see §8).
 >
-> Last updated: 2026-08-27
+> Last updated: 2026-09-01
 
 ## 1. Strategy
 
@@ -67,7 +67,7 @@ land, and the check arrives with slice S-03.
 | Risk | What would prove protection | Must challenge | Context `/10x-research` must ground | Likely cheapest layer | Anti-pattern to avoid |
 |---|---|---|---|---|---|
 | #1 | A saturated or retired provider ends in a distinguishable, user-visible outcome — never a hang, never a success shape carrying empty content | "A 200 from the provider means we have an analysis"; "a retry always helps" | Where the request deadline is enforced; how transient is separated from permanent; what the client receives in each branch | integration with a stubbed HTTP edge | Asserting the retry count instead of the user-visible outcome |
-| #2 | A captured registry payload carrying a significant damage surfaces as a reported damage all the way out to the API response | "The field mapping is right because the tests are green" | Which field names appear in a real captured payload; where a parse miss turns into an empty list rather than an error | unit + integration over verbatim captures | Fixtures composed to match the parser — the exact 2026-08-26 failure |
+| #2 | A captured registry payload carrying a significant damage surfaces as a reported damage all the way out to the API response | "An empty damage list means the registry reported nothing" — it equally means the parse silently matched nothing, and the two are indistinguishable downstream | Where a parse miss turns into an empty list rather than an error or a null; which of null / `[]` / populated each status and each unreadable shape produces | unit + integration over verbatim captures | Pinning a false-clean shape as expected behaviour — writing `isEmpty()` where the honest answer is `isNull()`. Fixtures composed to match the parser stay prohibited by §6.5 |
 | #3 | A registry damage caps the risk score and downgrades the verdict regardless of what the listing claimed | "The model already scored the risk, so the later adjustment is cosmetic" | Ordering of scoring against enrichment; which statuses are allowed to adjust; that the overall score is never raised | unit | Lifting the ceiling values out of the implementation and calling them the expected result |
 | #4 | Three states — not checked, checked with nothing reported, checked with findings — produce three visibly different Polish messages | "An empty list is a safe default for missing data" | The actual response shape per status, and which template branch each one drives | component test (jsdom) | Snapshotting the rendered block instead of asserting the distinction |
 | #5 | A sample too thin or too dispersed to be a market range is labelled as such rather than displayed as a confident range | "A number came back, so the range is meaningful" | How sample size and discard count reach the response; what the UI does at the boundary | unit + component test | Re-deriving the expected median with the production formula |
@@ -82,19 +82,44 @@ orchestrator updates Status as artifacts appear on disk.
 
 | # | Phase name | Goal (one line) | Risks covered | Test types | Status | Change folder |
 |---|---|---|---|---|---|---|
-| 1 | Enrichment honesty | Prove a real registry damage reaches both the payload and the verdict, over verbatim captures | #2, #3 | unit + integration | change opened | `testing-enrichment-honesty` |
+| 1 | Enrichment honesty | Prove a real registry damage reaches both the payload and the verdict, over verbatim captures | #2, #3 | unit + integration | shipped | `testing-enrichment-honesty` |
 | 2 | Availability and failure paths | Prove every provider and fetch failure ends in an honest, distinguishable outcome inside the time budget, and that a thin price sample labels itself | #1, #5, #6 | unit + integration (stubbed HTTP edge), live-tagged where a real outcome is assertable | not started | — |
 | 3 | Guardrail rendering | Prove the three history states and the small-sample caveat read differently to a Polish-speaking user | #4, #2 (UI half), #5 (UI half) | component tests (jsdom) | not started | — |
 | 4 | Quality gates | Run both suites on PR and push before auto-deploy, keeping live-tagged tests out of the gate | cross-cutting | gates | not started | — |
 
 Ordering rationale: Phase 1 defends the two highest-impact scenarios at the
 cheapest layer and does so where churn is highest. Phase 2 covers the
-scenario the builder rates most likely (#1) but needs a stubbing seam that
-does not exist yet, so it follows. Phase 3 is where the product guardrail
-actually reaches the user, and the frontend suite is the thinnest part of the
-codebase. Phase 4 comes last because a gate over a suite that does not yet
-cover the top risks locks in a false floor — but it must land, because
-`main` auto-deploys to production on merge and nothing runs the suites today.
+scenario the builder rates most likely (#1) and follows because the registry
+edge was the highest-risk consumer of the HTTP stubbing seam — that work is
+now done, and §6.2 documents the seam Phase 2 inherits. (This originally read
+"needs a stubbing seam that does not exist yet." That was wrong:
+`MockRestServiceServer` shipped with `spring-test` all along and three test
+classes already used it; the registry edge was simply the one place it never
+had been.) Phase 3 is where the product guardrail actually reaches the user,
+and the frontend suite is the thinnest part of the codebase. Phase 4 comes
+last because a gate over a suite that does not yet cover the top risks locks
+in a false floor — but it must land, because `main` auto-deploys to
+production on merge and nothing runs the suites today.
+
+**Carried into Phase 2** (found during Phase 1, uncovered today):
+`HistoriaPojazduSession`'s cookie merge and dedupe (`extractCookies` replaces
+a same-named cookie rather than appending) and its XSRF extraction are
+exercised only incidentally by `CepikDamageReachesTheResponseTest`; neither
+has dedicated coverage.
+
+**Carried into Phase 3** (found during Phase 1, all three are UI-side halves
+of Risk #2 and Risk #4):
+
+- `cepik-result.component` has no spec at all.
+- `cepikResult === null` renders **nothing** — no heading, no disclaimer. A
+  reader cannot distinguish "not checked" from "section absent".
+- `mileageStamps === []` renders no row, so a registry that reported no dated
+  readings looks identical to one that was never asked.
+- The registry-vs-listing mileage tolerance (`max(2000 km, 5%)`,
+  registry-higher direction only) lives **only** in the frontend component. It
+  does not feed the score, and there is no backend counterpart. Per
+  `CLAUDE.md`, if it ever moves into scoring, delete the TypeScript copy
+  rather than keeping two.
 
 Browser-level e2e is deliberately not in this rollout: every risk above is
 reachable at unit, integration, or component level, and an e2e layer over a
@@ -109,9 +134,9 @@ The classic test base for this project. AI-native tools (if any) carry a
 
 | Layer | Tool | Version | Notes |
 |---|---|---|---|
-| backend unit + integration | JUnit 5 via Maven surefire | Spring Boot 4.0.6 | 19 test files across the analysis, cepik, and market packages. `live-llm` is excluded by default; the `live-tests` profile flips the include/exclude properties — `-Dgroups=live-llm` silently intersects to zero |
+| backend unit + integration | JUnit 5 via Maven surefire | Spring Boot 4.0.6 | 23 test files, 163 tests, across the analysis, cepik, and market packages. `live-llm` is excluded by default; the `live-tests` profile flips the include/exclude properties — `-Dgroups=live-llm` silently intersects to zero |
 | frontend unit + component | vitest + jsdom via `@angular/build:unit-test` | Angular 21.2 | 3 spec files, 26 tests, ~2 s. Zoneless: no `fakeAsync` / `tick`; vitest matchers, not jasmine |
-| HTTP mocking (backend) | none yet — see §3 Phase 2 | — | No stubbing seam for the provider or reader edge; every failure path is currently verified by hand against production |
+| HTTP mocking (backend) | `MockRestServiceServer` (`spring-test`) | 7.0.7 | `MockRestServiceServer.bindTo(RestClient.Builder)`, then `server.verify()`. Used by `ListingFetchServiceTest`, `OpenRouterAnalysisServiceTest`, `MarketPriceFetchServiceTest`, and since rollout Phase 1 also `CepikDamageReachesTheResponseTest` and `HistoriaPojazduSessionTest`. See §6.2 |
 | HTTP mocking (frontend) | `provideHttpClientTesting` + `vi.fn()` service doubles | Angular 21.2 | Already used by the existing specs |
 | live integration | JUnit tag `live-llm` + `live-tests` profile | — | Asserts real outcomes only. A proxy 403 on the reader host fails the market-price live test on purpose, so a blocked path stays visible instead of silently green |
 | e2e | none — deliberately unscheduled | — | See the note at the end of §3 |
@@ -153,8 +178,18 @@ relevant rollout phase ships; before that, the sub-section reads
 
 ### 6.2 Adding a backend integration test
 
-- TBD — see §3 Phase 2. The stubbing seam for the provider and reader edge does not exist yet; today's closest reference is `backend/src/test/java/com/example/autoskaner_ai/analysis/AnalysisControllerTest.java`.
-- **Mocking policy (already binding)**: mock at the network edge only, never internal collaborators. Registry fixtures under `backend/src/test/resources/cepik/` must be verbatim captures — capture a new payload rather than composing one, and add no field mapping without a capture showing that name.
+- **Location / naming**: as §6.1, except a test that spans several classes is named for the behaviour rather than a class under test — `CepikDamageReachesTheResponseTest`, not `<Class>Test`.
+- **Reference tests**: `backend/src/test/java/com/example/autoskaner_ai/cepik/CepikDamageReachesTheResponseTest.java` for a full stack behind a stubbed socket; `.../analysis/AnalysisControllerTest.java` for the controller boundary alone.
+- **The seam**: build the same `RestClient.Builder` production configures (mirror the `@Configuration` bean minus its request factory), call `MockRestServiceServer.bindTo(builder)`, hand that builder to the real service. The bind survives later `builder.build()` calls, so a class that rebuilds its client mid-session — as `HistoriaPojazduSession` does per cookie refresh — is still stubbed.
+- **Pattern**: expect the whole call sequence in order, respond with verbatim captures via `withSuccess(new ClassPathResource(...), APPLICATION_JSON)`, assert the HTTP response body, finish with `server.verify()`.
+- **Expectations are ordered by default, and that is useful**: the order is what pins which payload reaches which argument. Swapping `parser.parse`'s two arguments kept the entire repo green until this test existed.
+- **Four gotchas, each learned the hard way**:
+  - A session closed in a `finally` block still makes a request. Stub it, or an unexpected-request `AssertionError` fires *after* your assertions have passed and reads like a mystery.
+  - `jsonPath(...).doesNotExist()` and `.value(nullValue())` both pass for a JSON `null`, so neither can prove a key is present-and-null. Read the raw body: `andReturn().getResponse().getContentAsString()`.
+  - `MockMvcBuilders.standaloneSetup` builds its own message converters and never reads `application.properties`. Anything that depends on the application's Jackson configuration needs a booted context — see `CepikResultSerialisationTest`.
+  - A bodyless 200 fails inside `RestClient` and lands in your service's catch block, so a status assertion can pass without the branch you meant to exercise ever running. Serve `{}` when you want an *unreadable payload* rather than a *transport failure*.
+- **Mocking policy (binding)**: mock at the network edge only, never internal collaborators. Registry fixtures under `backend/src/test/resources/cepik/` follow §6.5.
+- Provider and reader *failure-branch* coverage (deadlines, retry-vs-fallback, thin samples) is still rollout Phase 2's scope; this section covers the seam, not those scenarios.
 
 ### 6.3 Adding a frontend component test
 
@@ -168,12 +203,39 @@ relevant rollout phase ships; before that, the sub-section reads
 
 - **Test type**: integration, at the controller boundary.
 - **Pattern**: assert the response shape *and* the guardrail semantics — which fields are null versus empty, and what a downstream consumer would render from them.
-- **Reference test**: `backend/src/test/java/com/example/autoskaner_ai/analysis/AnalysisControllerTest.java`.
-- Fuller pattern, including the failure branches: TBD — see §3 Phase 2.
+- **Reference test**: `backend/src/test/java/com/example/autoskaner_ai/analysis/AnalysisControllerTest.java`. For an endpoint whose behaviour depends on an outbound call, stub the socket instead of the collaborator — see §6.2.
+- Fuller pattern for the *failure* branches (deadlines, retry vs fallback, degraded content): TBD — see §3 Phase 2.
 
 ### 6.5 Adding a test for a new enrichment source or registry field
 
-- TBD — see §3 Phase 1. The rule that already applies: no field mapping without a captured payload showing that field name, and a non-`FOUND` result carries null lists rather than empty ones.
+**Fixtures come in exactly two classes.** The distinction is load-bearing; see `backend/src/test/resources/cepik/README.md` for the full convention.
+
+- **Verbatim captures** (`*-found.json`, `not-found-*.json`, no suffix) — byte copies of real responses. The only permitted edit is a documented redaction of an identifying value; the committed VIN is the synthetic `NMTBZ3BE40R000000` because this repo is public. **Add no field mapping without a captured payload showing that field name.**
+- **Derived fixtures** (`*-derived.json`) — produced from a named verbatim parent by exactly one of *deleting a node* or *changing a value*. Never by introducing a key, renaming a key, or composing an object. Each carries a top-level `_provenance` naming its parent and the edit, so the claim is checkable with a diff.
+
+A third class is prohibited: a fixture composed key-by-key from what the parser expects cannot detect a mapping failure, because it *is* that failure one file earlier. That is the 2026-08-26 incident verbatim — the parser looked for `zdarzenia` / `szkodyIstotne` / `przebieg`, names the registry has never returned, and every test passed because the fixtures had been written to match them.
+
+**The invariant: null, empty, and populated are three states, not two.**
+
+- `null` — we do not know. No lookup, a failed lookup, an unreadable payload, or a vocabulary we no longer recognise.
+- `[]` — the registry answered and reported nothing. A positive claim.
+- populated — findings.
+
+The UI renders `[]` as "brak zgłoszonych szkód istotnych" and `null` as unknown, so collapsing them inverts the product's core guardrail. Enforcement sits in two places: `CepikResult.withoutData` makes every non-`FOUND` status null by construction, and `HistoriaPojazduParser`'s **vocabulary canary** (`KNOWN_EVENT_TYPES`) degrades to null rather than `[]` when the registry's `eventType` values drift out from under the parser. Assert the tri-state at the wire too — see §6.2's `jsonPath` gotcha.
+
+Known gap in the canary: it accepts the vocabulary if *any one* event type is recognised, so a rename of `szkoda-istotna` alone would still yield `[]`. Narrower than the original failure, still a false-clean route.
+
+**Expected values may come from four sources and no others.** Independence from the implementation is the whole point:
+
+1. the bytes of a committed capture,
+2. a production incident (e.g. `risk: 88 / WORTH_CHECKING` for a car with a registered szkoda istotna, 2026-08-26),
+3. hand arithmetic or calendar rules, written out in a comment,
+4. a stated product guardrail — *absence of accident data means unknown, not clean*.
+
+`CLAUDE.md` is the **specification of record, not an independent derivation** — quoting it is source (4), not a fifth oracle. Reading the class under test is never a source. Where a value genuinely has no oracle outside the implementation (the risk-cap magnitudes), pin it in exactly one test and say so in that test's comment; assert the falsifiable property — their ordering — separately. `CepikRiskAdjusterTest` is the reference for that split.
+
+- **Reference tests**: `HistoriaPojazduParserTest` (captures → model), `CepikDamageReachesTheResponseTest` (captures → HTTP response), `RegistryFactsReachTheScoreTest` (derived fixtures → score, with a control on the unmodified capture).
+- **Verify with a mutation, not a green run.** Break the thing the test exists to catch and confirm it fails. A test that survives its own mutation is decoration — §1's fourth rule.
 
 ### 6.6 Adding a CI gate
 
@@ -181,7 +243,22 @@ relevant rollout phase ships; before that, the sub-section reads
 
 ### 6.7 Per-rollout-phase notes
 
-(Filled in as phases land.)
+**Phase 1 — Enrichment honesty** (`testing-enrichment-honesty`, shipped 2026-09-01). 132 → 163 backend tests.
+
+The phase set out to *prove* Risks #2 and #3 and found two live false-clean routes in production code on the way, so it **closed them rather than pinning them**. That distinction is the phase's main lesson: a rollout phase that only writes tests will happily freeze the bug.
+
+- `HistoriaPojazduParser` reported `FOUND` with every field empty when neither payload was readable — a "found in the registry" panel with nothing in it, which reads as a clean history. Now `LOOKUP_FAILED`.
+- The same parser returned `damageRecords: []` whenever the registry's `eventType` vocabulary drifted. Now a canary (`KNOWN_EVENT_TYPES`) degrades to `null`. Known residual gap in §6.5.
+- Separately, `RealCepikEnrichmentService` rejected `"WA 12345"` — the commonest way a correct plate is written — as `MISSING_INPUTS` with no lookup at all, while the same user's spaced VIN was normalised fine.
+
+What the phase proved, and how:
+
+- Captured registry bytes reach both the response payload and the verdict, over a stubbed socket with the whole stack real (§6.2).
+- The null / `[]` / populated tri-state survives to the wire, including against the application's own Jackson configuration.
+- `NOT_FOUND` is driven by a real 404 wrapped by real code, not by a test writing the exception message it then matches.
+- The risk adjuster's oracles no longer include the code under test: the mean-of-four formula copy is gone, which is what had made the never-raise guard unreachable by all fourteen tests that existed.
+
+Method worth reusing: **every phase criterion was a mutation, not a green run.** Six mutations were applied and reverted. One criterion turned out to be unreachable as specified — a raw-body assertion under `standaloneSetup` is blind to `spring.jackson.default-property-inclusion`, because that builder never reads `application.properties` — and only running the mutation revealed it. Writing the criterion as "confirm X fails" rather than "confirm X is covered" is what caught it.
 
 ## 7. What We Deliberately Don't Test
 
@@ -195,9 +272,9 @@ contributors should respect these unless the underlying assumption changes.
 
 ## 8. Freshness Ledger
 
-- Strategy (§1–§5) last reviewed: 2026-08-27
-- Stack versions last verified: 2026-08-27
-- AI-native tool references last verified: 2026-08-27
+- Strategy (§1–§5) last reviewed: 2026-09-01 (§2 Risk #2 guidance and §3 ordering rationale corrected, §4 HTTP-mocking row corrected — rollout Phase 1)
+- Stack versions last verified: 2026-09-01 (`spring-test` 7.0.7 read from `dependency:list`; backend counts re-counted; frontend untouched since 2026-08-27)
+- AI-native tool references last verified: 2026-08-27 — unchanged, no AI-native tool is in the stack
 
 Refresh (`/10x-test-plan --refresh`) when:
 

@@ -731,27 +731,27 @@ than before.
 
 #### Automated
 
-- [x] 3.1 Suite green
-- [x] 3.2 The mean-of-four expression no longer appears in `CepikRiskAdjusterTest`
-- [x] 3.3 Each cap literal appears exactly once across the test tree
-- [x] 3.4 Mutation check: `CAP_SIGNIFICANT_DAMAGE` 35→15 fails the ordering test
-- [x] 3.5 Mutation check: deleting the `Math.min` fails the new never-raise test
+- [x] 3.1 Suite green — ed60e8a
+- [x] 3.2 The mean-of-four expression no longer appears in `CepikRiskAdjusterTest` — ed60e8a
+- [x] 3.3 Each cap literal appears exactly once across the test tree — ed60e8a
+- [x] 3.4 Mutation check: `CAP_SIGNIFICANT_DAMAGE` 35→15 fails the ordering test — ed60e8a
+- [x] 3.5 Mutation check: deleting the `Math.min` fails the new never-raise test — ed60e8a
 
 #### Manual
 
-- [x] 3.6 The pinned-integers test's comment leaves no reader thinking the values are proven
-- [x] 3.7 The ordering test would survive shifting all five caps by a constant, deliberately
+- [x] 3.6 The pinned-integers test's comment leaves no reader thinking the values are proven — ed60e8a
+- [x] 3.7 The ordering test would survive shifting all five caps by a constant, deliberately — ed60e8a
 
 ### Phase 4: Backport the corrections to `test-plan.md`
 
 #### Automated
 
-- [ ] 4.1 No "none yet" / "does not exist yet" remains in §4 or §6.2
-- [ ] 4.2 No "TBD" remains in §6.2 or §6.5
-- [ ] 4.3 `git diff` for this phase touches only `context/`
+- [x] 4.1 No "none yet" / "does not exist yet" remains in §4 or §6.2
+- [x] 4.2 No "TBD" remains in §6.2 or §6.5
+- [x] 4.3 `git diff` for this phase touches only `context/`
 
 #### Manual
 
-- [ ] 4.4 §6.2 and §6.5 are sufficient without opening this plan
-- [ ] 4.5 Risk #2's row describes a failure mode that is still open
-- [ ] 4.6 §3's ordering rationale no longer rests on a false claim
+- [x] 4.4 §6.2 and §6.5 are sufficient without opening this plan
+- [x] 4.5 Risk #2's row describes a failure mode that is still open
+- [x] 4.6 §3's ordering rationale no longer rests on a false claim
