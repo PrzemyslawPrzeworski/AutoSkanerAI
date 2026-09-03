@@ -7,10 +7,14 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
 public class AnalysisResponseParser {
+
+    /** The flag {@code AnalysisPrompt.java:16} makes mandatory on a null {@code accidentClaim}. */
+    private static final String MISSING_DECLARATION_FLAG = "NO_ACCIDENT_DECLARATION";
 
     private final ObjectMapper objectMapper;
 
@@ -31,7 +35,7 @@ public class AnalysisResponseParser {
         validateScores(dto.scores());
         ExtractedData extracted = mapExtracted(dto.extracted());
         List<EquipmentItem> equipment = mapEquipment(dto.equipment());
-        List<RiskFlag> riskFlags = mapRiskFlags(dto.riskFlags());
+        List<RiskFlag> riskFlags = withAccidentDeclarationFlag(mapRiskFlags(dto.riskFlags()), extracted);
         List<String> sellerQuestions = dto.sellerQuestions() != null ? dto.sellerQuestions() : List.of();
         CategoryScores scores = mapScores(dto.scores());
         Verdict verdict = mapVerdict(dto.verdict());
@@ -136,6 +140,46 @@ public class AnalysisResponseParser {
             }
             return new EquipmentItem(e.name(), status, e.note());
         }).toList();
+    }
+
+    /**
+     * The one guardrail in the prompt that the code, not the model, has the last word on.
+     *
+     * <p>{@code AnalysisPrompt.java:16} makes it mandatory: when {@code accidentClaim} is null the
+     * model MUST emit {@code NO_ACCIDENT_DECLARATION}, and {@code :92-103} demonstrates it. Nothing
+     * checked. A prompt is a request — a listing that talks the model out of the flag (or a free-tier
+     * model that just drops it under length pressure) turned an <em>unknown</em> accident history into
+     * a <em>silent</em> one, which is the single inversion {@code CLAUDE.md} § "Key business rules"
+     * forbids: absence of accident data means unknown, never clean.
+     *
+     * <p>Deliberately here rather than in {@code CepikRiskAdjuster}: the adjuster only acts on a
+     * {@code FOUND} registry result, and {@code CLAUDE.md} § "Enrichment services" records that
+     * {@code MISSING_INPUTS} is the <em>normal</em> outcome for a URL-only Otomoto listing, because
+     * Otomoto gates the VIN behind login. So the adjuster is absent exactly when this matters most.
+     *
+     * <p>Idempotent: a model that did emit the flag is left alone, whatever severity or wording it
+     * chose. Re-adding it would double the entry, and the frontend shows only the first four flags
+     * before collapsing the rest — a duplicate would push a real finding out of sight.
+     *
+     * <p>Oracle for the shape below is {@code AnalysisPrompt.java:16} verbatim, not this class.
+     * ({@code MockAiAnalysisService.java:149} emits the same code at {@code HIGH} with different
+     * wording; the mock never goes through this parser, so the two do not have to agree, and the
+     * prompt is the one that states the contract.)
+     */
+    private List<RiskFlag> withAccidentDeclarationFlag(List<RiskFlag> flags, ExtractedData extracted) {
+        if (extracted.accidentClaim() != null) {
+            return flags;
+        }
+        if (flags.stream().anyMatch(f -> MISSING_DECLARATION_FLAG.equals(f.code()))) {
+            return flags;
+        }
+        // Appended, not prepended: the model's own findings are about this listing, and the frontend
+        // cuts at the fourth flag. This one says only "the advert is silent", which is the least
+        // urgent thing on the list.
+        List<RiskFlag> augmented = new ArrayList<>(flags);
+        augmented.add(new RiskFlag(MISSING_DECLARATION_FLAG, RiskSeverity.MEDIUM,
+                "Ogłoszenie nie zawiera deklaracji wypadkowej — historia nieznana"));
+        return List.copyOf(augmented);
     }
 
     private List<RiskFlag> mapRiskFlags(List<RiskFlagDto> list) {

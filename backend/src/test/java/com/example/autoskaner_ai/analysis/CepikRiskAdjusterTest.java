@@ -143,12 +143,27 @@ class CepikRiskAdjusterTest {
                 .contains("PZU");
     }
 
+    /**
+     * That {@code overall} is recomputed at all, and that capping risk touches nothing else.
+     *
+     * <p>This used to assert {@code overall == 65} under the comment {@code (90 + 75 + 35 + 60) / 4},
+     * which put the damage cap's magnitude into a second test's expectation — retuning the cap then
+     * broke two tests, and a reader had no way to tell which one was stating the guarantee. The exact
+     * arithmetic now lives once, in {@link #theCapMagnitudesAreChangeDetectionOnly}, alongside the
+     * magnitude it depends on.
+     *
+     * <p>What is left here is cap-independent and still falsifiable: every number below is a fixture
+     * input, and 78 is the {@code overall} the model itself returned via {@code overallFor(88)}. If
+     * {@code capRisk} returned early without recomputing the mean — the short-circuit noted as a
+     * known gap below — {@code overall} would still be 78 and this fails.
+     */
     @Test
     void overallIsRecomputedFromTheCappedRisk() {
         var result = adjuster.apply(analysis(88, VerdictCode.WORTH_CHECKING, null), withDamage());
 
-        // (90 + 75 + 35 + 60) / 4
-        assertThat(result.scores().overall()).isEqualTo(65);
+        assertThat(result.scores().overall())
+                .as("overall must follow the capped risk down, not stay at the model's own 78")
+                .isLessThan(78);
         assertThat(result.scores().completeness()).isEqualTo(90);
         assertThat(result.scores().equipment()).isEqualTo(75);
         assertThat(result.scores().value()).isEqualTo(60);
@@ -243,6 +258,10 @@ class CepikRiskAdjusterTest {
      *
      * <p>The property that <em>is</em> falsifiable lives in
      * {@link #theCapsEncodeTheDocumentedSeverityOrdering}. Read that one for the real guarantee.
+     *
+     * <p>The recomputed {@code overall} is pinned here too, and only here. It is hand arithmetic over
+     * the damage cap, so it can only be stated where that magnitude already is — putting it in
+     * {@link #overallIsRecomputedFromTheCappedRisk} instead meant one retuned cap failed two tests.
      */
     @Test
     void theCapMagnitudesAreChangeDetectionOnly() {
@@ -251,6 +270,11 @@ class CepikRiskAdjusterTest {
         assertThat(riskAfter(withDamage(), "bezwypadkowy")).isEqualTo(25);
         assertThat(riskAfter(withDamage(), null)).isEqualTo(35);
         assertThat(riskAfter(withoutOcPolicy(), null)).isEqualTo(70);
+
+        // Hand arithmetic, from the fixture's own categories and the damage cap directly above:
+        // (90 + 75 + 35 + 60) / 4 = 260 / 4 = 65. Integer division, matching the scorers.
+        var damaged = adjuster.apply(analysis(88, VerdictCode.WORTH_CHECKING, null), withDamage());
+        assertThat(damaged.scores().overall()).isEqualTo(65);
     }
 
     // Every other multi-fact test sets one flag, so the harsher-fact-wins rule was unverified for

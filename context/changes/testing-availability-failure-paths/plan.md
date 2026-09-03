@@ -881,33 +881,33 @@ data, nothing to migrate.
 
 #### Automated
 
-- [x] 4.1 Suite passes, including `CepikDamageReachesTheResponseTest` unchanged
-- [x] 4.2 Mutation: revert to the shared builder — the cross-lookup-leak test fails
-- [x] 4.3 Mutation: change `extractCookies`' `removeIf` to a plain `add`
-- [x] 4.4 Mutation: forward cookie attributes instead of `name=value`
-- [x] 4.5 Mutation: drop the `X-Xsrf-Token` header
-- [x] 4.6 Mutation: remove the null-body version branch
+- [x] 4.1 Suite passes, including `CepikDamageReachesTheResponseTest` unchanged — 9aa4397
+- [x] 4.2 Mutation: revert to the shared builder — the cross-lookup-leak test fails — 9aa4397
+- [x] 4.3 Mutation: change `extractCookies`' `removeIf` to a plain `add` — 9aa4397
+- [x] 4.4 Mutation: forward cookie attributes instead of `name=value` — 9aa4397
+- [x] 4.5 Mutation: drop the `X-Xsrf-Token` header — 9aa4397
+- [x] 4.6 Mutation: remove the null-body version branch — 9aa4397
 
 #### Manual
 
-- [x] 4.7 The corrected Javadoc names a real assertion at a real location
-- [x] 4.8 The clone change does not alter the number or order of requests any existing test expects
+- [x] 4.7 The corrected Javadoc names a real assertion at a real location — 9aa4397
+- [x] 4.8 The clone change does not alter the number or order of requests any existing test expects — 9aa4397
 
 ### Phase 5: Listing-text gaming
 
 #### Automated
 
-- [ ] 5.1 Suite passes
-- [ ] 5.2 Mutation: remove the `NO_ACCIDENT_DECLARATION` enforcement
-- [ ] 5.3 Mutation: make the enforcement non-idempotent
-- [ ] 5.4 Mutation: delete `"nie uczestniczy"` from the phrase list
-- [ ] 5.5 Mutation: change a cap magnitude — exactly one test fails, ordering test still passes
-- [ ] 5.6 Mutation: change the cap ordering — the ordering test fails
+- [x] 5.1 Suite passes
+- [x] 5.2 Mutation: remove the `NO_ACCIDENT_DECLARATION` enforcement
+- [x] 5.3 Mutation: make the enforcement non-idempotent
+- [x] 5.4 Mutation: delete `"nie uczestniczy"` from the phrase list
+- [x] 5.5 Mutation: change a cap magnitude — exactly one test fails, ordering test still passes
+- [x] 5.6 Mutation: change the cap ordering — the ordering test fails
 
 #### Manual
 
-- [ ] 5.7 No test depends on model wording or makes a network call
-- [ ] 5.8 The known gaps are named in comments so their absence is not mistaken for coverage
+- [x] 5.7 No test depends on model wording or makes a network call
+- [x] 5.8 The known gaps are named in comments so their absence is not mistaken for coverage
 
 ### Phase 6: Market price — thin and dispersed
 
