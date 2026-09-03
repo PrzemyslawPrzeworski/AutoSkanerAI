@@ -20,9 +20,33 @@
             <strong>{{ marketPriceContext()!.sampleSize }}</strong>
           </div>
 
-          @if (marketPriceContext()!.sampleSize !== null && marketPriceContext()!.sampleSize! < 3) {
+          <!--
+            Switched from `sampleSize < 3` to the server's own judgement. The old test collided with
+            the pipeline's MIN_SAMPLE_TO_KEEP = 3: a sample of exactly 3 is what the server emits
+            when the prices were too far apart to trim at all, so the most contaminated range it can
+            produce was the one size that showed no caveat here.
+          -->
+          @if (marketPriceContext()!.sampleQuality === 'DISPERSED') {
+            <div class="caveat">
+              Ceny w tych ogłoszeniach bardzo się różnią — zakres nie opisuje jednego rynku,
+              traktuj go wyłącznie orientacyjnie
+            </div>
+          }
+          @if (marketPriceContext()!.sampleQuality === 'THIN') {
             <div class="caveat">
               Mała próbka ({{ marketPriceContext()!.sampleSize }} ogłoszeń) — traktuj zakres orientacyjnie
+            </div>
+          }
+
+          <!--
+            Substantiates the range rather than caveating it: the count explains why this span is
+            narrower than what the Otomoto link below shows. Truthy check on purpose — null (no
+            sample) and 0 (nothing dropped) both mean there is nothing to say.
+          -->
+          @if (marketPriceContext()!.discardedCount) {
+            <div class="caveat">
+              Pominięto {{ marketPriceContext()!.discardedCount }} nietypowych ogłoszeń (np. raty
+              miesięczne, inne wersje modelu)
             </div>
           }
 

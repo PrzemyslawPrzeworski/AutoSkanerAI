@@ -85,7 +85,7 @@ public class AnalysisController {
         var marketPriceContext = degradeOnThrow("market-price",
                 () -> marketPriceEnrichmentService.enrich(extracted),
                 () -> new MarketPriceContext(MarketPriceStatus.FETCH_FAILED,
-                        null, null, null, null, null, Instant.now()));
+                        null, null, null, null, null, Instant.now(), null, null));
 
         // The LLM scored the listing before the registry was queried, so it never saw these
         // findings. Fold them in before anything else reads scores or verdict.

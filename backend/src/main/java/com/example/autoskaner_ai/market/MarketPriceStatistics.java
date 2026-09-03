@@ -45,10 +45,26 @@ final class MarketPriceStatistics {
     /** Never trim a sample down past this — a two-price "range" is not worth the precision. */
     private static final int MIN_SAMPLE_TO_KEEP = 3;
 
+    /**
+     * Below this many kept listings the range is reported as {@code THIN}.
+     *
+     * <p><b>A stated product guardrail, not a derived number.</b> Nothing in the data says 5 rather
+     * than 4 or 6; what says it is the claim the panel makes. Three numbers off four adverts are not
+     * a distribution — the median of an even sample is already interpolated between two of them, so
+     * at four, every figure shown is moved by any single atypical advert. Five is the smallest
+     * sample where the middle is a value somebody actually asked and the extremes have a neighbour.
+     *
+     * <p>Deliberately larger than {@link #MIN_SAMPLE_TO_KEEP}. That one is about when trimming stops
+     * being safe; this one is about when reporting starts being meaningful, and conflating the two is
+     * what let a sample of exactly 3 through uncaveated.
+     */
+    private static final int MIN_SAMPLE_FOR_CONFIDENCE = 5;
+
     private MarketPriceStatistics() {
     }
 
-    record Stats(int minPln, int medianPln, int maxPln, int sampleSize, int discardedCount) {
+    record Stats(int minPln, int medianPln, int maxPln, int sampleSize, int discardedCount,
+                 MarketPriceSampleQuality quality) {
     }
 
     /** @param rawPrices non-empty; the caller has already handled the no-results case. */
@@ -56,7 +72,18 @@ final class MarketPriceStatistics {
         List<Integer> sorted = new ArrayList<>(rawPrices);
         Collections.sort(sorted);
 
-        List<Integer> kept = withoutImplausible(sorted);
+        List<Integer> banded = withinMedianBand(sorted);
+        // If the band leaves almost nothing, the sample is too strange to reason about and the
+        // honest move is to report it as found rather than to invent a tight range from three
+        // survivors that happened to agree — but to say so, which is what `dispersed` is for.
+        //
+        // Guarded on the input size because below MIN_SAMPLE_TO_KEEP the band *cannot* leave enough
+        // however well the prices agree. One price does not disagree with itself, and calling a
+        // singleton dispersed would be reporting arithmetic as a finding.
+        boolean bandCollapsed = sorted.size() >= MIN_SAMPLE_TO_KEEP
+                && banded.size() < MIN_SAMPLE_TO_KEEP;
+
+        List<Integer> kept = bandCollapsed ? sorted : banded;
         if (kept.size() >= MIN_SAMPLE_FOR_IQR) {
             List<Integer> fenced = withoutIqrOutliers(kept);
             if (fenced.size() >= MIN_SAMPLE_TO_KEEP) {
@@ -65,19 +92,34 @@ final class MarketPriceStatistics {
         }
 
         return new Stats(kept.get(0), median(kept), kept.get(kept.size() - 1), kept.size(),
-                sorted.size() - kept.size());
+                sorted.size() - kept.size(), qualityOf(kept.size(), bandCollapsed));
     }
 
-    private static List<Integer> withoutImplausible(List<Integer> sorted) {
+    /**
+     * Dispersion outranks size: a sample the band could not trim is not describing one market, and
+     * that stays true whether it holds 3 listings or 30. Only when the prices did agree does the
+     * count decide.
+     *
+     * <p>There is deliberately no "many were discarded, so call it dispersed" rule. The trim working
+     * as designed is not a defect in the sample, and any threshold on the discarded count would be a
+     * second invented number doing the first one's job.
+     */
+    private static MarketPriceSampleQuality qualityOf(int keptSize, boolean bandCollapsed) {
+        if (bandCollapsed) {
+            return MarketPriceSampleQuality.DISPERSED;
+        }
+        return keptSize < MIN_SAMPLE_FOR_CONFIDENCE
+                ? MarketPriceSampleQuality.THIN
+                : MarketPriceSampleQuality.SUFFICIENT;
+    }
+
+    /** The band alone, with no fallback — {@link #of} decides what a collapse means. */
+    private static List<Integer> withinMedianBand(List<Integer> sorted) {
         long reference = median(sorted);
-        List<Integer> kept = sorted.stream()
+        return sorted.stream()
                 .filter(price -> (long) price * MEDIAN_BAND_FACTOR >= reference
                         && price <= reference * MEDIAN_BAND_FACTOR)
                 .toList();
-        // If the band leaves almost nothing, the sample is too strange to reason about and the
-        // honest move is to report it as found rather than to invent a tight range from three
-        // survivors that happened to agree.
-        return kept.size() >= MIN_SAMPLE_TO_KEEP ? kept : sorted;
     }
 
     private static List<Integer> withoutIqrOutliers(List<Integer> sorted) {

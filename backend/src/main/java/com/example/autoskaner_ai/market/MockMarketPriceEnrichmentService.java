@@ -13,10 +13,13 @@ public class MockMarketPriceEnrichmentService implements MarketPriceEnrichmentSe
 
     @Override
     public MarketPriceContext enrich(ExtractedData extracted) {
+        // Twelve listings, none of them discarded: the mock stands in for the healthy case, so it
+        // reports SUFFICIENT rather than exercising a caveat the real service decides.
         return new MarketPriceContext(
                 MarketPriceStatus.OK,
                 45_000, 55_000, 70_000, 12,
                 "https://www.otomoto.pl/osobowe/toyota/corolla",
-                Instant.now());
+                Instant.now(),
+                MarketPriceSampleQuality.SUFFICIENT, 0);
     }
 }

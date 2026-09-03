@@ -897,29 +897,29 @@ data, nothing to migrate.
 
 #### Automated
 
-- [x] 5.1 Suite passes
-- [x] 5.2 Mutation: remove the `NO_ACCIDENT_DECLARATION` enforcement
-- [x] 5.3 Mutation: make the enforcement non-idempotent
-- [x] 5.4 Mutation: delete `"nie uczestniczy"` from the phrase list
-- [x] 5.5 Mutation: change a cap magnitude — exactly one test fails, ordering test still passes
-- [x] 5.6 Mutation: change the cap ordering — the ordering test fails
+- [x] 5.1 Suite passes — ce9420d
+- [x] 5.2 Mutation: remove the `NO_ACCIDENT_DECLARATION` enforcement — ce9420d
+- [x] 5.3 Mutation: make the enforcement non-idempotent — ce9420d
+- [x] 5.4 Mutation: delete `"nie uczestniczy"` from the phrase list — ce9420d
+- [x] 5.5 Mutation: change a cap magnitude — exactly one test fails, ordering test still passes — ce9420d
+- [x] 5.6 Mutation: change the cap ordering — the ordering test fails — ce9420d
 
 #### Manual
 
-- [x] 5.7 No test depends on model wording or makes a network call
-- [x] 5.8 The known gaps are named in comments so their absence is not mistaken for coverage
+- [x] 5.7 No test depends on model wording or makes a network call — ce9420d
+- [x] 5.8 The known gaps are named in comments so their absence is not mistaken for coverage — ce9420d
 
 ### Phase 6: Market price — thin and dispersed
 
 #### Automated
 
-- [ ] 6.1 Suite passes
-- [ ] 6.2 Mutation: normalise the captured fixture's line endings to `\n`
-- [ ] 6.3 Mutation: revert `MarketPriceContext` to report only `sampleSize`
-- [ ] 6.4 Mutation: report the exactly-3 untrimmed sample as `sufficient`
-- [ ] 6.5 Mutation: replace round-half-up with a plain average
-- [ ] 6.6 Mutation: drop `discardedCount` at the mapping again
-- [ ] 6.7 New fields serialise under the application's own Jackson configuration, not just `standaloneSetup`
+- [x] 6.1 Suite passes
+- [x] 6.2 Mutation: normalise the captured fixture's line endings to `\n` (fails the pair-guard test; removing `\r?` is a no-op — carry to Phase 7)
+- [x] 6.3 Mutation: revert `MarketPriceContext` to report only `sampleSize`
+- [x] 6.4 Mutation: report the exactly-3 untrimmed sample as `sufficient`
+- [x] 6.5 Mutation: replace round-half-up with a plain average
+- [x] 6.6 Mutation: drop `discardedCount` at the mapping again
+- [x] 6.7 New fields serialise under the application's own Jackson configuration, not just `standaloneSetup`
 
 #### Manual
 

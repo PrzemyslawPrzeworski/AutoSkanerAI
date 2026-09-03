@@ -72,20 +72,22 @@ public class MarketPriceFetchService implements MarketPriceEnrichmentService {
         }
 
         if (prices.isEmpty()) {
-            return new MarketPriceContext(MarketPriceStatus.INSUFFICIENT_DATA, null, null, null, null, queryUrl, Instant.now());
+            return new MarketPriceContext(MarketPriceStatus.INSUFFICIENT_DATA, null, null, null, null,
+                    queryUrl, Instant.now(), null, null);
         }
 
         MarketPriceStatistics.Stats stats = MarketPriceStatistics.of(prices);
 
-        // discarded is logged, not returned: it is a diagnostic for whether the trim is doing its
-        // job on live markdown, and a "we ignored 4 listings" line in the UI would raise a question
-        // the panel cannot answer.
-        log.info("Market price fetch ok make={} model={} year={} sampleSize={} discarded={} min={} median={} max={}",
+        log.info("Market price fetch ok make={} model={} year={} sampleSize={} discarded={} quality={} min={} median={} max={}",
                 makeSlug, modelSlug, extracted.year(), stats.sampleSize(), stats.discardedCount(),
-                stats.minPln(), stats.medianPln(), stats.maxPln());
+                stats.quality(), stats.minPln(), stats.medianPln(), stats.maxPln());
 
+        // The discarded count is reported now rather than only logged. It used to be dropped here,
+        // which left "too dispersed" with no observable outside this log line — and a caveat the
+        // panel cannot substantiate is a caveat nobody believes.
         return new MarketPriceContext(MarketPriceStatus.OK, stats.minPln(), stats.medianPln(),
-                stats.maxPln(), stats.sampleSize(), queryUrl, Instant.now());
+                stats.maxPln(), stats.sampleSize(), queryUrl, Instant.now(),
+                stats.quality(), stats.discardedCount());
     }
 
     private String buildUrl(String makeSlug, String modelSlug, Integer year, Integer mileageKm) {
@@ -150,10 +152,12 @@ public class MarketPriceFetchService implements MarketPriceEnrichmentService {
     }
 
     private MarketPriceContext missing() {
-        return new MarketPriceContext(MarketPriceStatus.MISSING_INPUTS, null, null, null, null, null, null);
+        return new MarketPriceContext(MarketPriceStatus.MISSING_INPUTS, null, null, null, null, null,
+                null, null, null);
     }
 
     private MarketPriceContext failed(String queryUrl) {
-        return new MarketPriceContext(MarketPriceStatus.FETCH_FAILED, null, null, null, null, queryUrl, Instant.now());
+        return new MarketPriceContext(MarketPriceStatus.FETCH_FAILED, null, null, null, null,
+                queryUrl, Instant.now(), null, null);
     }
 }

@@ -5,6 +5,7 @@ import com.example.autoskaner_ai.analysis.CepikStatus;
 import com.example.autoskaner_ai.cepik.CepikEnrichmentService;
 import com.example.autoskaner_ai.common.GlobalExceptionHandler;
 import com.example.autoskaner_ai.market.MarketPriceEnrichmentService;
+import com.example.autoskaner_ai.market.MarketPriceSampleQuality;
 import com.example.autoskaner_ai.market.MarketPriceStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,7 +46,8 @@ class AnalysisControllerTest {
         marketPriceEnrichmentService = mock(MarketPriceEnrichmentService.class);
         when(marketPriceEnrichmentService.enrich(any())).thenReturn(
                 new MarketPriceContext(MarketPriceStatus.OK, 45_000, 55_000, 70_000, 12,
-                        "https://www.otomoto.pl/osobowe/toyota/corolla", Instant.now()));
+                        "https://www.otomoto.pl/osobowe/toyota/corolla", Instant.now(),
+                        MarketPriceSampleQuality.SUFFICIENT, 0));
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new AnalysisController(aiAnalysisService, listingFetchService,
                         cepikEnrichmentService, marketPriceEnrichmentService,

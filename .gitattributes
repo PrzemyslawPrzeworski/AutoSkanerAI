@@ -1,0 +1,9 @@
+# Test fixtures are oracles: their bytes are the assertion, line endings included.
+#
+# backend/src/test/resources/market/ holds a captured Jina payload (LF-only, as the
+# reader actually returns it) and a derived copy whose only difference is CRLF. That
+# pair is the whole point — it is what proves PRICE_PATTERN's `\r?\n` matches both.
+# A clone or CI runner with core.autocrlf=true would rewrite both files to one style
+# and the pair would silently stop testing anything, which is the failure mode the
+# fixture exists to catch. `-text` disables all end-of-line conversion.
+backend/src/test/resources/market/*.md -text

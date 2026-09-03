@@ -52,6 +52,14 @@ export interface CepikResult {
 
 export type MarketPriceStatus = 'OK' | 'FETCH_FAILED' | 'INSUFFICIENT_DATA' | 'MISSING_INPUTS';
 
+/**
+ * How much weight the reported range carries. Decided on the server, next to the thresholds that
+ * inform it — the panel only sees a sample size, and `sampleSize < 3` was the wrong test: a sample
+ * of exactly 3 is what the pipeline emits when the prices were too far apart to trim, so it was the
+ * one size that slipped past the caveat.
+ */
+export type MarketPriceSampleQuality = 'SUFFICIENT' | 'THIN' | 'DISPERSED';
+
 export interface MarketPriceContext {
   status: MarketPriceStatus;
   minPricePln: number | null;
@@ -60,6 +68,10 @@ export interface MarketPriceContext {
   sampleSize: number | null;
   queryUrl: string | null;
   fetchedAt: string;
+  /** Null for every non-`OK` status: there is no sample to judge. */
+  sampleQuality: MarketPriceSampleQuality | null;
+  /** Prices the server's trim dropped, so the caveat has something to substantiate it. */
+  discardedCount: number | null;
 }
 
 export interface ExtractedData {
