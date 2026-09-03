@@ -849,33 +849,33 @@ data, nothing to migrate.
 
 #### Automated
 
-- [x] 2.1 Suite passes
-- [x] 2.2 Mutation: restore `sleepQuietly`'s zero-wait `true`
-- [x] 2.3 Mutation: remove the "wait exceeds remaining deadline ⇒ NEXT_MODEL" rule
-- [x] 2.4 Mutation: drop HTTP-date parsing back to `DEFAULT_RETRY_WAIT`
-- [x] 2.5 Mutation: move 408 back into the catch-all
-- [x] 2.6 Mutation: move 402 back into the catch-all
-- [x] 2.7 Mutation: raise the test's `deadlineSeconds` from 0 to 70
-- [x] 2.8 Mutation: bump a configured read timeout by 1 s — `RequestTimeoutBudgetTest` fails
+- [x] 2.1 Suite passes — 12f7fd2
+- [x] 2.2 Mutation: restore `sleepQuietly`'s zero-wait `true` — 12f7fd2
+- [x] 2.3 Mutation: remove the "wait exceeds remaining deadline ⇒ NEXT_MODEL" rule — 12f7fd2
+- [x] 2.4 Mutation: drop HTTP-date parsing back to `DEFAULT_RETRY_WAIT` — 12f7fd2
+- [x] 2.5 Mutation: move 408 back into the catch-all — 12f7fd2
+- [x] 2.6 Mutation: move 402 back into the catch-all — 12f7fd2
+- [x] 2.7 Mutation: raise the test's `deadlineSeconds` from 0 to 70 — 12f7fd2
+- [x] 2.8 Mutation: bump a configured read timeout by 1 s — `RequestTimeoutBudgetTest` fails — 12f7fd2
 
 #### Manual
 
-- [x] 2.9 No new test asserts a retry count as its only assertion
-- [x] 2.10 `RequestTimeoutBudgetTest`'s comment states the total exceeds the NFR and why this phase does not fix it
+- [x] 2.9 No new test asserts a retry count as its only assertion — 12f7fd2
+- [x] 2.10 `RequestTimeoutBudgetTest`'s comment states the total exceeds the NFR and why this phase does not fix it — 12f7fd2
 
 ### Phase 3: A finished analysis survives its enrichment
 
 #### Automated
 
-- [ ] 3.1 Suite passes
-- [ ] 3.2 Mutation: remove the guard around `slugMapper.makeSlug`
-- [ ] 3.3 Mutation: remove the guard around `MarketPriceStatistics.of`
-- [ ] 3.4 Mutation: make the guard return a null `marketPriceContext` instead of a failure status
+- [x] 3.1 Suite passes
+- [x] 3.2 Mutation: remove the guard around `slugMapper.makeSlug`
+- [x] 3.3 Mutation: remove the guard around `MarketPriceStatistics.of`
+- [x] 3.4 Mutation: make the guard return a null `marketPriceContext` instead of a failure status
 
 #### Manual
 
-- [ ] 3.5 The WARN log names which enrichment degraded and why
-- [ ] 3.6 An LLM failure still produces the Phase 1 502, not a 200 with an empty analysis
+- [x] 3.5 The WARN log names which enrichment degraded and why
+- [x] 3.6 An LLM failure still produces the Phase 1 502, not a 200 with an empty analysis
 
 ### Phase 4: Registry session — cookies and XSRF
 
