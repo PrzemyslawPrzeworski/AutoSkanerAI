@@ -24,6 +24,9 @@ public class HistoriaPojazduSession {
             Pattern.compile("/nforms/api/HistoriaPojazdu/([0-9]+(?:\\.[0-9]+)*)/");
     private static final String FALLBACK_API_VERSION = "1.1.0";
 
+    /** The handshake hands the XSRF token over as a cookie; every data call sends it as a header. */
+    private static final String XSRF_COOKIE = "XSRF-TOKEN=";
+
     private String apiBase = "/nforms/api/HistoriaPojazdu/" + FALLBACK_API_VERSION + "/data";
 
     private final RestClient.Builder builder;
@@ -33,9 +36,25 @@ public class HistoriaPojazduSession {
     private String xsrfToken;
     private String nfWid;
 
+    /**
+     * @param builder the shared {@code historiaPojazduBuilder} bean, which this constructor
+     *                <em>clones</em> and never mutates.
+     *
+     * <p>The clone is the fix for a production defect, not tidiness. {@code open()} installs the
+     * session's cookies as a default header on its builder; done to the shared singleton, that
+     * leaves lookup <i>N</i>'s cookies on the builder that lookup <i>N+1</i>'s bootstrap GET is
+     * built from, and gives two concurrent analyses one cookie jar between them. Both enrichments
+     * run on the request thread ({@code CLAUDE.md} § "Enrichment services"), so concurrency here is
+     * ordinary load, not a stress test.
+     *
+     * <p>{@code MockRestServiceServer.bindTo} works by calling {@code requestFactory(...)} on the
+     * builder, and {@code clone()} copies the request factory, so a clone taken after {@code bindTo}
+     * still routes to the mock. {@code CepikDamageReachesTheResponseTest} passing unchanged is the
+     * check on that.
+     */
     public HistoriaPojazduSession(RestClient.Builder builder) {
-        this.builder = builder;
-        this.client = builder.build();
+        this.builder = builder.clone();
+        this.client = this.builder.build();
     }
 
     public void open() {
@@ -51,9 +70,7 @@ public class HistoriaPojazduSession {
 
             extractCookies(initResponse.getHeaders());
 
-            client = builder
-                    .defaultHeader(HttpHeaders.COOKIE, String.join("; ", cookies))
-                    .build();
+            client = clientWithCookies();
 
             ResponseEntity<String> nfResponse = client.post()
                     .uri(SESSION_PATH)
@@ -66,9 +83,7 @@ public class HistoriaPojazduSession {
             extractApiVersion(nfResponse.getBody());
             extractXsrfToken();
 
-            client = builder
-                    .defaultHeader(HttpHeaders.COOKIE, String.join("; ", cookies))
-                    .build();
+            client = clientWithCookies();
 
         } catch (Exception e) {
             throw new HistoriaPojazduSessionException("Failed to open session: " + e.getMessage(), e);
@@ -128,6 +143,40 @@ public class HistoriaPojazduSession {
         }
     }
 
+    /**
+     * Rebuilds the client so the next request carries the cookies collected so far, as one
+     * {@code Cookie} header.
+     *
+     * <p>{@code set} rather than {@code add}: this is called twice per {@code open()}, and appending
+     * would put two {@code Cookie} header values on the wire where the protocol wants one.
+     *
+     * <p>No cookies means <b>no header at all</b>, not an empty one. {@code String.join} over an
+     * empty list is {@code ""}, and {@code Cookie:} with nothing after it is not "I hold no
+     * cookies" — it is a malformed header a server is entitled to reject.
+     */
+    private RestClient clientWithCookies() {
+        return builder
+                .defaultHeaders(headers -> {
+                    if (cookies.isEmpty()) {
+                        headers.remove(HttpHeaders.COOKIE);
+                    } else {
+                        headers.set(HttpHeaders.COOKIE, String.join("; ", cookies));
+                    }
+                })
+                .build();
+    }
+
+    /**
+     * Merges one response's {@code Set-Cookie} headers into the session jar.
+     *
+     * <p>Only {@code name=value} survives. Everything after the first {@code ;} is a directive
+     * addressed to a browser ({@code Path}, {@code HttpOnly}, {@code SameSite}, {@code Max-Age});
+     * echoing any of it back in a {@code Cookie} header is not what a client is supposed to send.
+     *
+     * <p>The {@code removeIf} is a replace, not a de-duplicate: the handshake re-issues
+     * {@code JSESSIONID} on the bootstrap POST, and sending both the old and the new value leaves
+     * the server to pick one.
+     */
     private void extractCookies(HttpHeaders headers) {
         List<String> setCookieHeaders = headers.get(HttpHeaders.SET_COOKIE);
         if (setCookieHeaders != null) {
@@ -141,10 +190,20 @@ public class HistoriaPojazduSession {
 
     private void extractXsrfToken() {
         for (String cookie : cookies) {
-            if (cookie.startsWith("XSRF-TOKEN=")) {
-                xsrfToken = cookie.substring("XSRF-TOKEN=".length());
+            if (cookie.startsWith(XSRF_COOKIE)) {
+                xsrfToken = cookie.substring(XSRF_COOKIE.length());
                 return;
             }
         }
+        // Every data call sends this token. Without it the registry rejects the call, the lookup
+        // surfaces as LOOKUP_FAILED, and the UI words that as "registry temporarily unavailable" —
+        // so a handshake that stops issuing the cookie is a permanent breakage wearing an outage's
+        // clothes. Names only, never values: a session cookie is a credential.
+        log.warn("historiapojazdu handshake issued no {} cookie — data calls will go out without an "
+                + "XSRF token and be rejected. Cookies received: {}", XSRF_COOKIE, cookieNames());
+    }
+
+    private List<String> cookieNames() {
+        return cookies.stream().map(c -> c.split("=")[0]).toList();
     }
 }

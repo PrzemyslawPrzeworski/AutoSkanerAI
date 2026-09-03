@@ -33,6 +33,11 @@ public class HistoriaPojazduService {
         this.parser = parser;
     }
 
+    /**
+     * The shared builder bean is handed over as-is; {@link HistoriaPojazduSession} clones it and
+     * mutates only the clone, so nothing here leaks one lookup's cookies into the next. See that
+     * constructor for why that matters.
+     */
     HistoriaPojazduSession createSession() {
         return new HistoriaPojazduSession(builder);
     }

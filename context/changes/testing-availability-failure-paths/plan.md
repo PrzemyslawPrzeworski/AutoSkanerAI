@@ -867,31 +867,31 @@ data, nothing to migrate.
 
 #### Automated
 
-- [x] 3.1 Suite passes
-- [x] 3.2 Mutation: remove the guard around `slugMapper.makeSlug`
-- [x] 3.3 Mutation: remove the guard around `MarketPriceStatistics.of`
-- [x] 3.4 Mutation: make the guard return a null `marketPriceContext` instead of a failure status
+- [x] 3.1 Suite passes — 307b9c2
+- [x] 3.2 Mutation: remove the guard around `slugMapper.makeSlug` — 307b9c2
+- [x] 3.3 Mutation: remove the guard around `MarketPriceStatistics.of` — 307b9c2
+- [x] 3.4 Mutation: make the guard return a null `marketPriceContext` instead of a failure status — 307b9c2
 
 #### Manual
 
-- [x] 3.5 The WARN log names which enrichment degraded and why
-- [x] 3.6 An LLM failure still produces the Phase 1 502, not a 200 with an empty analysis
+- [x] 3.5 The WARN log names which enrichment degraded and why — 307b9c2
+- [x] 3.6 An LLM failure still produces the Phase 1 502, not a 200 with an empty analysis — 307b9c2
 
 ### Phase 4: Registry session — cookies and XSRF
 
 #### Automated
 
-- [ ] 4.1 Suite passes, including `CepikDamageReachesTheResponseTest` unchanged
-- [ ] 4.2 Mutation: revert to the shared builder — the cross-lookup-leak test fails
-- [ ] 4.3 Mutation: change `extractCookies`' `removeIf` to a plain `add`
-- [ ] 4.4 Mutation: forward cookie attributes instead of `name=value`
-- [ ] 4.5 Mutation: drop the `X-Xsrf-Token` header
-- [ ] 4.6 Mutation: remove the null-body version branch
+- [x] 4.1 Suite passes, including `CepikDamageReachesTheResponseTest` unchanged
+- [x] 4.2 Mutation: revert to the shared builder — the cross-lookup-leak test fails
+- [x] 4.3 Mutation: change `extractCookies`' `removeIf` to a plain `add`
+- [x] 4.4 Mutation: forward cookie attributes instead of `name=value`
+- [x] 4.5 Mutation: drop the `X-Xsrf-Token` header
+- [x] 4.6 Mutation: remove the null-body version branch
 
 #### Manual
 
-- [ ] 4.7 The corrected Javadoc names a real assertion at a real location
-- [ ] 4.8 The clone change does not alter the number or order of requests any existing test expects
+- [x] 4.7 The corrected Javadoc names a real assertion at a real location
+- [x] 4.8 The clone change does not alter the number or order of requests any existing test expects
 
 ### Phase 5: Listing-text gaming
 
