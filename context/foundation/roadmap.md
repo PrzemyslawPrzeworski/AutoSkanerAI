@@ -3,7 +3,7 @@ project: AutoSkanerAI
 version: 1
 status: draft
 created: 2026-05-25
-updated: 2026-08-26
+updated: 2026-09-03
 prd_version: 1
 main_goal: market-feedback
 top_blocker: time
@@ -35,7 +35,7 @@ AutoSkanerAI compresses used-car listing evaluation from tens of minutes to a fe
 | S-01 | core-analysis-flow        | paste URL or text → receive full AI analysis                 | F-01             | FR-001, FR-002, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, US-01 | shipped  |
 | S-02 | manual-field-entry        | fill in key fields manually → receive full AI analysis       | S-01             | FR-003                                            | shipped  |
 | S-03 | save-view-delete-analyses | save an analysis, view saved list, delete entries            | S-01, F-02, F-03 | FR-010, FR-011, FR-012                            | proposed |
-| S-04 | cepik-vin-lookup          | see live CEPiK vehicle history alongside analysis            | S-01             | FR-017                                            | shipped  |
+| S-04 | cepik-vin-lookup          | see live CEPiK vehicle history alongside analysis            | S-01             | FR-017                                            | done     |
 | S-05 | market-price-context      | see comparable market price range alongside analysis         | S-01             | FR-018                                            | shipped  |
 
 Remaining must-have scope is the chain **F-02 → F-03 → S-03**. Everything else above is merged to `main` and verified against production.
@@ -162,14 +162,14 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Prerequisites:** S-01 (VIN extraction must be working; analysis result must display before enrichment is added)
 - **Parallel with:** S-02, S-05, F-02, F-03
 - **Blockers:** —
-- **Unknowns:** resolved during research and then again in production. `api.cepik.gov.pl` exposes technical data only and **cannot look up a vehicle by VIN at all** (verified against the live endpoint 2026-08-25: none of the `pojazdy` resource's 68 attributes is a VIN, `filter[numer-vin]` is rejected, `wojewodztwo` is mandatory). So full history required session scraping of `historiapojazdu.gov.pl` with the plate + VIN + first-registration-date triple, past the original "skip session scraping in MVP" decision; see `context/changes/cepik-vin-lookup/change.md`. Two further contract details only surfaced live: the API version sits in the URL path and rotates (`1.0.17` → `1.1.0`, now discovered from the bootstrap HTML rather than pinned), and `firstRegistrationDate` is accepted only as `yyyy-MM-dd`.
+- **Unknowns:** resolved during research and then again in production. `api.cepik.gov.pl` exposes technical data only and **cannot look up a vehicle by VIN at all** (verified against the live endpoint 2026-08-25: none of the `pojazdy` resource's 68 attributes is a VIN, `filter[numer-vin]` is rejected, `wojewodztwo` is mandatory). So full history required session scraping of `historiapojazdu.gov.pl` with the plate + VIN + first-registration-date triple, past the original "skip session scraping in MVP" decision; see `context/archive/2026-06-02-cepik-vin-lookup/change.md`. Two further contract details only surfaced live: the API version sits in the URL path and rotates (`1.0.17` → `1.1.0`, now discovered from the bootstrap HTML rather than pinned), and `firstRegistrationDate` is accepted only as `yyyy-MM-dd`.
 - **Risk:** Government APIs can be slow or unavailable — realised, and worse than expected in a way the original entry did not anticipate. **The `FOUND` branch had never run against a real vehicle until 2026-08-26, and every field name in `HistoriaPojazduParser` was invented.** The registry actually returns `technicalData.basicData` and `timelineData.events[]`; the parser looked for `zdarzenia` / `szkodyIstotne` / `przebieg`, found nothing, and produced `damageRecords: []`, which the UI rendered as "brak zgłoszonych szkód istotnych" for a car carrying a registered szkoda istotna. **The tests passed throughout, because the fixtures were hand-written to match the invented names.** Fixed 2026-08-26 against verbatim captured payloads; fixtures in `src/test/resources/cepik/` must now stay verbatim captures, and no field mapping may be added without a capture showing that name.
 - **Carried forward:**
   - Enrichment is still synchronous inside `AnalysisController.buildResponse()` — up to 3 historiapojazdu calls plus the S-05 Jina fetch on one request thread, ~27 s end to end. Async handling remains deferred (impl-review F10).
   - `HistoriaPojazduServiceLiveTest` still only asserts `NOT_FOUND`. A `FOUND` assertion needs a real plate+VIN+date triple, which cannot be committed to a public repo, so the branch that broke stays unguarded by a live test.
   - The registry-vs-listing mileage cross-check lives only in the frontend component and does not feed the score.
 - **Lesson:** a green test suite over fabricated fixtures is worse than no test, because it converts "unverified" into "verified" on the status board. The same shape as the live-test rule already in `CLAUDE.md` — a test that tolerates the failure mode it exists to catch is decoration.
-- **Status:** shipped (closed out `d5e0fed` 2026-08-25; `FOUND` path first verified against the live registry 2026-08-26; parser fix `8870d35`, UI fixes `48b32dc`, scoring fix `5b7a3b3`)
+- **Status:** done (closed out `d5e0fed` 2026-08-25; `FOUND` path first verified against the live registry 2026-08-26; parser fix `8870d35`, UI fixes `48b32dc`, scoring fix `5b7a3b3`)
 
 ---
 
@@ -230,4 +230,4 @@ The PRD shipped with 0 open questions (quality check: accepted 2026-05-24), and 
 
 ## Done
 
-(Empty. `/10x-archive` appends entries here — and flips that item's `Status` to `done` — when a change whose `Change ID` matches a roadmap item is archived.)
+- **S-04: see live CEPiK vehicle history alongside analysis** — Archived 2026-09-03 → `context/archive/2026-06-02-cepik-vin-lookup/`. Lesson: —.
