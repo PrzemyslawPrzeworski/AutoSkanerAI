@@ -931,12 +931,12 @@ data, nothing to migrate.
 
 #### Automated
 
-- [x] 7.1 Suite still passes (regression check)
-- [x] 7.2 No "not available in current session" remains for Context7 or Exa in §4
-- [x] 7.3 No occurrence of `79900` remains in the file
+- [x] 7.1 Suite still passes (regression check) — 245550e
+- [x] 7.2 No "not available in current session" remains for Context7 or Exa in §4 — 245550e
+- [x] 7.3 No occurrence of `79900` remains in the file — 245550e
 
 #### Manual
 
-- [x] 7.4 §6.7's Phase 2 entry distinguishes what was proven from what was left alone
-- [x] 7.5 The Carried-into-Phase-3 list names a file and a consequence per item
-- [x] 7.6 §3's status flip matches what is on disk (live change folder, not an archive path — the archive does not exist until `/10x-archive` runs; noted under the §3 table)
+- [x] 7.4 §6.7's Phase 2 entry distinguishes what was proven from what was left alone — 245550e
+- [x] 7.5 The Carried-into-Phase-3 list names a file and a consequence per item — 245550e
+- [x] 7.6 §3's status flip matches what is on disk (live change folder, not an archive path — the archive does not exist until `/10x-archive` runs; noted under the §3 table) — 245550e
