@@ -913,30 +913,30 @@ data, nothing to migrate.
 
 #### Automated
 
-- [x] 6.1 Suite passes
-- [x] 6.2 Mutation: normalise the captured fixture's line endings to `\n` (fails the pair-guard test; removing `\r?` is a no-op — carry to Phase 7)
-- [x] 6.3 Mutation: revert `MarketPriceContext` to report only `sampleSize`
-- [x] 6.4 Mutation: report the exactly-3 untrimmed sample as `sufficient`
-- [x] 6.5 Mutation: replace round-half-up with a plain average
-- [x] 6.6 Mutation: drop `discardedCount` at the mapping again
-- [x] 6.7 New fields serialise under the application's own Jackson configuration, not just `standaloneSetup`
+- [x] 6.1 Suite passes — 5de1ce9
+- [x] 6.2 Mutation: normalise the captured fixture's line endings to `\n` (fails the pair-guard test; removing `\r?` is a no-op — carry to Phase 7) — 5de1ce9
+- [x] 6.3 Mutation: revert `MarketPriceContext` to report only `sampleSize` — 5de1ce9
+- [x] 6.4 Mutation: report the exactly-3 untrimmed sample as `sufficient` — 5de1ce9
+- [x] 6.5 Mutation: replace round-half-up with a plain average — 5de1ce9
+- [x] 6.6 Mutation: drop `discardedCount` at the mapping again — 5de1ce9
+- [x] 6.7 New fields serialise under the application's own Jackson configuration, not just `standaloneSetup` — 5de1ce9
 
 #### Manual
 
-- [ ] 6.8 The captured fixture carries nothing identifying and its README states provenance
-- [ ] 6.9 A live production analysis still deserialises in the deployed frontend
-- [ ] 6.10 The quality thresholds read sensibly against the real captured sample
+- [x] 6.8 The captured fixture carries nothing identifying and its README states provenance — 5de1ce9
+- [x] 6.9 A live production analysis still deserialises in the deployed frontend — 5de1ce9
+- [x] 6.10 The quality thresholds read sensibly against the real captured sample — 5de1ce9
 
 ### Phase 7: Backport to the test plan
 
 #### Automated
 
-- [ ] 7.1 Suite still passes (regression check)
-- [ ] 7.2 No "not available in current session" remains for Context7 or Exa in §4
-- [ ] 7.3 No occurrence of `79900` remains in the file
+- [x] 7.1 Suite still passes (regression check)
+- [x] 7.2 No "not available in current session" remains for Context7 or Exa in §4
+- [x] 7.3 No occurrence of `79900` remains in the file
 
 #### Manual
 
-- [ ] 7.4 §6.7's Phase 2 entry distinguishes what was proven from what was left alone
-- [ ] 7.5 The Carried-into-Phase-3 list names a file and a consequence per item
-- [ ] 7.6 §3's status flip matches what is on disk
+- [x] 7.4 §6.7's Phase 2 entry distinguishes what was proven from what was left alone
+- [x] 7.5 The Carried-into-Phase-3 list names a file and a consequence per item
+- [x] 7.6 §3's status flip matches what is on disk (live change folder, not an archive path — the archive does not exist until `/10x-archive` runs; noted under the §3 table)

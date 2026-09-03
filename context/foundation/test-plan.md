@@ -6,7 +6,7 @@
 >
 > Refresh: re-run `/10x-test-plan --refresh` when stale (see §8).
 >
-> Last updated: 2026-09-01
+> Last updated: 2026-09-03
 
 ## 1. Strategy
 
@@ -50,7 +50,7 @@ research's job, see §1 principle #3).
 | 2 | The vehicle-history panel shows, or lets the user infer, "no reported damage" for a car the registry says carries a registered significant damage | High | High | interview Q1, Q4; roadmap S-04 Risk + Lesson (field names were invented; the suite stayed green because fixtures were hand-written to match them); PRD guardrail (absence of accident data means unknown, never clean); hot-spot dirs `backend/src/main/java/.../cepik` (11 commits/30d), `frontend/src/app/features/analyzer/components/cepik-result` (6 commits/30d) |
 | 3 | Registry findings never reach the verdict, so a car with a registered significant damage still shows a reassuring score and label | High | Medium | roadmap S-01 carried-forward (production returned `risk: 88 / WORTH_CHECKING` for a vehicle with a registered szkoda istotna); interview Q3; hot-spot dir `backend/src/main/java/.../analysis` (10 commits/30d) |
 | 4 | "Not checked" and "checked, registry reported nothing" render identically, so an unchecked history reads as a clean one | High | Medium | interview Q4; PRD guardrail; project rules (every non-`FOUND` result carries null lists, never empty ones); hot-spot dirs `frontend/src/app/features/analyzer/components/cepik-result` (6 commits/30d), `frontend/src/app/shared/models` (5 commits/30d) |
-| 5 | A price sample too thin or too dispersed to mean anything is presented as a market range the buyer trusts | Medium | High | interview Q1, Q2; roadmap S-05 (a live run returned `min=22900` against `median=79900`; "the trim is statistical, not semantic"); hot-spot dir `backend/src/test/java/.../market` (4 commits/30d) |
+| 5 | A price sample too thin or too dispersed to mean anything is presented as a market range the buyer trusts | Medium | High | interview Q1, Q2; roadmap S-05 (`roadmap.md:187` — a live run returned `min=39900` against `median=82900`, an earlier one `min=22900` for 2017–2021 Corollas; "the trim is statistical, not semantic"); hot-spot dir `backend/src/test/java/.../market` (4 commits/30d) |
 | 6 | Listing text written to game the analyser — an accident-free assertion, or instructions aimed at the model — produces a reassuring verdict | Medium | Medium | abuse lens, untrusted input (PRD FR-002 accepts raw pasted listing text); roadmap S-01 carried-forward ("the scoring layer trusts the listing's own claims") |
 | 7 | The open analysis endpoint is called in a loop, exhausting the free provider quota and the single backend instance | Medium | Medium | abuse lens, resource abuse; PRD Access Control ("unauthenticated visitors cannot access any analysis functionality") against roadmap F-03 status `proposed`; roadmap Open Roadmap Questions (~27 s of request thread per call) |
 
@@ -82,8 +82,8 @@ orchestrator updates Status as artifacts appear on disk.
 
 | # | Phase name | Goal (one line) | Risks covered | Test types | Status | Change folder |
 |---|---|---|---|---|---|---|
-| 1 | Enrichment honesty | Prove a real registry damage reaches both the payload and the verdict, over verbatim captures | #2, #3 | unit + integration | shipped | `testing-enrichment-honesty` |
-| 2 | Availability and failure paths | Prove every provider and fetch failure ends in an honest, distinguishable outcome inside the time budget, and that a thin price sample labels itself | #1, #5, #6 | unit + integration (stubbed HTTP edge), live-tagged where a real outcome is assertable | not started | — |
+| 1 | Enrichment honesty | Prove a real registry damage reaches both the payload and the verdict, over verbatim captures | #2, #3 | unit + integration | complete | `context/archive/2026-08-27-testing-enrichment-honesty` |
+| 2 | Availability and failure paths | Prove every provider and fetch failure ends in an honest, distinguishable outcome inside the time budget, and that a thin price sample labels itself | #1, #5, #6 | unit + integration (stubbed HTTP edge), live-tagged where a real outcome is assertable | complete | `testing-availability-failure-paths` |
 | 3 | Guardrail rendering | Prove the three history states and the small-sample caveat read differently to a Polish-speaking user | #4, #2 (UI half), #5 (UI half) | component tests (jsdom) | not started | — |
 | 4 | Quality gates | Run both suites on PR and push before auto-deploy, keeping live-tagged tests out of the gate | cross-cutting | gates | not started | — |
 
@@ -101,14 +101,19 @@ last because a gate over a suite that does not yet cover the top risks locks
 in a false floor — but it must land, because `main` auto-deploys to
 production on merge and nothing runs the suites today.
 
-**Carried into Phase 2** (found during Phase 1, uncovered today):
-`HistoriaPojazduSession`'s cookie merge and dedupe (`extractCookies` replaces
-a same-named cookie rather than appending) and its XSRF extraction are
-exercised only incidentally by `CepikDamageReachesTheResponseTest`; neither
-has dedicated coverage.
+Phase 2's row reads `complete` against the live change folder, not an archive
+path: the change is finished on `main` (six phase commits, `512f555`…`5de1ce9`)
+but not yet run through `/10x-archive`. When it is, the folder becomes
+`context/archive/<date>-testing-availability-failure-paths`.
 
-**Carried into Phase 3** (found during Phase 1, all three are UI-side halves
-of Risk #2 and Risk #4):
+**Carried into Phase 2** — closed. `HistoriaPojazduSession`'s cookie merge and
+dedupe and its XSRF extraction now have dedicated coverage in
+`HistoriaPojazduSessionTest`, asserted at the mock seam against RFC 6265 §5.4;
+the shared-builder cookie leak the coverage exposed is fixed. See §6.7 Phase 2.
+
+**Carried into Phase 3** — the first four were found during Phase 1 and are
+UI-side halves of Risk #2 and Risk #4; the last six come from Phase 2 (§6.7)
+and were left open rather than pinned:
 
 - `cepik-result.component` has no spec at all.
 - `cepikResult === null` renders **nothing** — no heading, no disclaimer. A
@@ -120,6 +125,31 @@ of Risk #2 and Risk #4):
   does not feed the score, and there is no backend counterpart. Per
   `CLAUDE.md`, if it ever moves into scoring, delete the TypeScript copy
   rather than keeping two.
+- `market-price-panel.component` has **no spec**, and Phase 2 changed what it
+  renders: the `sampleSize < 3` caveat was replaced by three blocks driven by
+  the server's `sampleQuality` and `discardedCount`. No Node exists on the
+  machine Phase 2 ran on, so that template edit is reviewed and unverified — a
+  broken caveat would ship silently.
+- `CepikRiskAdjuster.capRisk` (`CepikRiskAdjuster.java:134`) returns early when
+  `risk <= cap` and skips the `overall` recomputation, so a model returning
+  `risk: 3, overall: 97` for a car with a registered szkoda istotna keeps both
+  numbers on screen.
+- `verdict.label` is copied through unvalidated against `verdict.code`
+  (`AnalysisResponseParser.java:208`, rendered at
+  `analysis-result.component.html:3`), so the result's first line can read
+  reassuringly above a floored verdict.
+- The accident-claim phrase list (`CepikRiskAdjuster.java:38`) is a substring
+  match and not negation-aware, so an honest `"nie jest bezwypadkowy"`
+  false-positives into `CEPIK_CONTRADICTS_LISTING` and `HIGH_RISK_SKIP` — the app
+  calls a truthful seller a liar.
+- `ListingFetchService.java:134` bounds only a *minimum* fetched-body length
+  (100 chars), so a URL is the unbounded path into the prompt while pasted text
+  is capped at 20 000. Cost and latency scale with whatever the reader returns.
+- The 30 s NFR (`prd.md:98`) is asserted by `RequestTimeoutBudgetTest` and
+  enforced by nothing: the configured socket timeouts still sum to **≈341 s**
+  worst case. Phase 3 cannot fix that with a test — it needs the deferred async
+  work (impl-review F10) — but the number belongs on this list so the next
+  rollout phase does not read the green assertion as protection.
 
 Browser-level e2e is deliberately not in this rollout: every risk above is
 reachable at unit, integration, or component level, and an e2e layer over a
@@ -134,18 +164,18 @@ The classic test base for this project. AI-native tools (if any) carry a
 
 | Layer | Tool | Version | Notes |
 |---|---|---|---|
-| backend unit + integration | JUnit 5 via Maven surefire | Spring Boot 4.0.6 | 23 test files, 163 tests, across the analysis, cepik, and market packages. `live-llm` is excluded by default; the `live-tests` profile flips the include/exclude properties — `-Dgroups=live-llm` silently intersects to zero |
+| backend unit + integration | JUnit 5 via Maven surefire | Spring Boot 4.0.6 | 28 test files, 224 tests (~15 s), across the analysis, cepik, and market packages. `live-llm` is excluded by default; the `live-tests` profile flips the include/exclude properties — `-Dgroups=live-llm` silently intersects to zero |
 | frontend unit + component | vitest + jsdom via `@angular/build:unit-test` | Angular 21.2 | 3 spec files, 26 tests, ~2 s. Zoneless: no `fakeAsync` / `tick`; vitest matchers, not jasmine |
-| HTTP mocking (backend) | `MockRestServiceServer` (`spring-test`) | 7.0.7 | `MockRestServiceServer.bindTo(RestClient.Builder)`, then `server.verify()`. Used by `ListingFetchServiceTest`, `OpenRouterAnalysisServiceTest`, `MarketPriceFetchServiceTest`, and since rollout Phase 1 also `CepikDamageReachesTheResponseTest` and `HistoriaPojazduSessionTest`. See §6.2 |
+| HTTP mocking (backend) | `MockRestServiceServer` (`spring-test`) | 7.0.7 | `MockRestServiceServer.bindTo(RestClient.Builder)`, then `server.verify()`. Used by `ListingFetchServiceTest`, `OpenRouterAnalysisServiceTest`, `MarketPriceFetchServiceTest`, since rollout Phase 1 also `CepikDamageReachesTheResponseTest` and `HistoriaPojazduSessionTest`, and since Phase 2 `LlmFailureReachesTheClientTest` and `AnalysisSurvivesEnrichmentFailureTest`. See §6.2 |
 | HTTP mocking (frontend) | `provideHttpClientTesting` + `vi.fn()` service doubles | Angular 21.2 | Already used by the existing specs |
 | live integration | JUnit tag `live-llm` + `live-tests` profile | — | Asserts real outcomes only. A proxy 403 on the reader host fails the market-price live test on purpose, so a blocked path stays visible instead of silently green |
 | e2e | none — deliberately unscheduled | — | See the note at the end of §3 |
 | accessibility | none — not scheduled | — | No risk in §2 depends on it; revisit if one surfaces |
 | CI | GitHub Actions, one live workflow only | — | No unit or integration gate on PR or push; see §3 Phase 4 |
 
-**Stack grounding tools (current session):**
-- Docs: none — Context7 or an equivalent framework-docs MCP is not available in current session; stack facts came from the local manifests, the Angular workspace config, and `CLAUDE.md`; checked: 2026-08-27
-- Search: none — Exa.ai is not available in current session; a built-in fetch tool exists but was not needed for stack claims; checked: 2026-08-27
+**Stack grounding tools:**
+- Docs: **Context7 MCP — available**, exercised during rollout Phase 2's research. It grounds framework behaviour, not versions: the versions in the table above still come from the local manifests, the Angular workspace config, and `CLAUDE.md`, which are the authority for what this repo actually resolves; checked: 2026-09-03
+- Search: **Exa MCP — available**, and it produced rollout Phase 2's one genuinely external oracle: OpenRouter's published status semantics (408 is a timeout and therefore transient; 402 is insufficient credits and therefore fatal for every model, not permanent for one). That is what the 408/402 routing tests assert against, rather than against the classification tree they were written to correct; checked: 2026-09-03
 - Runtime/browser: none — Playwright MCP not available in current session, which is one input into leaving e2e unscheduled; checked: 2026-08-27
 - Provider/platform: none — no GitHub, Render, Cloudflare, or Supabase MCP; deploy and log inspection run through REST with keys from the environment, so CI gate wiring in Phase 4 must be authored against the platform docs rather than probed; checked: 2026-08-27
 
@@ -183,13 +213,15 @@ relevant rollout phase ships; before that, the sub-section reads
 - **The seam**: build the same `RestClient.Builder` production configures (mirror the `@Configuration` bean minus its request factory), call `MockRestServiceServer.bindTo(builder)`, hand that builder to the real service. The bind survives later `builder.build()` calls, so a class that rebuilds its client mid-session — as `HistoriaPojazduSession` does per cookie refresh — is still stubbed.
 - **Pattern**: expect the whole call sequence in order, respond with verbatim captures via `withSuccess(new ClassPathResource(...), APPLICATION_JSON)`, assert the HTTP response body, finish with `server.verify()`.
 - **Expectations are ordered by default, and that is useful**: the order is what pins which payload reaches which argument. Swapping `parser.parse`'s two arguments kept the entire repo green until this test existed.
-- **Four gotchas, each learned the hard way**:
+- **Six gotchas, each learned the hard way**:
   - A session closed in a `finally` block still makes a request. Stub it, or an unexpected-request `AssertionError` fires *after* your assertions have passed and reads like a mystery.
   - `jsonPath(...).doesNotExist()` and `.value(nullValue())` both pass for a JSON `null`, so neither can prove a key is present-and-null. Read the raw body: `andReturn().getResponse().getContentAsString()`.
   - `MockMvcBuilders.standaloneSetup` builds its own message converters and never reads `application.properties`. Anything that depends on the application's Jackson configuration needs a booted context — see `CepikResultSerialisationTest`.
   - A bodyless 200 fails inside `RestClient` and lands in your service's catch block, so a status assertion can pass without the branch you meant to exercise ever running. Serve `{}` when you want an *unreadable payload* rather than a *transport failure*.
-- **Mocking policy (binding)**: mock at the network edge only, never internal collaborators. Registry fixtures under `backend/src/test/resources/cepik/` follow §6.5.
-- Provider and reader *failure-branch* coverage (deadlines, retry-vs-fallback, thin samples) is still rollout Phase 2's scope; this section covers the seam, not those scenarios.
+  - **A null default header is present-with-a-null-value here, not absent.** `HistoriaPojazduSession` installs `X-Xsrf-Token` with whatever it extracted, and with no token that is `null`. Production's request factory coerces it to an empty string on the wire; `MockRestServiceServer` keeps it literally present, so `headerDoesNotExist` fails with *"it exists with values: [null]"*. Assert `headerList(name, contains((String) null))` and note in a comment that this pins the seam's truth rather than the wire's — see `HistoriaPojazduSessionTest.aHandshakeWithNoXsrfCookieWarnsInsteadOfDegradingSilently`.
+  - **A failed matcher throws `AssertionError`, which is an `Error`**, so it escapes a `catch (Exception)` in the code under test and surfaces as a test failure instead of being wrapped into that class's own exception. This is what lets header assertions work at all inside a method that swallows failures — and it means widening such a catch to `Throwable` would silently mute every one of them. Say so in the test, because nothing in the production code hints that a test depends on the catch's width.
+- **Mocking policy (binding)**: mock at the network edge only, never internal collaborators. Registry fixtures under `backend/src/test/resources/cepik/` follow §6.5; the market-price fixtures under `backend/src/test/resources/market/` follow the same rule for the same reason — see that directory's README.
+- Provider and reader *failure-branch* coverage (deadlines, retry-vs-fallback, thin samples) shipped with rollout Phase 2; the pattern lives in §6.4. This section covers the seam.
 
 ### 6.3 Adding a frontend component test
 
@@ -204,7 +236,16 @@ relevant rollout phase ships; before that, the sub-section reads
 - **Test type**: integration, at the controller boundary.
 - **Pattern**: assert the response shape *and* the guardrail semantics — which fields are null versus empty, and what a downstream consumer would render from them.
 - **Reference test**: `backend/src/test/java/com/example/autoskaner_ai/analysis/AnalysisControllerTest.java`. For an endpoint whose behaviour depends on an outbound call, stub the socket instead of the collaborator — see §6.2.
-- Fuller pattern for the *failure* branches (deadlines, retry vs fallback, degraded content): TBD — see §3 Phase 2.
+
+**The failure branches** (pattern established by rollout Phase 2):
+
+- **Assert the user-visible outcome, never the retry count.** A retry that fired is not a protection; a client that can tell which failure it hit is. `LlmFailureReachesTheClientTest` is the reference: four provider behaviours in, four different Polish `error` headlines out, at the controller boundary with only the provider socket stubbed.
+- **Distinguish the causes, and prove the distinction rather than each cause separately.** Before Phase 2 a rejected key, an unusable provider response and an exhausted fallback chain rendered byte-identical 502 bodies. Hold each expected headline as a named constant and add one test asserting the set has no duplicates — comparing two branches directly passes when both are wrong in the same way.
+- **A malformed third-party payload is a 502 about them, not a 500 about us.** Four provider-quirk routes (null `message`, null `content`, non-String `content`, unknown enum value) used to escape as the catch-all 500. Each needs its own case; a shared "returns an error" assertion cannot see the difference.
+- **Serve `{}` for an unreadable payload** rather than an empty body — §6.2's gotcha, and it bites hardest here, where the branch under test *is* the parse failure.
+- **Reach a deadline or budget branch by injecting the budget, not by waiting.** `OpenRouterAnalysisService`'s `deadlineSeconds` is a constructor parameter; `0` reaches the fallback-budget-exhausted branch at zero wall-clock cost. A timing assertion of the shape `elapsedMs >= 900` is *not* evidence a wait happened — it passes equally when the wait was clamped to zero, which is exactly the defect Phase 2 found.
+- **A degraded enrichment must not cost a finished analysis.** `AnalysisSurvivesEnrichmentFailureTest`: make the enrichment collaborator throw, then assert a 200 that still carries the analysis and a non-null but degraded context. Keep the negative control in the same class — an *LLM* failure must still be a 502, or the guard has quietly turned every failure into a cheerful 200.
+- **Assert the configured budget against the documented NFR.** `RequestTimeoutBudgetTest` reads the timeouts out of the config classes and compares the total against `prd.md`'s 30 s, quoted in a comment as oracle source (4). It exists so a future timeout bump fails the build. It does not claim the NFR is enforced — it is not; see §6.7.
 
 ### 6.5 Adding a test for a new enrichment source or registry field
 
@@ -212,6 +253,10 @@ relevant rollout phase ships; before that, the sub-section reads
 
 - **Verbatim captures** (`*-found.json`, `not-found-*.json`, no suffix) — byte copies of real responses. The only permitted edit is a documented redaction of an identifying value; the committed VIN is the synthetic `NMTBZ3BE40R000000` because this repo is public. **Add no field mapping without a captured payload showing that field name.**
 - **Derived fixtures** (`*-derived.json`) — produced from a named verbatim parent by exactly one of *deleting a node* or *changing a value*. Never by introducing a key, renaming a key, or composing an object. Each carries a top-level `_provenance` naming its parent and the edit, so the claim is checkable with a diff.
+
+**The rule generalises past JSON, and rollout Phase 2 needed it to.** *Third-party payloads must be captured; shapes we own may be composed.* The Otomoto markdown that `PRICE_PATTERN` reads is Otomoto's, rendered by Jina — neither is ours, so a hand-written markdown fixture would be the regex agreeing with itself, and that is the 2026-08-26 failure in a different file format. The `List<Integer>` that `MarketPriceStatistics` consumes **is** ours — an internal parameter, not a wire format — so composing lists to land on the band, fence and median boundaries is correct. Both live under `backend/src/test/resources/market/`; that directory's README carries the capture's provenance.
+
+A **derived fixture can need a guard of its own.** The market capture is LF-only, so it can only ever exercise half of `\r?\n`; its CRLF sibling is derived by one mechanical edit. `core.autocrlf=true` on any clone or CI runner would rewrite both to one style and the pair would silently test one case twice, so both files are pinned `-text` in `/.gitattributes` **and** a test asserts the pair still differs only in line endings. A config file that nothing checks is not a guarantee.
 
 A third class is prohibited: a fixture composed key-by-key from what the parser expects cannot detect a mapping failure, because it *is* that failure one file earlier. That is the 2026-08-26 incident verbatim — the parser looked for `zdarzenia` / `szkodyIstotne` / `przebieg`, names the registry has never returned, and every test passed because the fixtures had been written to match them.
 
@@ -260,6 +305,46 @@ What the phase proved, and how:
 
 Method worth reusing: **every phase criterion was a mutation, not a green run.** Six mutations were applied and reverted. One criterion turned out to be unreachable as specified — a raw-body assertion under `standaloneSetup` is blind to `spring.jackson.default-property-inclusion`, because that builder never reads `application.properties` — and only running the mutation revealed it. Writing the criterion as "confirm X fails" rather than "confirm X is covered" is what caught it.
 
+**Phase 2 — Availability and failure paths** (`testing-availability-failure-paths`, shipped 2026-09-03). 163 → 224 backend tests, 23 → 28 test files.
+
+Research found that **nine of the behaviours this phase existed to prove were broken**. Writing tests against them would have pinned the failure mode, so — Phase 1's lesson applied a second time — the phase closed them first and then proved them closed.
+
+Closed, not pinned:
+
+- **A 200 OK could carry a hollow analysis.** `AnalysisResponseParser.validateRequired` null-checked six *containers* while all sixteen leaf fields could be null, and `ScoresDto`'s primitive `int` coerced a null score to `0` — a perfect score for a field the model never returned. Now a schema failure that names the field.
+- **Three distinct 502 causes rendered byte-identical bodies**, and four provider-quirk routes (null `message`, null `content`, non-String `content`, unknown enum) escaped as a generic 500 blaming this server for somebody else's payload. Now four distinguishable Polish headlines.
+- **The retry could fire with a zero wait.** `retryWait` clamped to the deadline remainder and `sleepQuietly` returned `true` for a non-positive wait — precisely the immediate same-model retry that turned single 429s into production 502s on 2026-08-26. A wait that will not fit the remaining budget now moves down the fallback chain instead.
+- **408 and 402 were both misrouted** into the "permanent for this model" catch-all: a timeout skipped a model that would likely have answered, and insufficient credits walked the entire chain on an error guaranteed to repeat. Now 408 retries and 402 fails fast.
+- **A finished analysis could be discarded.** `AnalysisController.buildResponse` had no try/catch, so a throw from the slug mapper or the statistics stage turned a completed ~16 s analysis into a 500. Now guarded, and `marketPriceContext` is always present — S-05's stated invariant.
+- **The registry session leaked cookies between lookups.** One shared mutable `RestClient.Builder` bean, mutated per session, meant lookup *N*'s `JSESSIONID` was still on it for lookup *N+1*'s bootstrap GET and two concurrent analyses shared one jar. Both enrichments run on the request thread, so that is ordinary load, not a stress case. Now a clone per session — `RestClient.Builder#clone()` copies the request factory, so §6.2's seam survives it.
+- **`accidentClaim == null ⇒ NO_ACCIDENT_DECLARATION` was asked of the model and enforced nowhere.** Now enforced in the parser, idempotently, so an *unknown* accident history cannot render as a *silent* one.
+- **The thin-sample label had an off-by-one at exactly 3**, and dispersion was computed then thrown away. `MIN_SAMPLE_TO_KEEP = 3` reports a 3-price sample untrimmed while the UI caveat fired on `sampleSize < 3` — so the most contaminated range the pipeline can emit was the one size that showed no caveat at all. `MarketPriceContext` now carries `sampleQuality` (`SUFFICIENT` / `THIN` / `DISPERSED`) and `discardedCount`, decided on the server.
+- **`HistoriaPojazduSessionTest`'s own Javadoc was false**, claiming the cookie merge was asserted in `CepikDamageReachesTheResponseTest`. It was asserted nowhere in the suite.
+
+What the phase proved, and how:
+
+- Four provider behaviours reach a client as four different Polish headlines, asserted at the controller boundary with only the provider socket stubbed and the parser, service, controller and exception handler all real (§6.4).
+- Retry-versus-fallback is decided against the remaining budget, and the deadline-skip branch runs under test at zero wall-clock cost by injecting `deadlineSeconds=0` rather than waiting.
+- The configured socket-timeout total is asserted against `prd.md`'s 30 s, so a future timeout bump fails the build.
+- An enrichment throw costs the market range and not the analysis — with the negative control that an *LLM* failure is still a 502, not a cheerful degraded 200.
+- The registry cookie header and XSRF token are asserted directly at the seam, with RFC 6265 §5.4 as the oracle rather than a reading of `extractCookies`.
+- Listing-supplied claims cannot move the deterministic floor, with a control on an *honest* disclosure so the claim strings do real work rather than passing against an adjuster that flags unconditionally.
+- The price regex met real Otomoto bytes for the first time, and the capture turned out to carry real contamination: one price at 21 800 against a median of 79 900, below the ±3× band floor, dropped — so the reported minimum is 40 900 rather than a bargain that does not exist. A composed fixture could not have contained that.
+
+Three method lessons, each of which cost something to learn:
+
+- **A mutation can be a no-op, and only measuring tells you which.** One planned criterion was "delete `\r?` from `PRICE_PATTERN` and watch the CRLF test fail". Measured against both fixtures, deleting it changes the match on neither: `[\d\s]+` already admits `\r` and `replaceAll("\\s", "")` then removes it. `\r?` is unfalsifiable while the character class stays that wide. Two mutations that do bite were substituted — narrow the class to `[\d \n]+`, and normalise the derived fixture to LF. Report the mutation you ran, not the one the plan named.
+- **§6.2's third gotcha, demonstrated rather than restated.** Appending `spring.jackson.default-property-inclusion=non_null` failed the booted `MarketPriceContextSerialisationTest` while all fifteen `AnalysisControllerTest` cases stayed green. That is the blind spot, measured — and the reason a serialisation claim needs a booted context.
+- **A contract change needs its consumer wired in the same phase.** The plan assigned the new `sampleQuality` field's rendering to its Phase 3; that did not land, so the server field would have been read by nothing and the user-visible hole the work existed to close would have survived a phase built to close it. Caught two phases later. The template is now wired but **reviewed, not verified** — no Node exists on this machine, so the frontend suite could not run; the spec belongs to rollout Phase 3.
+
+Known gaps, left open on purpose. Each would have been *pinned* by a test asserting today's behaviour, which §1 rule 4 forbids, so each is recorded here and carried into rollout Phase 3 instead:
+
+- `CepikRiskAdjuster.capRisk` returns early when `risk <= cap`, skipping the `overall` recomputation. A model returning `risk: 3, overall: 97` for a car with a registered szkoda istotna keeps both numbers.
+- `verdict.label` — the model-authored headline, rendered as the result's first line — is never validated against `verdict.code`, so it can read reassuringly next to a floored verdict.
+- The accident-claim phrase list is not negation-aware. `"nie jest bezwypadkowy"` — an *honest* seller — still false-positives into `CEPIK_CONTRADICTS_LISTING` and `HIGH_RISK_SKIP`.
+- `ListingFetchService` bounds only a *minimum* body length (100 chars), so a URL remains the unbounded path into the prompt while pasted text is capped at 20 000.
+- The 30 s NFR is **asserted, not enforced**. The ≈341 s worst case is still reachable; this phase made it visible and regression-guarded, not impossible. Enforcement is impl-review F10's deferred async work.
+
 ## 7. What We Deliberately Don't Test
 
 Exclusions agreed during the rollout (Phase 2 interview, Q5). Future
@@ -272,9 +357,9 @@ contributors should respect these unless the underlying assumption changes.
 
 ## 8. Freshness Ledger
 
-- Strategy (§1–§5) last reviewed: 2026-09-01 (§2 Risk #2 guidance and §3 ordering rationale corrected, §4 HTTP-mocking row corrected — rollout Phase 1)
-- Stack versions last verified: 2026-09-01 (`spring-test` 7.0.7 read from `dependency:list`; backend counts re-counted; frontend untouched since 2026-08-27)
-- AI-native tool references last verified: 2026-08-27 — unchanged, no AI-native tool is in the stack
+- Strategy (§1–§5) last reviewed: 2026-09-03 (§2 Risk #5's Source figures replaced with the ones `roadmap.md:187` actually records — the min/median pairing previously cited there appears in no artifact and had been carried for two rollout phases; §3 Phase 2 flipped to `complete`, its carried-forward item closed, six new items carried into Phase 3; §4 counts and grounding-tool lines corrected — rollout Phase 2)
+- Stack versions last verified: 2026-09-03 (backend counts re-counted from a full run: 28 files, 224 tests; `spring-test` 7.0.7 unchanged; frontend untouched since 2026-08-27 and **unrunnable on the current machine** — no Node or npm, so the frontend row is documentation, not a verified figure)
+- AI-native tool references last verified: 2026-09-03 (Context7 and Exa are available and were exercised; neither is *in* the stack — they ground it. See §4)
 
 Refresh (`/10x-test-plan --refresh`) when:
 
