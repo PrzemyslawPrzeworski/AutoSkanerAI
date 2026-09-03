@@ -833,35 +833,35 @@ data, nothing to migrate.
 
 #### Automated
 
-- [x] 1.1 Suite passes
-- [x] 1.2 Mutation: revert the minimal-spine check — an all-null-leaves 200 returns 200 again
-- [x] 1.3 Mutation: un-box `ScoresDto` back to primitive `int`
-- [x] 1.4 Mutation: narrow the widened catches back to `IllegalArgumentException` only
-- [x] 1.5 Mutation: collapse the three 502 `error` strings back to one
-- [x] 1.6 Mutation: make `dummyResult()` return the primary model name
+- [x] 1.1 Suite passes — 512f555
+- [x] 1.2 Mutation: revert the minimal-spine check — an all-null-leaves 200 returns 200 again — 512f555
+- [x] 1.3 Mutation: un-box `ScoresDto` back to primitive `int` — 512f555
+- [x] 1.4 Mutation: narrow the widened catches back to `IllegalArgumentException` only — 512f555
+- [x] 1.5 Mutation: collapse the three 502 `error` strings back to one — 512f555
+- [x] 1.6 Mutation: make `dummyResult()` return the primary model name — 512f555
 
 #### Manual
 
-- [x] 1.7 The three Polish 502 strings read correctly and each is actionable
-- [x] 1.8 No test asserts a POST count as its only assertion about a failure branch
+- [x] 1.7 The three Polish 502 strings read correctly and each is actionable — 512f555
+- [x] 1.8 No test asserts a POST count as its only assertion about a failure branch — 512f555
 
 ### Phase 2: Retry, fallback, and the deadline
 
 #### Automated
 
-- [ ] 2.1 Suite passes
-- [ ] 2.2 Mutation: restore `sleepQuietly`'s zero-wait `true`
-- [ ] 2.3 Mutation: remove the "wait exceeds remaining deadline ⇒ NEXT_MODEL" rule
-- [ ] 2.4 Mutation: drop HTTP-date parsing back to `DEFAULT_RETRY_WAIT`
-- [ ] 2.5 Mutation: move 408 back into the catch-all
-- [ ] 2.6 Mutation: move 402 back into the catch-all
-- [ ] 2.7 Mutation: raise the test's `deadlineSeconds` from 0 to 70
-- [ ] 2.8 Mutation: bump a configured read timeout by 1 s — `RequestTimeoutBudgetTest` fails
+- [x] 2.1 Suite passes
+- [x] 2.2 Mutation: restore `sleepQuietly`'s zero-wait `true`
+- [x] 2.3 Mutation: remove the "wait exceeds remaining deadline ⇒ NEXT_MODEL" rule
+- [x] 2.4 Mutation: drop HTTP-date parsing back to `DEFAULT_RETRY_WAIT`
+- [x] 2.5 Mutation: move 408 back into the catch-all
+- [x] 2.6 Mutation: move 402 back into the catch-all
+- [x] 2.7 Mutation: raise the test's `deadlineSeconds` from 0 to 70
+- [x] 2.8 Mutation: bump a configured read timeout by 1 s — `RequestTimeoutBudgetTest` fails
 
 #### Manual
 
-- [ ] 2.9 No new test asserts a retry count as its only assertion
-- [ ] 2.10 `RequestTimeoutBudgetTest`'s comment states the total exceeds the NFR and why this phase does not fix it
+- [x] 2.9 No new test asserts a retry count as its only assertion
+- [x] 2.10 `RequestTimeoutBudgetTest`'s comment states the total exceeds the NFR and why this phase does not fix it
 
 ### Phase 3: A finished analysis survives its enrichment
 

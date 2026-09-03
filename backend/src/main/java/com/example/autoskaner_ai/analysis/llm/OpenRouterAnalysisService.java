@@ -17,6 +17,9 @@ import org.springframework.web.client.RestClientException;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -162,11 +165,13 @@ public class OpenRouterAnalysisService implements AiAnalysisService {
             failure = e;
         }
 
-        if (dispositionOf(failure) != Disposition.RETRY) {
+        // Deadline-aware on purpose: a transient fault we cannot afford to wait out is not a
+        // retryable fault, it is an unusable model. See dispositionOf(e, deadlineAt).
+        if (dispositionOf(failure, deadlineAt) != Disposition.RETRY) {
             throw failure;
         }
 
-        Duration wait = retryWait(failure, deadlineAt);
+        Duration wait = retryWait(failure);
         log.warn("LLM call retry provider=openrouter model={} waitMs={} cause={}",
                 model, wait.toMillis(), failure.getMessage());
         if (!sleepQuietly(wait)) {
@@ -240,15 +245,26 @@ public class OpenRouterAnalysisService implements AiAnalysisService {
     }
 
     /**
-     * 401/403. Single source for both the FATAL disposition and the user-facing cause, so the two
-     * cannot drift apart when the list changes.
+     * 401 and 403 (key rejected) and 402 (out of credits).
+     *
+     * <p>Grouped because they share the one property that makes them FATAL: the rejection is
+     * account-level, so every candidate model rejects the request the same way and walking the
+     * fallback chain only multiplies latency before the identical error. 402 previously fell into
+     * the catch-all and was treated as permanent for <em>this model</em>, which sent the chain off
+     * to spend another request per slug on an account that cannot pay for any of them.
+     *
+     * <p>Single source for both the disposition and the user-facing cause, so the two cannot drift
+     * apart when the list changes.
+     *
+     * <p>Oracle: OpenRouter's published status semantics, verified 2026-09-03.
      */
-    private static boolean isRejectedCredentials(HttpStatusCode status) {
-        return status.value() == 401 || status.value() == 403;
+    private static boolean rejectsEveryModel(HttpStatusCode status) {
+        int code = status.value();
+        return code == 401 || code == 402 || code == 403;
     }
 
     private static LlmCallException.Reason reasonOf(RestClientException e) {
-        if (e instanceof HttpStatusCodeException http && isRejectedCredentials(http.getStatusCode())) {
+        if (e instanceof HttpStatusCodeException http && rejectsEveryModel(http.getStatusCode())) {
             return LlmCallException.Reason.REJECTED_CREDENTIALS;
         }
         return LlmCallException.Reason.UNCLASSIFIED;
@@ -262,14 +278,20 @@ public class OpenRouterAnalysisService implements AiAnalysisService {
         // Checked before RestClientException: HttpStatusCodeException is a subtype.
         if (cause instanceof HttpStatusCodeException http) {
             HttpStatusCode status = http.getStatusCode();
-            if (status.value() == 429 || status.is5xxServerError()) {
+            // 408 belongs here rather than in the catch-all: a request timeout is transient by
+            // definition, and the same model on a second attempt is exactly the right response.
+            if (status.value() == 429 || status.value() == 408 || status.is5xxServerError()) {
                 return Disposition.RETRY;
             }
-            if (isRejectedCredentials(status)) {
-                // A rejected key rejects every model — fail loudly instead of masking it.
+            if (rejectsEveryModel(status)) {
+                // Fail loudly instead of masking it behind a walk through every other model.
                 return Disposition.FATAL;
             }
-            // 404 = slug retired, 400 = request rejected. Neither improves on retry.
+            // Everything else is permanent for this model: 404 = slug retired, 400 = request
+            // rejected. Neither improves on a retry, and an unrecognised 4xx is far likelier to be
+            // one of those than a transient blip — so the catch-all deliberately walks on instead
+            // of spending a wait first. Asserted by a test, so adding a status above is a choice
+            // someone made rather than a default nobody noticed.
             return Disposition.NEXT_MODEL;
         }
         if (cause instanceof RestClientException || cause instanceof IOException) {
@@ -278,34 +300,102 @@ public class OpenRouterAnalysisService implements AiAnalysisService {
         return Disposition.FATAL;
     }
 
-    /** Honours {@code Retry-After}, bounded by {@link #MAX_RETRY_WAIT} and the deadline. */
-    private static Duration retryWait(LlmCallException failure, long deadlineAt) {
+    /**
+     * Disposition with the remaining request budget taken into account.
+     *
+     * <p>A transient fault whose requested wait does not fit before the deadline makes this model
+     * unusable <em>now</em>, and that is the next-model axis, not the retry axis. The old code
+     * clamped the wait down to whatever was left instead — which at the deadline edge is zero, so
+     * it retried immediately into the same saturated pool. That is the 2026-08-26 regression, and
+     * clamping is what reproduced it: OpenRouter answers a saturated free pool with
+     * {@code Retry-After: 60} against a 70 s budget already partly spent.
+     */
+    private static Disposition dispositionOf(LlmCallException e, long deadlineAt) {
+        Disposition base = dispositionOf(e);
+        if (base != Disposition.RETRY) {
+            return base;
+        }
+        Duration wait = retryWait(e);
+        Duration remaining = remainingUntil(deadlineAt);
+        if (wait.compareTo(remaining) > 0) {
+            log.warn("LLM retry skipped, requested wait exceeds remaining budget: waitMs={} remainingMs={}",
+                    wait.toMillis(), remaining.toMillis());
+            return Disposition.NEXT_MODEL;
+        }
+        return Disposition.RETRY;
+    }
+
+    /**
+     * The wait the provider asked for, bounded by {@link #MAX_RETRY_WAIT}.
+     *
+     * <p>Deliberately <em>not</em> clamped to the remaining budget. Whether the requested wait fits
+     * is a disposition question, answered by {@link #dispositionOf(LlmCallException, long)}; this
+     * method only reports what was asked, so the two decisions cannot be confused for one.
+     */
+    private static Duration retryWait(LlmCallException failure) {
         Duration wait = DEFAULT_RETRY_WAIT;
         if (failure.getCause() instanceof HttpStatusCodeException http) {
             HttpHeaders headers = http.getResponseHeaders();
             String header = headers == null ? null : headers.getFirst(HttpHeaders.RETRY_AFTER);
-            if (header != null) {
-                try {
-                    long seconds = Long.parseLong(header.strip());
-                    if (seconds > 0) {
-                        wait = Duration.ofSeconds(seconds);
-                    }
-                } catch (NumberFormatException ignored) {
-                    // Retry-After may also be an HTTP-date; the default wait covers that.
-                }
+            Duration requested = parseRetryAfter(header);
+            if (requested != null) {
+                wait = requested;
             }
         }
-        if (wait.compareTo(MAX_RETRY_WAIT) > 0) {
-            wait = MAX_RETRY_WAIT;
-        }
-        Duration remaining = Duration.ofNanos(Math.max(0, deadlineAt - System.nanoTime()));
-        return wait.compareTo(remaining) > 0 ? remaining : wait;
+        return wait.compareTo(MAX_RETRY_WAIT) > 0 ? MAX_RETRY_WAIT : wait;
     }
 
-    /** @return false if the thread was interrupted, in which case the caller must give up. */
+    /**
+     * {@code Retry-After} in either form the spec allows: delta-seconds, or an HTTP-date.
+     *
+     * <p>The date form is not exotic — a CDN or reverse proxy in front of the provider emits it
+     * routinely. Falling back to {@link #DEFAULT_RETRY_WAIT} read a 60-second date as one second,
+     * which retried far too early <em>and</em> made the wait look like it comfortably fitted the
+     * budget, defeating the skip rule above.
+     *
+     * @return the requested wait — possibly {@link Duration#ZERO}, which is the provider saying
+     *     "retry immediately" and which {@link #sleepQuietly} deliberately declines — or
+     *     {@code null} when the header is absent or unparseable, in which case
+     *     {@link #DEFAULT_RETRY_WAIT} applies
+     */
+    private static Duration parseRetryAfter(String header) {
+        if (header == null || header.isBlank()) {
+            return null;
+        }
+        String value = header.strip();
+        try {
+            long seconds = Long.parseLong(value);
+            return seconds >= 0 ? Duration.ofSeconds(seconds) : null;
+        } catch (NumberFormatException notDeltaSeconds) {
+            // Fall through to the HTTP-date form.
+        }
+        try {
+            ZonedDateTime when = ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME);
+            Duration until = Duration.between(ZonedDateTime.now(when.getZone()), when);
+            // A date already in the past says the same thing as a delta of 0.
+            return until.isNegative() ? Duration.ZERO : until;
+        } catch (DateTimeParseException notAnHttpDate) {
+            return null;
+        }
+    }
+
+    private static Duration remainingUntil(long deadlineAt) {
+        return Duration.ofNanos(Math.max(0, deadlineAt - System.nanoTime()));
+    }
+
+    /**
+     * @return false if the wait was not actually taken — either a non-positive wait or an interrupt.
+     *     The caller must give up on this model in both cases.
+     *
+     *     <p>A non-positive wait is the provider's {@code Retry-After: 0}, or an HTTP-date already
+     *     in the past: "retry immediately". We deliberately do not. An immediate retry into a
+     *     saturated free pool is exactly what turned single 429s into production 502s on
+     *     2026-08-26, and a different model is the better use of the request. Returning true here
+     *     would let that wait fall straight through into the retry it exists to prevent.
+     */
     private static boolean sleepQuietly(Duration wait) {
         if (wait.isZero() || wait.isNegative()) {
-            return true;
+            return false;
         }
         try {
             Thread.sleep(wait.toMillis());

@@ -5,15 +5,25 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
+
 @Configuration
 public class ListingFetchConfig {
+
+    /**
+     * Named rather than inlined because these two numbers are part of the request-time budget the
+     * PRD's 30 s NFR bounds, and {@code RequestTimeoutBudgetTest} does the arithmetic over them.
+     * Bump one and that test fails, which is the point.
+     */
+    public static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
+    /** Jina Reader renders JavaScript before responding — needs up to 30 s. */
+    public static final Duration READ_TIMEOUT = Duration.ofSeconds(30);
 
     @Bean(name = "listingFetchBuilder")
     public RestClient.Builder listingFetchBuilder() {
         var factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5_000);
-        // Jina Reader renders JavaScript before responding — needs up to 30 s
-        factory.setReadTimeout(30_000);
+        factory.setConnectTimeout((int) CONNECT_TIMEOUT.toMillis());
+        factory.setReadTimeout((int) READ_TIMEOUT.toMillis());
 
         return RestClient.builder()
                 .requestFactory(factory)

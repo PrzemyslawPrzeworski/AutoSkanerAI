@@ -29,6 +29,13 @@ public class ListingFetchService {
     // get a timeout/block — that's a corporate proxy issue, not a code issue.
     static final String JINA_PREFIX = "https://r.jina.ai/";
 
+    /**
+     * Cap on the SSRF DNS pre-check. Named because it is the one stage of the request-time budget
+     * that is not a socket timeout on a {@code RestClient} builder, and
+     * {@code RequestTimeoutBudgetTest} would otherwise have to restate the literal.
+     */
+    static final int DNS_TIMEOUT_SECONDS = 5;
+
     private final RestClient client;
 
     public ListingFetchService(@Qualifier("listingFetchBuilder") RestClient.Builder builder) {
@@ -59,7 +66,7 @@ public class ListingFetchService {
 
         log.info("Listing fetch start host={} scheme={}", host, scheme);
 
-        // SSRF protection — DNS lookup on the user-supplied host, capped at 5 s
+        // SSRF protection — DNS lookup on the user-supplied host, capped at DNS_TIMEOUT_SECONDS
         try {
             InetAddress[] addresses = CompletableFuture
                     .supplyAsync(() -> {
@@ -69,7 +76,7 @@ public class ListingFetchService {
                             throw new RuntimeException("unknown_host", e);
                         }
                     })
-                    .get(5, TimeUnit.SECONDS);
+                    .get(DNS_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
             for (InetAddress addr : addresses) {
                 if (addr.isLoopbackAddress() || addr.isSiteLocalAddress()
