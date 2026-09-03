@@ -16,7 +16,6 @@ import java.time.Instant;
 public class HistoriaPojazduService {
 
     private static final Logger log = LoggerFactory.getLogger(HistoriaPojazduService.class);
-    private static final String LOOKUP_URL = "https://historiapojazdu.gov.pl";
 
     // historiapojazdu answers "this plate/VIN/date triple matches no vehicle" with a
     // 404 carrying HIPO-0002. That is a definitive negative answer from the registry,
@@ -78,6 +77,6 @@ public class HistoriaPojazduService {
     // damage list reads as "checked, nothing found", which is the one thing the product
     // must never imply when it does not actually know.
     private CepikResult result(CepikStatus status, String vin) {
-        return CepikResult.withoutData(status, vin, LOOKUP_URL);
+        return CepikResult.withoutData(status, vin, CepikResult.LOOKUP_URL);
     }
 }

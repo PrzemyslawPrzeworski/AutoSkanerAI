@@ -7,6 +7,7 @@ import com.example.autoskaner_ai.cepik.CepikEnrichmentService;
 import com.example.autoskaner_ai.common.GlobalExceptionHandler;
 import com.example.autoskaner_ai.market.MarketPriceEnrichmentService;
 import com.example.autoskaner_ai.market.MarketPriceFetchService;
+import com.example.autoskaner_ai.market.MarketPriceStatus;
 import com.example.autoskaner_ai.market.OtomotoSlugMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
@@ -22,6 +23,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -160,6 +162,10 @@ class AnalysisSurvivesEnrichmentFailureTest {
                 .andExpect(jsonPath("$.cepikResult.status").value("LOOKUP_FAILED"))
                 // The VIN the analysis extracted rides along, so the follow-up can be retried.
                 .andExpect(jsonPath("$.cepikResult.vin").value("WBAAM31060GE12345"))
+                // And so does the lookup URL. This is the branch whose card reads "sprawdź ręcznie
+                // na historiapojazdu.gov.pl", and the template renders the field into an href
+                // unguarded — a null here is a dead link under copy telling the user to click it.
+                .andExpect(jsonPath("$.cepikResult.lookupUrl").value(CepikResult.LOOKUP_URL))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         assertAnalysisSurvived(body);
@@ -299,10 +305,16 @@ class AnalysisSurvivesEnrichmentFailureTest {
         return new MarketPriceFetchService(builder, slugMapper);
     }
 
-    /** For the tests whose subject is elsewhere: a market range that simply is not available. */
+    /**
+     * For the tests whose subject is elsewhere: a market range that simply is not available.
+     *
+     * <p>{@code FETCH_FAILED} rather than {@code null} — no production path returns null here, and a
+     * stub that does lets an assertion downstream be satisfied by a value the system cannot produce.
+     */
     private static MarketPriceEnrichmentService stubbedMarketPrice() {
         var stub = mock(MarketPriceEnrichmentService.class);
-        when(stub.enrich(any())).thenReturn(null);
+        when(stub.enrich(any())).thenReturn(new MarketPriceContext(MarketPriceStatus.FETCH_FAILED,
+                null, null, null, null, null, Instant.now(), null, null));
         return stub;
     }
 

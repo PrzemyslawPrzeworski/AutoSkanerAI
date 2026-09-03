@@ -411,8 +411,10 @@ class OpenRouterAnalysisServiceTest {
      * moves on — it does not clamp the wait down and retry immediately, which is the 2026-08-26
      * regression.
      *
-     * <p>Budget 3 s against a capped 6 s wait ({@code Retry-After: 60} → {@code MAX_RETRY_WAIT}).
-     * Hand arithmetic: 6 s &gt; 3 s, so NEXT_MODEL.
+     * <p>Budget 3 s against the 60 s the provider asked for. Hand arithmetic: 60 s &gt; 3 s, so
+     * NEXT_MODEL. Note this case cannot tell whether the comparison used the requested wait or one
+     * capped to {@code MAX_RETRY_WAIT} — 6 s also exceeds 3 s. That distinction is
+     * {@link #retryAfterAboveTheCapButBelowTheBudget_stillMovesToTheNextModel}'s job.
      */
     @Test
     void retryAfterExceedingTheRemainingBudget_movesToTheNextModelWithoutWaiting() {
@@ -431,13 +433,45 @@ class OpenRouterAnalysisServiceTest {
     }
 
     /**
+     * The gap the old capped comparison could not see. {@code Retry-After: 20} against a 10 s budget:
+     * the provider asked for longer than we have, so the model is unusable now and the chain moves
+     * on without sleeping.
+     *
+     * <p>Compare the two readings of the fit rule. Against the requested wait, 20 s &gt; 10 s →
+     * NEXT_MODEL. Against a wait first capped to {@code MAX_RETRY_WAIT}, 6 s &lt; 10 s → RETRY, which
+     * blocks the request thread for 6 s and then re-hits the pool the provider just said is busy for
+     * twenty. Both assertions below separate them: the answering model, and the elapsed time.
+     *
+     * <p>Every other {@code Retry-After} case in this class sits either under the cap or under the
+     * budget, so this is the only one where the two rules disagree.
+     */
+    @Test
+    void retryAfterAboveTheCapButBelowTheBudget_stillMovesToTheNextModel() {
+        svc = buildWithRealParser(List.of(FALLBACK), 10);
+        mockServer.expect(requestTo(URL)).andRespond(rateLimited("20"));
+        mockServer.expect(requestTo(URL)).andRespond(withSuccess(OK_BODY, MediaType.APPLICATION_JSON));
+
+        long t0 = System.nanoTime();
+        var result = svc.analyze("listing text");
+        long elapsedMs = (System.nanoTime() - t0) / 1_000_000;
+
+        assertThat(result.meta().model())
+                .as("a wait the provider asked for and we cannot afford means next model")
+                .isEqualTo(FALLBACK);
+        assertThat(elapsedMs)
+                .as("no MAX_RETRY_WAIT sleep may be taken for a model we gave up on")
+                .isLessThan(900);
+        mockServer.verify();
+    }
+
+    /**
      * {@code Retry-After} as an HTTP-date, which a CDN or reverse proxy in front of the provider
      * emits routinely.
      *
-     * <p>Budget 3 s is the whole point: a date 60 s out caps to a 6 s wait, which does not fit, so
-     * the chain moves on. Read as {@code DEFAULT_RETRY_WAIT} instead, 1 s <em>would</em> fit and
-     * the primary would be retried — which is exactly what the assertion on the answering model
-     * catches. A generous budget cannot tell the two apart.
+     * <p>Budget 3 s is the whole point: a date 60 s out does not fit, so the chain moves on. Read as
+     * {@code DEFAULT_RETRY_WAIT} instead, 1 s <em>would</em> fit and the primary would be retried —
+     * which is exactly what the assertion on the answering model catches. A generous budget cannot
+     * tell the two apart.
      */
     @Test
     void retryAfterAsAnHttpDate_isParsedRatherThanFallingBackToOneSecond() {

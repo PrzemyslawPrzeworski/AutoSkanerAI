@@ -84,7 +84,11 @@ final class MarketPriceStatistics {
                 && banded.size() < MIN_SAMPLE_TO_KEEP;
 
         List<Integer> kept = bandCollapsed ? sorted : banded;
-        if (kept.size() >= MIN_SAMPLE_FOR_IQR) {
+        // Not `kept.size() >= MIN_SAMPLE_FOR_IQR` alone: on a collapsed band `kept` is the whole
+        // untrimmed sample, and fencing it would narrow the very range we just decided to report
+        // in full. Reporting a visibly wide range is the point of DISPERSED; letting the fence
+        // tighten it afterwards would put a confident-looking min/max under the honest label.
+        if (!bandCollapsed && kept.size() >= MIN_SAMPLE_FOR_IQR) {
             List<Integer> fenced = withoutIqrOutliers(kept);
             if (fenced.size() >= MIN_SAMPLE_TO_KEEP) {
                 kept = fenced;

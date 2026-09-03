@@ -6,6 +6,7 @@ import com.example.autoskaner_ai.analysis.llm.OpenRouterAnalysisService;
 import com.example.autoskaner_ai.cepik.CepikEnrichmentService;
 import com.example.autoskaner_ai.common.GlobalExceptionHandler;
 import com.example.autoskaner_ai.market.MarketPriceEnrichmentService;
+import com.example.autoskaner_ai.market.MarketPriceStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
@@ -20,6 +21,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -94,10 +96,16 @@ class LlmFailureReachesTheClientTest {
         var aiAnalysisService = new OpenRouterAnalysisService(prompt, parser, builder, MODEL,
                 List.of(FALLBACK), 70);
 
+        // Degraded records rather than null. Enrichment never runs in these cases — the LLM throws
+        // first — but a stub returning a value no production path can return is a standing invitation
+        // for a later assertion to be satisfied by something impossible.
         var marketPriceEnrichmentService = mock(MarketPriceEnrichmentService.class);
-        when(marketPriceEnrichmentService.enrich(any())).thenReturn(null);
+        when(marketPriceEnrichmentService.enrich(any())).thenReturn(
+                new MarketPriceContext(MarketPriceStatus.FETCH_FAILED,
+                        null, null, null, null, null, Instant.now(), null, null));
         var cepikEnrichmentService = mock(CepikEnrichmentService.class);
-        when(cepikEnrichmentService.enrich(any())).thenReturn(null);
+        when(cepikEnrichmentService.enrich(any())).thenReturn(
+                CepikResult.withoutData(CepikStatus.LOOKUP_FAILED, null, CepikResult.LOOKUP_URL));
 
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new AnalysisController(aiAnalysisService,

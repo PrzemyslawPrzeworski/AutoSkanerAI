@@ -29,7 +29,6 @@ import java.util.regex.Pattern;
 @Profile("!mock")
 public class RealCepikEnrichmentService implements CepikEnrichmentService {
 
-    private static final String LOOKUP_URL = "https://historiapojazdu.gov.pl";
     private static final Pattern PLATE_PATTERN = Pattern.compile("[A-Z]{2,3}[A-Z0-9]{4,5}");
 
     // ISO first so a well-formed value is not reinterpreted; the rest are the formats Polish
@@ -129,6 +128,6 @@ public class RealCepikEnrichmentService implements CepikEnrichmentService {
     // "we looked and there was nothing", which for damage records is exactly the
     // "unknown is not clean" confusion the product must never present.
     private CepikResult missingInputs(String vin) {
-        return CepikResult.withoutData(CepikStatus.MISSING_INPUTS, vin, LOOKUP_URL);
+        return CepikResult.withoutData(CepikStatus.MISSING_INPUTS, vin, CepikResult.LOOKUP_URL);
     }
 }

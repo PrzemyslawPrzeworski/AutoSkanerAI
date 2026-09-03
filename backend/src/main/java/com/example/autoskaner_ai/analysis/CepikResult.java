@@ -49,6 +49,15 @@ public record CepikResult(
 ) {
 
     /**
+     * Where a user goes to repeat the lookup by hand. Lives here, next to the field it fills,
+     * because it belongs to every result rather than to one of the classes that build them: it
+     * was copied into four of those and the fifth caller — the controller's degrade-on-throw
+     * guard — had no copy in reach and passed {@code null}, which the LOOKUP_FAILED card then
+     * rendered as {@code href="null"} under copy telling the user to go look it up themselves.
+     */
+    public static final String LOOKUP_URL = "https://historiapojazdu.gov.pl";
+
+    /**
      * A result carrying no registry data. Every list stays null rather than empty — see the
      * class comment.
      */

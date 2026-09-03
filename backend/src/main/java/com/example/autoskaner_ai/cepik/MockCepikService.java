@@ -15,6 +15,6 @@ public class MockCepikService implements CepikEnrichmentService {
     @Override
     public CepikResult enrich(ExtractedData extracted) {
         return CepikResult.withoutData(
-                CepikStatus.LOOKUP_FAILED, extracted.vin(), "https://historiapojazdu.gov.pl");
+                CepikStatus.LOOKUP_FAILED, extracted.vin(), CepikResult.LOOKUP_URL);
     }
 }

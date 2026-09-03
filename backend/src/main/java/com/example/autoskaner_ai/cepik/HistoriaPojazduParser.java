@@ -37,8 +37,6 @@ public class HistoriaPojazduParser {
 
     private static final Logger log = LoggerFactory.getLogger(HistoriaPojazduParser.class);
 
-    private static final String LOOKUP_URL = "https://historiapojazdu.gov.pl";
-
     /** Damage events are identified by type; the registry uses a kebab-case Polish vocabulary. */
     private static final String DAMAGE_EVENT_TYPE = "szkoda-istotna";
     private static final String INSPECTION_EVENT_PREFIX = "badanie-techniczne";
@@ -89,7 +87,7 @@ public class HistoriaPojazduParser {
         if (basic == null && timeline == null) {
             log.warn("historiapojazdu returned no readable technicalData.basicData and no timelineData"
                     + " — reporting LOOKUP_FAILED rather than an empty FOUND");
-            return CepikResult.withoutData(CepikStatus.LOOKUP_FAILED, vin, LOOKUP_URL);
+            return CepikResult.withoutData(CepikStatus.LOOKUP_FAILED, vin, CepikResult.LOOKUP_URL);
         }
 
         List<VehicleEvent> events = readEvents(timeline);
@@ -116,7 +114,7 @@ public class HistoriaPojazduParser {
                 asInteger(value(timeline, "totalOwners")),
                 mileageStamps,
                 damageRecords,
-                LOOKUP_URL,
+                CepikResult.LOOKUP_URL,
                 Instant.now(),
                 asString(value(basic, "make")),
                 asString(value(basic, "model")),

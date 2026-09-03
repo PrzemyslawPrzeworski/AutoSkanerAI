@@ -171,9 +171,12 @@ public class OpenRouterAnalysisService implements AiAnalysisService {
             throw failure;
         }
 
-        Duration wait = retryWait(failure);
-        log.warn("LLM call retry provider=openrouter model={} waitMs={} cause={}",
-                model, wait.toMillis(), failure.getMessage());
+        // The disposition above already established that the requested wait fits the budget; the cap
+        // is the separate question of how long we will block the request thread honouring it.
+        Duration requested = retryWait(failure);
+        Duration wait = atMostMaxWait(requested);
+        log.warn("LLM call retry provider=openrouter model={} waitMs={} requestedMs={} cause={}",
+                model, wait.toMillis(), requested.toMillis(), failure.getMessage());
         if (!sleepQuietly(wait)) {
             throw failure;
         }
@@ -309,6 +312,10 @@ public class OpenRouterAnalysisService implements AiAnalysisService {
      * it retried immediately into the same saturated pool. That is the 2026-08-26 regression, and
      * clamping is what reproduced it: OpenRouter answers a saturated free pool with
      * {@code Retry-After: 60} against a 70 s budget already partly spent.
+     *
+     * <p>The comparison is against the wait the provider <em>asked for</em>, not against a capped
+     * one — see {@link #retryWait}. Capping first made this branch reachable only under
+     * {@link #MAX_RETRY_WAIT} of remaining budget, which is not the rule.
      */
     private static Disposition dispositionOf(LlmCallException e, long deadlineAt) {
         Disposition base = dispositionOf(e);
@@ -326,11 +333,17 @@ public class OpenRouterAnalysisService implements AiAnalysisService {
     }
 
     /**
-     * The wait the provider asked for, bounded by {@link #MAX_RETRY_WAIT}.
+     * The wait the provider asked for, unmodified.
      *
-     * <p>Deliberately <em>not</em> clamped to the remaining budget. Whether the requested wait fits
-     * is a disposition question, answered by {@link #dispositionOf(LlmCallException, long)}; this
-     * method only reports what was asked, so the two decisions cannot be confused for one.
+     * <p>Clamped to nothing — not to the remaining budget, and <b>not to {@link #MAX_RETRY_WAIT}</b>.
+     * Whether the requested wait fits is a disposition question, answered by
+     * {@link #dispositionOf(LlmCallException, long)}; how long we are willing to block the request
+     * thread once we have decided to retry is a separate one, answered at the sleep site by
+     * {@link #atMostMaxWait}. Applying the cap here collapsed the two: the fit test then compared a
+     * value already floored at 6 s, so "the wait must fit before the deadline" silently degenerated
+     * into "fewer than 6 s remain" and a {@code Retry-After: 3600} was indistinguishable from a
+     * {@code Retry-After: 7}. A provider that says the pool is busy for a minute is telling us to go
+     * elsewhere, and that signal has to survive as far as the disposition.
      */
     private static Duration retryWait(LlmCallException failure) {
         Duration wait = DEFAULT_RETRY_WAIT;
@@ -342,7 +355,21 @@ public class OpenRouterAnalysisService implements AiAnalysisService {
                 wait = requested;
             }
         }
-        return wait.compareTo(MAX_RETRY_WAIT) > 0 ? MAX_RETRY_WAIT : wait;
+        return wait;
+    }
+
+    /**
+     * The cap, applied only once a retry has been decided on — the case the requested wait
+     * <em>did</em> fit the budget. This wait sits on the request thread, so honouring a provider's
+     * request in full is not on offer however well it fits.
+     *
+     * <p>The magnitude of the cap is deliberately unpinned by any test: observing it requires
+     * actually sleeping {@link #MAX_RETRY_WAIT} on a suite that otherwise runs in seconds. What is
+     * pinned is that a fitting wait is waited out at all ({@code Retry-After: 1}) and that a
+     * non-fitting one moves the chain on without sleeping.
+     */
+    private static Duration atMostMaxWait(Duration requested) {
+        return requested.compareTo(MAX_RETRY_WAIT) > 0 ? MAX_RETRY_WAIT : requested;
     }
 
     /**

@@ -223,6 +223,35 @@ class MarketPriceStatisticsTest {
     }
 
     @Test
+    void aCollapsedBandIsReportedInFullRatherThanHandedToTheIqrFence() {
+        // A collapsed band means "report it untrimmed and say so", and this pins that the fence does
+        // not then quietly trim it anyway. Reaching the branch takes a bimodal sample: the existing
+        // ten-price collapse case has quartiles four orders of magnitude apart, so its fence drops
+        // nothing and cannot tell the two behaviours apart.
+        //
+        // Hand arithmetic. Sorted, the middle two are 10 000 and 200 000, so the median is
+        // (10 000 + 200 000 + 1) / 2 = 105 000 and the band runs 35 000 to 315 000 — only 200 000 is
+        // inside it, one price, so the band collapsed. Tukey's hinges on the whole sample:
+        // q1 = (1 000 + 10 000 + 1) / 2 = 5 500, q3 = (400 000 + 500 000 + 1) / 2 = 450 000, so
+        // iqr = 444 500 and the upper fence sits at 450 000 + 1.5 x 444 500 = 1 116 750. The
+        // 5 000 000 is above it, so an unguarded fence would drop that one price and report a
+        // maximum of 500 000 under the DISPERSED label.
+        var stats = MarketPriceStatistics.of(List.of(
+                1_000, 1_000, 1_000, 10_000, 200_000, 400_000, 500_000, 5_000_000));
+
+        assertThat(stats.quality()).isEqualTo(MarketPriceSampleQuality.DISPERSED);
+        assertThat(stats.sampleSize())
+                .as("a collapsed band keeps every price, so the fence must not run")
+                .isEqualTo(8);
+        assertThat(stats.discardedCount()).isZero();
+        assertThat(stats.minPln()).isEqualTo(1_000);
+        assertThat(stats.maxPln())
+                .as("the widest price survives, because a wide range is the finding here")
+                .isEqualTo(5_000_000);
+        assertThat(stats.medianPln()).isEqualTo(105_000);
+    }
+
+    @Test
     void aSampleTooSmallToTrimIsThinRatherThanDispersed() {
         // The collapse check is gated on the input size, and this is what the gate is for. One price
         // does not disagree with itself, and no band can leave three out of two — without the gate

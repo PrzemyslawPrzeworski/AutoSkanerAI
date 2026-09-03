@@ -924,7 +924,7 @@ data, nothing to migrate.
 #### Manual
 
 - [x] 6.8 The captured fixture carries nothing identifying and its README states provenance — 5de1ce9
-- [x] 6.9 A live production analysis still deserialises in the deployed frontend — 5de1ce9
+- [ ] 6.9 A live production analysis still deserialises in the deployed frontend — blocked on `git push`: production runs pre-Phase-6 code, so nothing live carries `sampleQuality` or `discardedCount` yet (impl-review F3)
 - [x] 6.10 The quality thresholds read sensibly against the real captured sample — 5de1ce9
 
 ### Phase 7: Backport to the test plan

@@ -81,7 +81,10 @@ public class AnalysisController {
 
         var cepikResult = degradeOnThrow("cepik",
                 () -> cepikEnrichmentService.enrich(extracted),
-                () -> CepikResult.withoutData(CepikStatus.LOOKUP_FAILED, extracted.vin(), null));
+                // The lookup URL travels even on the degraded path: this is exactly the case where
+                // the UI tells the user to check the registry by hand, so the link has to work.
+                () -> CepikResult.withoutData(CepikStatus.LOOKUP_FAILED, extracted.vin(),
+                        CepikResult.LOOKUP_URL));
         var marketPriceContext = degradeOnThrow("market-price",
                 () -> marketPriceEnrichmentService.enrich(extracted),
                 () -> new MarketPriceContext(MarketPriceStatus.FETCH_FAILED,

@@ -125,11 +125,18 @@ and were left open rather than pinned:
   does not feed the score, and there is no backend counterpart. Per
   `CLAUDE.md`, if it ever moves into scoring, delete the TypeScript copy
   rather than keeping two.
-- `market-price-panel.component` has **no spec**, and Phase 2 changed what it
-  renders: the `sampleSize < 3` caveat was replaced by three blocks driven by
-  the server's `sampleQuality` and `discardedCount`. No Node exists on the
-  machine Phase 2 ran on, so that template edit is reviewed and unverified — a
-  broken caveat would ship silently.
+- **BLOCKING for Phase 3.** `market-price-panel.component` has **no spec**, and
+  Phase 2 changed what it renders: the `sampleSize < 3` caveat was replaced by
+  three blocks driven by the server's `sampleQuality` and `discardedCount`. No
+  Node exists on the machine Phase 2 ran on, so that template edit is reviewed
+  and unverified — a broken caveat would ship silently. This is the one carried
+  item Phase 3 may not defer again: Phase 2 crossed its own "no frontend change"
+  guardrail to make it, on the reasoning that a server field with no reader is
+  the failure Phase 6 had just caught in Phase 3. That reasoning only holds if
+  the reader is eventually verified. Phase 3 must add a spec covering all four
+  arms — `DISPERSED`, `THIN`, `SUFFICIENT`, and a null quality — plus the
+  `discardedCount` block, before it does anything else on this list
+  (impl-review F4).
 - `CepikRiskAdjuster.capRisk` (`CepikRiskAdjuster.java:134`) returns early when
   `risk <= cap` and skips the `overall` recomputation, so a model returning
   `risk: 3, overall: 97` for a car with a registered szkoda istotna keeps both
@@ -146,10 +153,12 @@ and were left open rather than pinned:
   (100 chars), so a URL is the unbounded path into the prompt while pasted text
   is capped at 20 000. Cost and latency scale with whatever the reader returns.
 - The 30 s NFR (`prd.md:98`) is asserted by `RequestTimeoutBudgetTest` and
-  enforced by nothing: the configured socket timeouts still sum to **≈341 s**
-  worst case. Phase 3 cannot fix that with a test — it needs the deferred async
-  work (impl-review F10) — but the number belongs on this list so the next
-  rollout phase does not read the green assertion as protection.
+  enforced by nothing: the configured socket timeouts still sum to **295 s**
+  worst case (`RequestTimeoutBudgetTest.java:180`, which is the source of this
+  figure — read it rather than trusting this line). Phase 3 cannot fix that with
+  a test — it needs the deferred async work (impl-review F10) — but the number
+  belongs on this list so the next rollout phase does not read the green
+  assertion as protection.
 
 Browser-level e2e is deliberately not in this rollout: every risk above is
 reachable at unit, integration, or component level, and an e2e layer over a
@@ -343,7 +352,7 @@ Known gaps, left open on purpose. Each would have been *pinned* by a test assert
 - `verdict.label` — the model-authored headline, rendered as the result's first line — is never validated against `verdict.code`, so it can read reassuringly next to a floored verdict.
 - The accident-claim phrase list is not negation-aware. `"nie jest bezwypadkowy"` — an *honest* seller — still false-positives into `CEPIK_CONTRADICTS_LISTING` and `HIGH_RISK_SKIP`.
 - `ListingFetchService` bounds only a *minimum* body length (100 chars), so a URL remains the unbounded path into the prompt while pasted text is capped at 20 000.
-- The 30 s NFR is **asserted, not enforced**. The ≈341 s worst case is still reachable; this phase made it visible and regression-guarded, not impossible. Enforcement is impl-review F10's deferred async work.
+- The 30 s NFR is **asserted, not enforced**. The 295 s worst case is still reachable; this phase made it visible and regression-guarded, not impossible. Enforcement is impl-review F10's deferred async work. (The figure was written here as ≈341 s, which was the pre-Phase-2 sum: Phase 2's own removal of the retry clamp took the LLM stage from 156 s to 110 s, and the Phase 7 backport instruction had been drafted before that landed. `RequestTimeoutBudgetTest.java:180` is the number's only source of truth.)
 
 ## 7. What We Deliberately Don't Test
 

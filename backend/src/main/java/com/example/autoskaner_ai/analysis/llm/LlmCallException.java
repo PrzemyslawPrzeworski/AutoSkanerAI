@@ -14,8 +14,13 @@ public class LlmCallException extends RuntimeException {
     /** What the caller should be told, and roughly what they can do about it. */
     public enum Reason {
         /**
-         * The provider rejected our credentials (401/403). Every model rejects the same key, so
-         * retrying and walking the fallback chain both only add latency before the same error.
+         * The provider refused to serve us at all — 401, 403, or <b>402</b>. Every model refuses the
+         * same account, so retrying and walking the fallback chain both only add latency before the
+         * same error.
+         *
+         * <p>402 (out of credits) shares the routing because it shares that property, but not the
+         * remedy: the operator has to top the account up, not rotate the key. The 502 says
+         * "odrzuciła dane dostępowe" for all three, so read the logged status before acting on it.
          */
         REJECTED_CREDENTIALS,
         /**
