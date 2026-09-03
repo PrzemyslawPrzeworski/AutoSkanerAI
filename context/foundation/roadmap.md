@@ -36,7 +36,7 @@ AutoSkanerAI compresses used-car listing evaluation from tens of minutes to a fe
 | S-02 | manual-field-entry        | fill in key fields manually → receive full AI analysis       | S-01             | FR-003                                            | shipped  |
 | S-03 | save-view-delete-analyses | save an analysis, view saved list, delete entries            | S-01, F-02, F-03 | FR-010, FR-011, FR-012                            | proposed |
 | S-04 | cepik-vin-lookup          | see live CEPiK vehicle history alongside analysis            | S-01             | FR-017                                            | done     |
-| S-05 | market-price-context      | see comparable market price range alongside analysis         | S-01             | FR-018                                            | shipped  |
+| S-05 | market-price-context      | see comparable market price range alongside analysis         | S-01             | FR-018                                            | done     |
 
 Remaining must-have scope is the chain **F-02 → F-03 → S-03**. Everything else above is merged to `main` and verified against production.
 
@@ -180,14 +180,14 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **PRD refs:** FR-018
 - **Prerequisites:** S-01 (extraction must be working; make/model/year/mileage fields feed the query)
 - **Parallel with:** S-02, S-04, F-02, F-03
-- **Blockers:** none — reuses the existing Jina Reader infrastructure from FR-001; no new API key required. (An earlier draft assumed the Exa search API and an `EXA_API_KEY`; research rejected that in favour of Jina on Otomoto — see `context/changes/market-price-context/research.md`.)
+- **Blockers:** none — reuses the existing Jina Reader infrastructure from FR-001; no new API key required. (An earlier draft assumed the Exa search API and an `EXA_API_KEY`; research rejected that in favour of Jina on Otomoto — see `context/archive/2026-06-02-market-price-context/research.md`.)
 - **Unknowns:** resolved during research — Otomoto slug mapping, the `### <price>\nPLN` markdown price format, and min/median/max computation are all settled in the plan.
 - **Risk:** extraction is regex-based against Otomoto's Jina-rendered markdown. A change in Otomoto's price formatting silently breaks the range and yields `INSUFFICIENT_DATA`; the small-sample caveat (`sampleSize < 3`) must stay visible in the UI so a thin result is never read as a confident range. Verified live 2026-08-26: `status=OK` with `sampleSize=40`, so `PRICE_PATTERN` does match current Otomoto markdown, and the median tracks reality (68 900 against a 72 900 listing).
 - **Both carried-forward defects fixed 2026-08-26 (`MarketPriceStatistics`, 12 new unit tests):**
   - **`min`/`max` were contaminated.** A live run returned `min=39900` against `median=82900`, an earlier one `min=22900` for 2017–2021 Corollas. Now trimmed in two passes: a ±3× median band for order-of-magnitude junk (financing instalments render in the same `### <n>\nPLN` block and clear the `1_000..10_000_000` guard), then Tukey's 1.5×IQR fence on samples of 8+ for salvage/wrong-trim listings. `sampleSize` counts the kept prices so the small-sample caveat stays honest; the discarded count is logged.
   - **`median = prices.get(prices.size() / 2)`** is now a real median, averaged over both middle elements on an even sample.
   - Still worth knowing: the trim is statistical, not semantic. It cannot tell a legitimately cheap high-mileage example from a salvage title — it only says "this is not what the rest of this market asks".
-- **Status:** shipped (closed out `51db3fb` 2026-08-25; verified live 2026-08-26)
+- **Status:** done (closed out `51db3fb` 2026-08-25; verified live 2026-08-26)
 
 ---
 
@@ -231,3 +231,4 @@ The PRD shipped with 0 open questions (quality check: accepted 2026-05-24), and 
 ## Done
 
 - **S-04: see live CEPiK vehicle history alongside analysis** — Archived 2026-09-03 → `context/archive/2026-06-02-cepik-vin-lookup/`. Lesson: —.
+- **S-05: see comparable market price range alongside analysis** — Archived 2026-09-03 → `context/archive/2026-06-02-market-price-context/`. Lesson: —.
