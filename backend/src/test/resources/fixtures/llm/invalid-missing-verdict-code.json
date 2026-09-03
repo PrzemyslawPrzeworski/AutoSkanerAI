@@ -1,0 +1,40 @@
+{
+  "extracted": {
+    "make": "BMW",
+    "model": "3 Series",
+    "year": 2018,
+    "priceAmount": 75000.0,
+    "priceCurrency": "PLN",
+    "mileageKm": 120000,
+    "fuel": "benzyna",
+    "transmission": "automatyczna",
+    "originCountry": null,
+    "sellerType": "prywatny",
+    "serviceHistoryMentioned": true,
+    "accidentClaim": "bezwypadkowy wg sprzedającego",
+    "vinPresent": true,
+    "vin": "WBAAM31060GE12345",
+    "registrationPlate": null,
+    "firstRegistrationDate": "2018-03-15"
+  },
+  "equipment": [
+    { "name": "klimatyzacja", "status": "CONFIRMED", "note": null }
+  ],
+  "riskFlags": [
+    { "code": "HIGH_MILEAGE", "severity": "MEDIUM", "description": "Przebieg 120 000 km powyżej średniej dla rocznika" }
+  ],
+  "sellerQuestions": [
+    "Czy pojazd był serwisowany w ASO?"
+  ],
+  "scores": {
+    "completeness": 75,
+    "equipment": 60,
+    "risk": 65,
+    "value": 55,
+    "overall": 64
+  },
+  "verdict": {
+    "code": null,
+    "label": "sprawdź po doprecyzowaniu"
+  }
+}

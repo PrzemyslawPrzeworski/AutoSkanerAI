@@ -1,0 +1,34 @@
+{
+  "extracted": {
+    "make": null,
+    "model": null,
+    "year": null,
+    "priceAmount": null,
+    "priceCurrency": null,
+    "mileageKm": null,
+    "fuel": null,
+    "transmission": null,
+    "originCountry": null,
+    "sellerType": null,
+    "serviceHistoryMentioned": null,
+    "accidentClaim": null,
+    "vinPresent": null,
+    "vin": null,
+    "registrationPlate": null,
+    "firstRegistrationDate": null
+  },
+  "equipment": [],
+  "riskFlags": [],
+  "sellerQuestions": [],
+  "scores": {
+    "completeness": null,
+    "equipment": null,
+    "risk": null,
+    "value": null,
+    "overall": null
+  },
+  "verdict": {
+    "code": null,
+    "label": null
+  }
+}

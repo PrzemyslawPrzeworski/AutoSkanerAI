@@ -39,10 +39,36 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(LlmCallException.class)
     public ResponseEntity<ErrorResponse> handleLlmCall(LlmCallException ex) {
-        log.warn("LLM call failed", ex);
+        log.warn("LLM call failed reason={}", ex.reason(), ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body(ErrorResponse.of(502, "Błąd usługi LLM",
-                        List.of("Wystąpił błąd usługi LLM. Spróbuj ponownie.")));
+                .body(ErrorResponse.of(502, errorFor(ex.reason()), List.of(adviceFor(ex.reason()))));
+    }
+
+    /**
+     * The {@code error} headline per cause. Three distinct strings inside the locked four-field
+     * envelope — a rejected key, an unusable provider response and an exhausted fallback chain are
+     * three different situations for the user and used to render as one.
+     */
+    private static String errorFor(LlmCallException.Reason reason) {
+        return switch (reason) {
+            case REJECTED_CREDENTIALS -> "Usługa LLM odrzuciła dane dostępowe";
+            case UNUSABLE_PROVIDER_RESPONSE -> "Usługa LLM zwróciła nieczytelną odpowiedź";
+            case ALL_CANDIDATES_EXHAUSTED -> "Wszystkie modele LLM są niedostępne";
+            case UNCLASSIFIED -> "Błąd usługi LLM";
+        };
+    }
+
+    /** What the user can actually do — different per cause, because retrying only helps for two. */
+    private static String adviceFor(LlmCallException.Reason reason) {
+        return switch (reason) {
+            case REJECTED_CREDENTIALS -> "Klucz dostępowy usługi LLM został odrzucony. "
+                    + "Ponowna próba nie pomoże — powiadom administratora aplikacji.";
+            case UNUSABLE_PROVIDER_RESPONSE -> "Model odpowiedział, ale jego odpowiedź nie zawierała "
+                    + "analizy. Spróbuj ponownie za chwilę.";
+            case ALL_CANDIDATES_EXHAUSTED -> "Żaden z dostępnych modeli nie odpowiedział — "
+                    + "prawdopodobnie są chwilowo przeciążone. Spróbuj ponownie za kilka minut.";
+            case UNCLASSIFIED -> "Wystąpił błąd usługi LLM. Spróbuj ponownie.";
+        };
     }
 
     @ExceptionHandler(LlmResponseSchemaException.class)

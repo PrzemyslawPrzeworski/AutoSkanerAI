@@ -61,6 +61,41 @@ public class AnalysisResponseParser {
         if (dto.sellerQuestions() == null) throw new LlmResponseSchemaException("Pole wymagane", "sellerQuestions");
         if (dto.scores() == null) throw new LlmResponseSchemaException("Pole wymagane", "scores");
         if (dto.verdict() == null) throw new LlmResponseSchemaException("Pole wymagane", "verdict");
+        validateSpine(dto);
+    }
+
+    /**
+     * The minimal spine: the fields without which a 200 cannot mean anything.
+     *
+     * <p>The six checks above only assert that the six <em>containers</em> arrived. A provider can
+     * answer 200 with every one of them present and every leaf inside them null, and that used to
+     * parse — producing an analysis with no car, no verdict and, because {@code ScoresDto} held
+     * primitive {@code int}, five scores silently coerced from absent to {@code 0}. A 502 naming
+     * the missing field is honest; a 200 carrying nothing is not.
+     *
+     * <p>Everything outside this list stays nullable on purpose: a free-tier model that omits the
+     * VIN, the origin country or a price must still produce a usable analysis.
+     *
+     * <p>Oracle: the locked output schema — {@code CLAUDE.md} § "Manual entry and user overrides"
+     * and {@code context/changes/llm-analysis-wiring/plan.md} § "Locked output schema". Not this
+     * class, and not what the current implementation happens to accept.
+     */
+    private void validateSpine(ResponseDto dto) {
+        ScoresDto s = dto.scores();
+        requirePresent(s.completeness(), "scores.completeness");
+        requirePresent(s.equipment(), "scores.equipment");
+        requirePresent(s.risk(), "scores.risk");
+        requirePresent(s.value(), "scores.value");
+        requirePresent(s.overall(), "scores.overall");
+        requirePresent(dto.verdict().code(), "verdict.code");
+        requirePresent(dto.extracted().make(), "extracted.make");
+        requirePresent(dto.extracted().model(), "extracted.model");
+    }
+
+    private void requirePresent(Object value, String field) {
+        if (value == null) {
+            throw new LlmResponseSchemaException("Pole wymagane", field);
+        }
     }
 
     private void validateScores(ScoresDto s) {
@@ -93,7 +128,10 @@ public class AnalysisResponseParser {
             EquipmentStatus status;
             try {
                 status = EquipmentStatus.valueOf(e.status());
-            } catch (IllegalArgumentException ex) {
+            // NullPointerException too: Enum.valueOf(null) throws NPE, not IllegalArgumentException,
+            // so a model that emitted "status": null escaped this catch entirely and surfaced as a
+            // generic 500 "Błąd serwera" instead of the honest schema 502.
+            } catch (IllegalArgumentException | NullPointerException ex) {
                 throw new LlmResponseSchemaException("Nieprawidłowy status wyposażenia: " + e.status(), "equipment[].status");
             }
             return new EquipmentItem(e.name(), status, e.note());
@@ -105,7 +143,7 @@ public class AnalysisResponseParser {
             RiskSeverity severity;
             try {
                 severity = RiskSeverity.valueOf(f.severity());
-            } catch (IllegalArgumentException ex) {
+            } catch (IllegalArgumentException | NullPointerException ex) {
                 throw new LlmResponseSchemaException("Nieprawidłowa wartość severity: " + f.severity(), "riskFlags[].severity");
             }
             return new RiskFlag(f.code(), severity, f.description());
@@ -120,7 +158,7 @@ public class AnalysisResponseParser {
         VerdictCode code;
         try {
             code = VerdictCode.valueOf(v.code());
-        } catch (IllegalArgumentException ex) {
+        } catch (IllegalArgumentException | NullPointerException ex) {
             throw new LlmResponseSchemaException("Nieprawidłowy kod verdyktu: " + v.code(), "verdict.code");
         }
         return new Verdict(code, v.label());
@@ -154,8 +192,14 @@ public class AnalysisResponseParser {
     @JsonIgnoreProperties(ignoreUnknown = true)
     record RiskFlagDto(String code, String severity, String description) {}
 
+    /**
+     * Boxed on purpose. With primitive {@code int} an absent score deserialises to {@code 0}, so a
+     * model that simply forgot {@code risk} produced a confident-looking number nobody generated.
+     * {@code Integer} makes absence representable, and {@link #validateSpine} rejects it.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record ScoresDto(int completeness, int equipment, int risk, int value, int overall) {}
+    record ScoresDto(Integer completeness, Integer equipment, Integer risk, Integer value,
+                     Integer overall) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record VerdictDto(String code, String label) {}

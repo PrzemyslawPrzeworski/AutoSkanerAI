@@ -135,7 +135,8 @@ public class OpenRouterAnalysisService implements AiAnalysisService {
 
         if (usedModel == null) {
             log.error("LLM call failed provider=openrouter models={} — all candidates exhausted", models);
-            throw new LlmCallException("OpenRouter exhausted all candidate models: " + models, lastFailure);
+            throw new LlmCallException("OpenRouter exhausted all candidate models: " + models,
+                    lastFailure, LlmCallException.Reason.ALL_CANDIDATES_EXHAUSTED);
         }
 
         long latencyMs = (System.nanoTime() - t0) / 1_000_000;
@@ -189,27 +190,68 @@ public class OpenRouterAnalysisService implements AiAnalysisService {
                     .body(Map.class);
 
             if (response == null) {
-                throw new LlmCallException("OpenRouter returned null response",
-                        new ResponseShapeException("null body"));
+                throw shapeFailure("null body");
             }
             return response;
         } catch (LlmCallException e) {
             throw e;
         } catch (RestClientException e) {
             // Includes HttpStatusCodeException; dispositionOf reads the status off the cause.
-            throw new LlmCallException("OpenRouter HTTP error model=" + model, e);
+            throw new LlmCallException("OpenRouter HTTP error model=" + model, e, reasonOf(e));
         }
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * Walks {@code choices[0].message.content} defensively, because every step of that walk is a
+     * shape a provider can get wrong while still answering 200.
+     *
+     * <p>The previous version cast blindly. A null {@code message} NPE'd, a non-String
+     * {@code content} threw {@code ClassCastException}, and a null {@code content} was returned as
+     * null and NPE'd later inside the parser. None of those three is an
+     * {@code IllegalArgumentException}, so none reached a handler that knew what had happened —
+     * each surfaced as the catch-all 500 "Błąd serwera" for what is plainly a bad provider response.
+     * All of them are now {@link ResponseShapeException}, which {@link #dispositionOf} already
+     * classifies FATAL, so the fallback walk is unchanged.
+     */
     private String extractContent(Map<?, ?> response) {
-        List<Map<?, ?>> choices = (List<Map<?, ?>>) response.get("choices");
-        if (choices == null || choices.isEmpty()) {
-            throw new LlmCallException("OpenRouter returned empty choices",
-                    new ResponseShapeException("empty choices"));
+        if (!(response.get("choices") instanceof List<?> choices) || choices.isEmpty()) {
+            throw shapeFailure("empty choices");
         }
-        Map<?, ?> message = (Map<?, ?>) choices.get(0).get("message");
-        return (String) message.get("content");
+        if (!(choices.get(0) instanceof Map<?, ?> choice)) {
+            throw shapeFailure("choices[0] is not an object");
+        }
+        if (!(choice.get("message") instanceof Map<?, ?> message)) {
+            throw shapeFailure("choices[0].message is absent or not an object");
+        }
+        if (!(message.get("content") instanceof String content)) {
+            throw shapeFailure("choices[0].message.content is absent or not a string");
+        }
+        if (content.isBlank()) {
+            throw shapeFailure("choices[0].message.content is blank");
+        }
+        return content;
+    }
+
+    /** A 200 whose JSON cannot yield an analysis. Fatal, and named as such for the user. */
+    private static LlmCallException shapeFailure(String detail) {
+        return new LlmCallException("OpenRouter returned an unusable response: " + detail,
+                new ResponseShapeException(detail),
+                LlmCallException.Reason.UNUSABLE_PROVIDER_RESPONSE);
+    }
+
+    /**
+     * 401/403. Single source for both the FATAL disposition and the user-facing cause, so the two
+     * cannot drift apart when the list changes.
+     */
+    private static boolean isRejectedCredentials(HttpStatusCode status) {
+        return status.value() == 401 || status.value() == 403;
+    }
+
+    private static LlmCallException.Reason reasonOf(RestClientException e) {
+        if (e instanceof HttpStatusCodeException http && isRejectedCredentials(http.getStatusCode())) {
+            return LlmCallException.Reason.REJECTED_CREDENTIALS;
+        }
+        return LlmCallException.Reason.UNCLASSIFIED;
     }
 
     private static Disposition dispositionOf(LlmCallException e) {
@@ -223,7 +265,7 @@ public class OpenRouterAnalysisService implements AiAnalysisService {
             if (status.value() == 429 || status.is5xxServerError()) {
                 return Disposition.RETRY;
             }
-            if (status.value() == 401 || status.value() == 403) {
+            if (isRejectedCredentials(status)) {
                 // A rejected key rejects every model — fail loudly instead of masking it.
                 return Disposition.FATAL;
             }
