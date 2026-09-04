@@ -28,6 +28,7 @@
     "@angular/cli": "^21.2.12",
     "@angular/compiler-cli": "^21.2.0",
     "@playwright/test": "^1.62.1",
+    "dependency-cruiser": "^18.2.0",
     "jsdom": "^29.1.1",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2",
