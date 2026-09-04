@@ -131,6 +131,46 @@ cd frontend && npm run build             # production build → dist/
 cd frontend && npm test -- --watch=false # unit tests (vitest via @angular/build:unit-test)
 ```
 
+## Local quality gates
+
+Three automated layers, each catching what the one below cannot. There is no CI
+yet and `main` auto-deploys to both hosts, so **pre-push is the last gate before
+production**, not a pre-filter in front of CI.
+
+| Layer | Trigger | Does |
+|---|---|---|
+| per-edit | `PostToolUse` on `Write`/`Edit` — `.claude/hooks/post-edit-check.{sh,mjs}` | `prettier --write` the edited `frontend/src` file, then the whole frontend suite for `.ts` / `.html` (6.9 s) |
+| pre-commit | `.githooks/pre-commit` | `prettier --check` staged frontend sources, frontend suite, backend suite when Java or `pom.xml` is staged |
+| pre-push | `.githooks/pre-push` | backend + frontend suites over the whole tree; for `main` also the production build |
+
+**A fresh clone needs `git config core.hooksPath .githooks`** — the hooks are
+versioned but git does not pick them up on its own.
+
+- **Not Lefthook**, despite what the lesson block below names. Lefthook needs a
+  root `package.json`, and Cloudflare Pages builds this repo from a
+  subdirectory on every push to `main`; a new root manifest is an unverifiable
+  risk to a live deploy path for a benefit that is ten lines of shell here.
+- **Every layer fails loudly when its own toolchain is missing.** The hook these
+  replaced had a trigger, a matcher and a handler but its signal was hard-wired
+  to success — `catch → process.exit(0)` inside `2>/dev/null || true`. It was
+  dead from May to September because `node` was not on PATH, and nothing said
+  so; the symptom finally surfaced as `prettier --check` reporting 23 of 23
+  files unformatted. `post-edit-check.sh` exists for exactly one reason: node
+  runs the checker, so node cannot report its own absence.
+- **Per-edit runs the whole frontend suite, not the matching spec.** Measured:
+  `ng test --include <component>.ts` costs 5.9 s against 6.4 s for all 39 tests,
+  because the price is the Angular bundle build, not the test count. Scoping
+  buys half a second and gives up cross-component breaks. `npx vitest related`
+  is not an option at all — plain Vitest has no Angular transform, so it
+  collects the specs and dies at `describe(...)`, which is the same obstacle
+  that blocks Stryker.
+- Backend edits are **not** gated per-edit; `./mvnw -o test` is ~15 s, a
+  commit-time cost. It runs offline for speed, so a newly added dependency can
+  fail pre-commit on its own — the hook says so when it fails.
+
+See `context/foundation/test-plan.md` §5.1 for the timings and how each path was
+verified.
+
 ## Architecture decisions
 
 - Frontend and backend are separate apps communicating via REST. Configure CORS on the Spring side or proxy `/api` in `angular.json` for dev.

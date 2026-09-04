@@ -220,11 +220,50 @@ The full set of gates that must pass before a change reaches production.
 "Required for §3 Phase N" means the gate is enforced once that rollout phase
 lands; before that, the gate is `planned`.
 
+### 5.1 How "local" is enforced (since 2026-09-04)
+
+"Local" used to mean "somebody remembers to run it". It is now three automated
+layers, each catching what the one below cannot:
+
+| Layer | Trigger | Scope | Cost | Runs |
+|---|---|---|---|---|
+| per-edit | Claude Code `PostToolUse` on `Write`/`Edit` (`.claude/hooks/post-edit-check.*`) | the edited file, if under `frontend/src` | 1.2 s (`.scss`) / 6.9 s (`.ts`, `.html`) | `prettier --write`, then the whole frontend suite for `.ts` / `.html` |
+| pre-commit | `git commit` (`.githooks/pre-commit`) | staged paths only | 0.6 s when nothing matches, 9.2 s frontend, ~22 s backend | `prettier --check` on staged frontend sources; frontend suite; backend suite when Java or `pom.xml` is staged |
+| pre-push | `git push` (`.githooks/pre-push`) | the whole tree, staged scope ignored | 32 s to `main` | backend suite, frontend suite, and — only for `main` — the production build |
+
+Three things about this worth keeping straight:
+
+- **Fresh clones need one command**: `git config core.hooksPath .githooks`. It is
+  not `lefthook.yml` deliberately — Lefthook needs a root `package.json`, and
+  Cloudflare Pages builds this repo from a subdirectory on every push to `main`,
+  so a new root manifest is an unverifiable risk to a live deploy path.
+- **pre-push is the last gate, not a pre-filter.** Normally pre-push sits in
+  front of CI. Here there is no CI yet and `main` auto-deploys to Render and
+  Cloudflare, so it stands where CI would. That is why it ignores staged scope
+  and why the production build runs there: a template type error passes both
+  suites and fails only in the AOT build that Cloudflare runs.
+- **A gate that cannot report is worse than no gate**, because it reads as
+  coverage. The hook this replaced had a trigger, a matcher and a handler but
+  its signal was hard-wired to success (`catch → exit 0`, wrapped in
+  `2>/dev/null || true`). It was dead from May to September — `node` was not on
+  PATH — and the only symptom was `prettier --check` eventually reporting 23 of
+  23 files unformatted. Every layer here therefore fails loudly when its own
+  toolchain is missing, rather than skipping.
+
+Each path was verified by watching it block, not by reading the code: the
+per-edit layer against a broken caveat string, the pre-commit prettier arm
+against an unformatted staged file, the backend arm and the whole
+`core.hooksPath` chain against a throwaway failing test that `git commit`
+refused.
+
+### 5.2 The gates
+
 | Gate | Where | Required? | Catches |
 |---|---|---|---|
-| compile + typecheck | local, CI after §3 Phase 4 | required after §3 Phase 4 | type and syntax drift; stale specs that no longer compile |
-| backend unit + integration | local now, CI after §3 Phase 4 | required after §3 Phase 1 | logic regressions across analysis, cepik, and market |
-| frontend unit + component | local now, CI after §3 Phase 4 | required after §3 Phase 3 | guardrail copy regressions and state collapse in the rendered result |
+| frontend formatting | local (per-edit `--write`, pre-commit `--check`) | required now | diff noise that hides real changes in review. `frontend/.prettierrc` shipped with the scaffold and went unenforced until 2026-09-04, by which point every file in `src` violated it |
+| compile + typecheck | local (per-edit and pre-push, via the Angular build), CI after §3 Phase 4 | required after §3 Phase 4 | type and syntax drift; stale specs that no longer compile |
+| backend unit + integration | local (pre-commit when staged, pre-push always), CI after §3 Phase 4 | required after §3 Phase 1 | logic regressions across analysis, cepik, and market |
+| frontend unit + component | local (per-edit, pre-commit, pre-push), CI after §3 Phase 4 | required after §3 Phase 3 | guardrail copy regressions and state collapse in the rendered result |
 | live integration | local, plus the existing scheduled workflow | never a PR gate | real breakage in the provider, the registry, or the reader edge — kept out of the gate because a third-party outage must not block a merge |
 | pre-prod smoke | between merge and production | optional after §3 Phase 4 | environment-specific failures: profile selection, missing environment variables, CORS |
 
@@ -392,7 +431,8 @@ contributors should respect these unless the underlying assumption changes.
 
 ## 8. Freshness Ledger
 
-- Strategy (§1–§5) last reviewed: 2026-09-04 (§3's one BLOCKING carried item closed — `market-price-panel.component` now has a spec, verified by reverting the Phase 2 bug rather than by reading green; §4 backend row corrected to separate the 29 files on disk from the 25 classes that run, frontend row promoted from documentation to a verified figure, PIT row added). Previously reviewed 2026-09-03 (§2 Risk #5's Source figures replaced with the ones `roadmap.md:187` actually records — the min/median pairing previously cited there appears in no artifact and had been carried for two rollout phases; §3 Phase 2 flipped to `complete`, its carried-forward item closed, six new items carried into Phase 3; §4 counts and grounding-tool lines corrected — rollout Phase 2)
+- Local enforcement last verified: 2026-09-04 (§5.1 added — the three local layers now exist and every one of them was watched blocking a real failure, including a `git commit` that `core.hooksPath` refused. Two measurements drove the layering and are worth not re-deriving: scoping the frontend run to one spec saves 0.5 s of 6.4 s because the cost is the Angular bundle build, not the test count, and `npx vitest related` cannot run these specs at all without the Angular builder's transform — the same obstacle that blocks Stryker)
+- Strategy (§1–§5) last reviewed: 2026-09-04 (§5 split into 5.1 local enforcement and 5.2 the gates, with a formatting row added; §3's one BLOCKING carried item closed — `market-price-panel.component` now has a spec, verified by reverting the Phase 2 bug rather than by reading green; §4 backend row corrected to separate the 29 files on disk from the 25 classes that run, frontend row promoted from documentation to a verified figure, PIT row added). Previously reviewed 2026-09-03 (§2 Risk #5's Source figures replaced with the ones `roadmap.md:187` actually records — the min/median pairing previously cited there appears in no artifact and had been carried for two rollout phases; §3 Phase 2 flipped to `complete`, its carried-forward item closed, six new items carried into Phase 3; §4 counts and grounding-tool lines corrected — rollout Phase 2)
 - Stack versions last verified: 2026-09-04 (both suites re-run: backend 25 classes / 229 tests in 14.7 s, frontend 4 spec files / 39 tests in 2.30 s; `spring-test` 7.0.7 unchanged; PIT row added at 1.29.10). **The frontend row is now a verified figure, not documentation.** The 2026-09-03 entry read "unrunnable on the current machine — no Node or npm"; that diagnosis was wrong in its cause. Node v22.22.1 / npm 10.9.4 were installed but ACL-locked by an elevated `nvm install`, so every shell reported the binary as missing rather than as forbidden. A toolchain that reads as absent may only be unreadable — check permissions before re-recording a row as unverifiable
 - AI-native tool references last verified: 2026-09-03 (Context7 and Exa are available and were exercised; neither is *in* the stack — they ground it. See §4)
 
