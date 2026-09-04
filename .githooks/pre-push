@@ -28,7 +28,7 @@ fi
 step "backend suite (229 tests, ~15 s; live-llm excluded)"
 run_backend_tests
 
-step "frontend suite (39 tests, ~6 s)"
+step "frontend suite (41 tests, ~6 s)"
 run_frontend_tests
 
 # Only for main, because the production bundle is the artefact Cloudflare actually builds. A broken
