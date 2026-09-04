@@ -242,13 +242,25 @@ real defects, neither of which becomes an e2e test:
   number while every other row draws a filled bar with a percentage. A user
   cannot tell "scored 0" from "not scored", which is the project's first business
   rule (absence of data must never read as a value) arriving from the opposite
-  direction. The app already has the idiom it should be using — `—` in the
-  extracted-data table, `Niesprecyzowane` chips in the equipment panel. **The
-  accessibility tree shows this too** (`progressbar` with no value child, and no
-  `aria-valuenow` for a screen reader), so it is a Phase 3 component test on
-  `analysis-result.component`, not an e2e spec — and the missing ARIA value is
-  the first thing to put a real accessibility risk in §2, which §4 currently
-  records as having none.
+  direction. **Fixed the same day** (`showValue` off, number rendered outside the
+  bar) and pinned by two tests in `analysis-result.component.spec.ts` — a
+  component test, not an e2e spec, since nothing about it needs two servers.
+  Two things this cost that are worth not re-deriving:
+  - **A `textContent` assertion would have passed on the broken code.** PrimeNG
+    still *renders* the label div and merely sets `display: none`, so "0%" was in
+    the DOM the whole time, invisible. The passing-on-a-bug draft was anti-pattern
+    #1 in its purest form; the test asserts on the element that carries the
+    visible number instead. Nor could CSS have fixed the defect: the label is
+    nested inside a fill that is `width: 0%` at a score of 0, so it has nowhere to
+    draw even when displayed.
+  - **An earlier note here claimed the progressbar exposed no `aria-valuenow`.
+    That was wrong** — PrimeNG binds it on the host regardless of the label it
+    hides, so a screen reader was already announcing the 0 that a sighted user
+    could not see, and the defect was visual only. The claim came from reading a
+    Playwright accessibility snapshot, which shows the label text node but not
+    host ARIA attributes; **an a11y snapshot is not an ARIA audit.** A test now
+    pins the attribute so the correction stays true. §4's "accessibility: not
+    scheduled" row therefore stands — this produced no accessibility risk.
 - **A chip wrap breaks the equipment grid's baseline rhythm.** In the three-column
   Wyposażenie grid, `poduszki powietrzne` is long enough to push its
   `Niesprecyzowane` chip onto a second line, dropping its caption below the
@@ -285,7 +297,7 @@ The classic test base for this project. AI-native tools (if any) carry a
 - Runtime/browser: **Playwright CLI and Playwright MCP — both installed and exercised.** CLI: `npx playwright test`, Chromium 151.0.7922.34. MCP: `@playwright/mcp` 0.0.80, registered project-locally as `npx @playwright/mcp@latest --caps=vision`. The accessibility tree is what the locators in `frontend/e2e/` were written from, rather than templates or screenshots; checked: 2026-09-04. Three things learned by running both, none of which changes the one-spec budget:
   - **The CLI stays the default transport.** Both read the same accessibility tree, so they produce the same locators — driving the analysis flow through MCP emitted `getByRole('textbox', { name: 'lub wklej treść ogłoszenia' })` and `getByRole('button', { name: 'Analizuj' })` unprompted. MCP costs roughly 4× the tokens per scenario for that same output. It earns its cost only when the app has to be *explored* interactively; a spec that is already written is cheaper to run headless.
   - **MCP-generated code still needs the §1 review pass.** Asked to screenshot a container element, the server emitted `page.getByText('Oceny kategoriiKompletność71%')` — a concatenated-text-content locator that breaks when any score in the panel changes. The tool that naturally produces good locators for *named* elements produces a brittle one for an unnamed wrapper, so "the MCP wrote it" is not evidence a locator is sound.
-  - **Vision (`--caps=vision`) is a discovery tool, not a regression layer, and so adds no spec here.** It found two real UI defects (recorded at the end of §3). One is also reachable from the accessibility tree and therefore belongs in a Phase 3 component test, which is cheaper and deterministic. The other is invisible to the tree — but pixel regression belongs in a deterministic differ (`toMatchSnapshot`, Argos, Lost Pixel), not in a VLM assertion whose verdict is not reproducible.
+  - **Vision (`--caps=vision`) is a discovery tool, not a regression layer, and so adds no spec here.** It found two real UI defects (recorded at the end of §3). One was fixed and pinned by two component tests, which are cheaper and more deterministic than any browser-level assertion of it would have been. The other is invisible to the accessibility tree — but pixel regression belongs in a deterministic differ (`toMatchSnapshot`, Argos, Lost Pixel), not in a VLM assertion whose verdict is not reproducible.
 - Provider/platform: none — no GitHub, Render, Cloudflare, or Supabase MCP; deploy and log inspection run through REST with keys from the environment, so CI gate wiring in Phase 4 must be authored against the platform docs rather than probed; checked: 2026-08-27
 
 ## 5. Quality Gates
@@ -510,7 +522,7 @@ contributors should respect these unless the underlying assumption changes.
 - Stack versions last verified: 2026-09-04 (both suites re-run: backend 25 classes / 229 tests in 14.7 s, frontend 4 spec files / 39 tests in 2.30 s; `spring-test` 7.0.7 unchanged; PIT row added at 1.29.10). **The frontend row is now a verified figure, not documentation.** The 2026-09-03 entry read "unrunnable on the current machine — no Node or npm"; that diagnosis was wrong in its cause. Node v22.22.1 / npm 10.9.4 were installed but ACL-locked by an elevated `nvm install`, so every shell reported the binary as missing rather than as forbidden. A toolchain that reads as absent may only be unreadable — check permissions before re-recording a row as unverifiable
 - AI-native tool references last verified: 2026-09-04 (Playwright CLI **and** Playwright MCP both installed and exercised, replacing the "runtime/browser: none" line that had stood since 2026-08-27; the "MCP still unavailable" note recorded earlier the same day is superseded. Context7 and Exa re-confirmed available and exercised; neither is *in* the stack — they ground it. See §4). Two install facts worth not re-deriving: `claude mcp list` reported the new server as `Failed to connect — timed out after 30000ms` on first run, which was the cold `npx` package download exceeding the handshake budget and not a bad config — warming the cache once (`npx -y @playwright/mcp@latest --help`) turned it green with no config change, so **suspect the download before editing the registration**. And the MCP server writes snapshots, console logs, and screenshots to the cwd it was launched from, which here is the repo root; `.playwright-mcp/` is gitignored for that reason
 - e2e scope last decided: 2026-09-04 — **one spec, deviating from the flat "no e2e" of 2026-08-27.** The deviation is recorded at the end of §3 with the evidence, and §4's e2e row now names a tool instead of "none". Two things worth not re-deriving. The mock profile is only *partly* a stable oracle: `MockMarketPriceEnrichmentService` ignores its input entirely (always 45000/55000/70000, sample 12), but `MockAiAnalysisService` is content-sensitive — the same listing scored `overall: 41` and `35` on a one-word edit — so scores and verdict must not be asserted at this layer, which is what makes the market-price panel the right target. And `CLAUDE.md`'s "dev server on :8080" is stale: the backend default is `${PORT:10000}`, which is also what `proxy.conf.json` targets and what the Playwright readiness probe hits (`/actuator/health`; a probe GET on the POST-only `/api/analyses` answers 500, which Playwright reads as "never became ready")
-- Browser transports and vision last compared: 2026-09-04 — **CLI stays the default, vision adds no spec.** Both transports read the same accessibility tree and produce the same role-based locators, so MCP's ~4× token cost buys interactive exploration, not better tests. MCP-generated code is not exempt from review: asked for a container screenshot it emitted `getByText('Oceny kategoriiKompletność71%')`, a concatenated-text locator that breaks on any score change. The vision pass found two real UI defects (end of §3) and neither becomes an e2e test — one is visible in the tree and belongs in a component test, the other needs pixels but wants a deterministic differ rather than a VLM verdict
+- Browser transports and vision last compared: 2026-09-04 — **CLI stays the default, vision adds no spec.** Both transports read the same accessibility tree and produce the same role-based locators, so MCP's ~4× token cost buys interactive exploration, not better tests. MCP-generated code is not exempt from review: asked for a container screenshot it emitted `getByText('Oceny kategoriiKompletność71%')`, a concatenated-text locator that breaks on any score change. The vision pass found two real UI defects (end of §3) and neither became an e2e test — one was fixed and pinned by component tests, the other needs pixels but wants a deterministic differ rather than a VLM verdict. One correction is recorded there rather than quietly dropped: the claim that the score bars exposed no `aria-valuenow` was wrong, and it was wrong because a Playwright accessibility snapshot shows label text nodes but not host ARIA attributes — **an a11y snapshot is not an ARIA audit**
 
 Refresh (`/10x-test-plan --refresh`) when:
 

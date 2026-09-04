@@ -74,6 +74,15 @@
   flex: 1;
 }
 
+.score-value {
+  width: 2.75rem;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 0.875rem;
+  // Tabular figures so the column does not shift between "0%" and "100%".
+  font-variant-numeric: tabular-nums;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
