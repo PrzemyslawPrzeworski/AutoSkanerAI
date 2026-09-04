@@ -122,14 +122,19 @@ context/    10xDevs chain artifacts (PRD, tech-stack, shape-notes) — do not ed
 
 ```bash
 # Backend
-cd backend && ./mvnw spring-boot:run     # dev server on :8080
+cd backend && ./mvnw spring-boot:run     # dev server on :10000 (server.port=${PORT:10000})
 cd backend && ./mvnw test                # unit tests
 
 # Frontend
 cd frontend && npm start                 # dev server on :4200
 cd frontend && npm run build             # production build → dist/
 cd frontend && npm test -- --watch=false # unit tests (vitest via @angular/build:unit-test)
+cd frontend && npm run test:e2e          # e2e (starts both servers itself; see below)
 ```
+
+The backend port is **10000**, not 8080 — `proxy.conf.json` targets 10000, and so
+does the Playwright readiness probe. `/actuator/health` answers 200; a GET on the
+POST-only `/api/analyses` answers 500, so do not use it as a probe.
 
 ## Local quality gates
 
@@ -222,10 +227,37 @@ A real analysis takes ~27 s end to end (~16 s LLM + a Jina fetch for the market 
 
 Frontend builds need Node ≥ v20.19 / v22.12 (Angular 21 requirement); `node`/`npm` are not on PATH by default in this environment.
 
-Frontend tests run on **vitest through `@angular/build:unit-test`** (`test` target in `angular.json`, jsdom — no browser needed). 26 tests in 3 spec files, ~2 s. Two things to know:
+Frontend tests run on **vitest through `@angular/build:unit-test`** (`test` target in `angular.json`, jsdom — no browser needed). 39 tests in 4 spec files, ~2.5 s. Two things to know:
 
 - **No `fakeAsync` / `tick`.** The app has no zone.js at all (Angular 21 is zoneless by default), so `fakeAsync` throws "zone-testing.js is needed". Adding zone.js only for tests would make tests run under different change-detection semantics than production. Every service call in the specs is a synchronous `of(...)`, so awaiting nothing is correct — if a spec ever needs real async, use `await fixture.whenStable()`.
 - **Vitest matchers, not jasmine.** `vi.fn()`, `mockReturnValue`, `toBe(true)` — `toBeTrue()` does not exist and fails to compile, which is how the stale specs were caught.
+
+## E2E: one spec, on purpose
+
+`frontend/e2e/` holds **one** risk spec plus a seed exemplar, and `test-plan.md` §3
+records why the layer is that small: every risk in the map is cheaper to reach at
+unit, integration, or component level. The one thing no other layer reaches is the
+**frontend/backend contract** — `shared/models/analysis.models.ts` is a hand-written
+mirror of the Java records, the backend suite asserts its own JSON, the frontend
+suite asserts against hand-written doubles, so a field rename ships green with the
+panel rendering nothing. That already nearly happened with `sampleQuality`.
+
+- `market-price-contract.spec.ts` compares the DOM against **the same response's own
+  JSON**, not against the mock's constants — otherwise it would be a test of
+  `MockMarketPriceEnrichmentService`, which `test-plan.md` §7 excludes.
+- **Don't assert scores or verdict here.** `MockMarketPriceEnrichmentService` ignores
+  its input (always 45000/55000/70000, sample 12), but `MockAiAnalysisService` is
+  content-sensitive — one word of listing text moved `overall` from 41 to 35.
+- Mocking is **server-side**, via `SPRING_PROFILES_ACTIVE=mock`. It has to be: the
+  backend calls the LLM, Jina, and the registry itself, so `page.route()` never sees
+  them. Everything the contract risk lives on — HTTP, Jackson, Angular DI, templates
+  — stays real.
+- **Not wired into any gate.** Two servers plus a browser is the wrong per-edit cost;
+  it belongs in CI (§3 Phase 4). Run it by hand when touching the contract.
+- Before adding a spec here, read `frontend/e2e/E2E-RULES.md` — the cost × signal
+  budget is binding, and "e2e feels safer" is not a reason.
+- The Playwright `webServer` command needs `.\mvnw.cmd` on Windows and `./mvnw`
+  elsewhere; `cmd.exe` rejects both `./mvnw` and a bare `mvnw.cmd`.
 
 ## Deployment
 

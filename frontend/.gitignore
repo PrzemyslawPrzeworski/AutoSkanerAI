@@ -39,6 +39,12 @@ testem.log
 /typings
 __screenshots__/
 
+# Playwright output — traces, screenshots and the HTML report are per-run artifacts
+/test-results
+/playwright-report
+/blob-report
+/.playwright
+
 # System files
 .DS_Store
 Thumbs.db

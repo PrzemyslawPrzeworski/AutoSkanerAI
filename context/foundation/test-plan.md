@@ -185,11 +185,50 @@ and were left open rather than pinned:
   belongs on this list so the next rollout phase does not read the green
   assertion as protection.
 
-Browser-level e2e is deliberately not in this rollout: every risk above is
-reachable at unit, integration, or component level, and an e2e layer over a
-single-page flow would duplicate Phase 3 at a much higher cost. Revisit when
-a risk surfaces that genuinely requires the deployed shape — auth plus token
-storage plus a guarded route, once F-03 lands.
+Browser-level e2e is deliberately near-empty in this rollout: every risk above
+is reachable at unit, integration, or component level, and an e2e layer over a
+single-page flow would duplicate Phase 3 at a much higher cost. That still
+holds for the risk map — but it turned out to be the wrong answer for exactly
+one risk the map does not carry, so **e2e is now one spec rather than none**
+(deviation recorded 2026-09-04, superseding the flat "not in this rollout"
+that stood here from 2026-08-27).
+
+The exception is the **frontend/backend contract**, and it is an exception on
+this plan's own evidence, not on preference:
+`frontend/src/app/shared/models/analysis.models.ts` is a hand-written mirror of
+the backend's Java records. The backend suite asserts its own JSON; the
+frontend suite asserts against hand-written doubles. So **no other layer in
+this repo ever puts real backend JSON in front of the real component** — the
+gap is structural, not a coverage hole a Phase 3 component test could close by
+being more thorough. §6.7 records the near-miss it already produced, where
+`sampleQuality` shipped server-side and "the server field would have been read
+by nothing", and `MarketPriceContext`'s own javadoc warns that renaming a field
+is unsafe precisely because the frontend binds by name. One input into the
+original decision also changed: a Playwright **CLI** path exists where §4 had
+recorded only the absent MCP server.
+
+Scope is one spec, and the budget is meant to stay there:
+`frontend/e2e/market-price-contract.spec.ts` drives a real browser against the
+`mock`-profile backend and asserts the market-price panel renders the server's
+own `minPricePln` / `medianPricePln` / `maxPricePln` / `sampleSize` /
+`queryUrl`, comparing the DOM against the values in that same response rather
+than against the mock's constants. `frontend/e2e/E2E-RULES.md` makes the
+cost × signal rule binding for anything added later: a new spec belongs there
+only if it too catches a contract break both other suites are structurally
+blind to. Not wired into any gate (§5.1) — two servers plus a browser is the
+wrong cost per edit; it belongs in the Phase 4 CI job.
+
+Break-verified on 2026-09-04, per §1's fourth rule. Two deliberate breaks in
+`MarketPriceContext`, each reverted immediately: renaming `medianPricePln` in
+the emitted JSON made the panel render "Mediana — PLN" with the value gone and
+failed the spec, and dropping `sampleQuality` from the JSON failed the
+presence assertion. The second break is why that assertion is `toBeTruthy()`
+and not `not.toBeNull()`: an absent field arrives as `undefined`, which passes
+`not.toBeNull()`, so the first draft would have gone green on the exact
+regression §6.7 describes.
+
+Still unscheduled, for the reason originally given: the deployed shape — auth
+plus token storage plus a guarded route — once F-03 lands.
 
 ## 4. Stack
 
@@ -204,14 +243,14 @@ The classic test base for this project. AI-native tools (if any) carry a
 | HTTP mocking (backend) | `MockRestServiceServer` (`spring-test`) | 7.0.7 | `MockRestServiceServer.bindTo(RestClient.Builder)`, then `server.verify()`. Used by `ListingFetchServiceTest`, `OpenRouterAnalysisServiceTest`, `MarketPriceFetchServiceTest`, since rollout Phase 1 also `CepikDamageReachesTheResponseTest` and `HistoriaPojazduSessionTest`, and since Phase 2 `LlmFailureReachesTheClientTest` and `AnalysisSurvivesEnrichmentFailureTest`. See §6.2 |
 | HTTP mocking (frontend) | `provideHttpClientTesting` + `vi.fn()` service doubles | Angular 21.2 | Already used by the existing specs |
 | live integration | JUnit tag `live-llm` + `live-tests` profile | — | Asserts real outcomes only. A proxy 403 on the reader host fails the market-price live test on purpose, so a blocked path stays visible instead of silently green |
-| e2e | none — deliberately unscheduled | — | See the note at the end of §3 |
+| e2e (contract only) | Playwright (`@playwright/test`) + Chromium | 1.62.1 | **One spec**, by design — `frontend/e2e/market-price-contract.spec.ts`, ~2 s, plus `seed.spec.ts` as the exemplar generated specs are modelled on. Config starts both servers itself (backend `mock` profile on 10000, dev server on 4200) and reuses either if already up. Off every local gate (§5.1): two servers plus a browser is the wrong per-edit cost. Rules and the budget that keeps this row at one spec: `frontend/e2e/E2E-RULES.md`. Scope, evidence, and break-verification: end of §3 |
 | accessibility | none — not scheduled | — | No risk in §2 depends on it; revisit if one surfaces |
 | CI | GitHub Actions, one live workflow only | — | No unit or integration gate on PR or push; see §3 Phase 4 |
 
 **Stack grounding tools:**
 - Docs: **Context7 MCP — available**, exercised during rollout Phase 2's research. It grounds framework behaviour, not versions: the versions in the table above still come from the local manifests, the Angular workspace config, and `CLAUDE.md`, which are the authority for what this repo actually resolves; checked: 2026-09-03
 - Search: **Exa MCP — available**, and it produced rollout Phase 2's one genuinely external oracle: OpenRouter's published status semantics (408 is a timeout and therefore transient; 402 is insufficient credits and therefore fatal for every model, not permanent for one). That is what the 408/402 routing tests assert against, rather than against the classification tree they were written to correct; checked: 2026-09-03
-- Runtime/browser: none — Playwright MCP not available in current session, which is one input into leaving e2e unscheduled; checked: 2026-08-27
+- Runtime/browser: **Playwright CLI — installed and exercised** (`npx playwright test`, Chromium 151.0.7922.34). Playwright **MCP** is still not available, and its absence was one input into the original "no e2e" decision; the CLI removes that input, at roughly a quarter of the MCP token cost per scenario. The accessibility tree (`ariaSnapshot()`) is what the locators in `frontend/e2e/` were written from, rather than templates or screenshots; checked: 2026-09-04
 - Provider/platform: none — no GitHub, Render, Cloudflare, or Supabase MCP; deploy and log inspection run through REST with keys from the environment, so CI gate wiring in Phase 4 must be authored against the platform docs rather than probed; checked: 2026-08-27
 
 ## 5. Quality Gates
@@ -434,7 +473,8 @@ contributors should respect these unless the underlying assumption changes.
 - Local enforcement last verified: 2026-09-04 (§5.1 added — the three local layers now exist and every one of them was watched blocking a real failure, including a `git commit` that `core.hooksPath` refused. Two measurements drove the layering and are worth not re-deriving: scoping the frontend run to one spec saves 0.5 s of 6.4 s because the cost is the Angular bundle build, not the test count, and `npx vitest related` cannot run these specs at all without the Angular builder's transform — the same obstacle that blocks Stryker)
 - Strategy (§1–§5) last reviewed: 2026-09-04 (§5 split into 5.1 local enforcement and 5.2 the gates, with a formatting row added; §3's one BLOCKING carried item closed — `market-price-panel.component` now has a spec, verified by reverting the Phase 2 bug rather than by reading green; §4 backend row corrected to separate the 29 files on disk from the 25 classes that run, frontend row promoted from documentation to a verified figure, PIT row added). Previously reviewed 2026-09-03 (§2 Risk #5's Source figures replaced with the ones `roadmap.md:187` actually records — the min/median pairing previously cited there appears in no artifact and had been carried for two rollout phases; §3 Phase 2 flipped to `complete`, its carried-forward item closed, six new items carried into Phase 3; §4 counts and grounding-tool lines corrected — rollout Phase 2)
 - Stack versions last verified: 2026-09-04 (both suites re-run: backend 25 classes / 229 tests in 14.7 s, frontend 4 spec files / 39 tests in 2.30 s; `spring-test` 7.0.7 unchanged; PIT row added at 1.29.10). **The frontend row is now a verified figure, not documentation.** The 2026-09-03 entry read "unrunnable on the current machine — no Node or npm"; that diagnosis was wrong in its cause. Node v22.22.1 / npm 10.9.4 were installed but ACL-locked by an elevated `nvm install`, so every shell reported the binary as missing rather than as forbidden. A toolchain that reads as absent may only be unreadable — check permissions before re-recording a row as unverifiable
-- AI-native tool references last verified: 2026-09-03 (Context7 and Exa are available and were exercised; neither is *in* the stack — they ground it. See §4)
+- AI-native tool references last verified: 2026-09-04 (Playwright CLI installed and exercised, replacing the "runtime/browser: none" line that had stood since 2026-08-27; Playwright MCP still unavailable. Context7 and Exa re-confirmed available and exercised; neither is *in* the stack — they ground it. See §4)
+- e2e scope last decided: 2026-09-04 — **one spec, deviating from the flat "no e2e" of 2026-08-27.** The deviation is recorded at the end of §3 with the evidence, and §4's e2e row now names a tool instead of "none". Two things worth not re-deriving. The mock profile is only *partly* a stable oracle: `MockMarketPriceEnrichmentService` ignores its input entirely (always 45000/55000/70000, sample 12), but `MockAiAnalysisService` is content-sensitive — the same listing scored `overall: 41` and `35` on a one-word edit — so scores and verdict must not be asserted at this layer, which is what makes the market-price panel the right target. And `CLAUDE.md`'s "dev server on :8080" is stale: the backend default is `${PORT:10000}`, which is also what `proxy.conf.json` targets and what the Playwright readiness probe hits (`/actuator/health`; a probe GET on the POST-only `/api/analyses` answers 500, which Playwright reads as "never became ready")
 
 Refresh (`/10x-test-plan --refresh`) when:
 
