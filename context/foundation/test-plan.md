@@ -163,6 +163,17 @@ and were left open rather than pinned:
   match and not negation-aware, so an honest `"nie jest bezwypadkowy"`
   false-positives into `CEPIK_CONTRADICTS_LISTING` and `HIGH_RISK_SKIP` — the app
   calls a truthful seller a liar.
+- **Mutation testing covers the JVM side only.** PIT is wired and has run
+  against `MarketPriceStatistics`; the frontend's 4 spec files / 39 tests have
+  never been mutation-tested. Stryker is the tool for that stack, and the newest
+  spec (`market-price-panel.component.spec.ts`) is exactly the shape mutation
+  testing interrogates — several of its assertions are `toEqual([])`, which pass
+  both when no caveat rendered and when the `.caveat` selector matched nothing.
+  A manual revert-check stood in for it once and did find a weak assertion, but
+  that does not scale past one deliberate break. Known obstacle before anyone
+  starts: this project runs Vitest through `@angular/build:unit-test`, not a
+  plain `vitest.config.ts`, so Stryker's `vitest-runner` may have no config to
+  drive. Deferred, not excluded — cost is unknown until someone tries.
 - `ListingFetchService.java:134` bounds only a *minimum* fetched-body length
   (100 chars), so a URL is the unbounded path into the prompt while pasted text
   is capped at 20 000. Cost and latency scale with whatever the reader returns.
