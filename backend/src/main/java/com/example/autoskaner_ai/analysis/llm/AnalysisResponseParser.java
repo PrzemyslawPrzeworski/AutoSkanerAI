@@ -80,7 +80,7 @@ public class AnalysisResponseParser {
      * <p>Everything outside this list stays nullable on purpose: a free-tier model that omits the
      * VIN, the origin country or a price must still produce a usable analysis.
      *
-     * <p>Oracle: the locked output schema — {@code CLAUDE.md} § "Manual entry and user overrides"
+     * <p>Oracle: the locked output schema — {@code CLAUDE.md} § "AI service pattern"
      * and {@code context/changes/llm-analysis-wiring/plan.md} § "Locked output schema". Not this
      * class, and not what the current implementation happens to accept.
      */
@@ -149,8 +149,8 @@ public class AnalysisResponseParser {
      * model MUST emit {@code NO_ACCIDENT_DECLARATION}, and {@code :92-103} demonstrates it. Nothing
      * checked. A prompt is a request — a listing that talks the model out of the flag (or a free-tier
      * model that just drops it under length pressure) turned an <em>unknown</em> accident history into
-     * a <em>silent</em> one, which is the single inversion {@code CLAUDE.md} § "Key business rules"
-     * forbids: absence of accident data means unknown, never clean.
+     * a <em>silent</em> one, which is the single inversion the root {@code CLAUDE.md} § "Key business
+     * rules" forbids: absence of accident data means unknown, never clean.
      *
      * <p>Deliberately here rather than in {@code CepikRiskAdjuster}: the adjuster only acts on a
      * {@code FOUND} registry result, and {@code CLAUDE.md} § "Enrichment services" records that

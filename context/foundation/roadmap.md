@@ -168,7 +168,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
   - Enrichment is still synchronous inside `AnalysisController.buildResponse()` — up to 3 historiapojazdu calls plus the S-05 Jina fetch on one request thread, ~27 s end to end. Async handling remains deferred (impl-review F10).
   - `HistoriaPojazduServiceLiveTest` still only asserts `NOT_FOUND`. A `FOUND` assertion needs a real plate+VIN+date triple, which cannot be committed to a public repo, so the branch that broke stays unguarded by a live test.
   - The registry-vs-listing mileage cross-check lives only in the frontend component and does not feed the score.
-- **Lesson:** a green test suite over fabricated fixtures is worse than no test, because it converts "unverified" into "verified" on the status board. The same shape as the live-test rule already in `CLAUDE.md` — a test that tolerates the failure mode it exists to catch is decoration.
+- **Lesson:** a green test suite over fabricated fixtures is worse than no test, because it converts "unverified" into "verified" on the status board. The same shape as the live-test rule already in `backend/CLAUDE.md` — a test that tolerates the failure mode it exists to catch is decoration.
 - **Status:** done (closed out `d5e0fed` 2026-08-25; `FOUND` path first verified against the live registry 2026-08-26; parser fix `8870d35`, UI fixes `48b32dc`, scoring fix `5b7a3b3`)
 
 ---
