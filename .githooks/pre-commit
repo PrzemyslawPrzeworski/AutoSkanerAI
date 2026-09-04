@@ -35,7 +35,7 @@ if [ -n "$FRONTEND_SOURCES" ]; then
 fi
 
 if [ -n "$BACKEND_SOURCES" ]; then
-  step "backend suite (229 tests, ~15 s; live-llm excluded)"
+  step "backend suite (235 tests, ~15 s; live-llm excluded)"
   run_backend_tests
 fi
 

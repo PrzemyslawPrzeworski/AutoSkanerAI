@@ -1,10 +1,14 @@
 package com.example.autoskaner_ai.analysis;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Folds registry findings into the risk score and verdict.
@@ -22,6 +26,8 @@ import java.util.Locale;
 @Component
 public class CepikRiskAdjuster {
 
+    private static final Logger log = LoggerFactory.getLogger(CepikRiskAdjuster.class);
+
     // Ceilings, not settings. Each is the highest risk score a listing may still hold once the
     // registry has reported the corresponding fact.
     private static final int CAP_VEHICLE_LOST = 5;
@@ -36,6 +42,30 @@ public class CepikRiskAdjuster {
      */
     private static final List<String> ACCIDENT_FREE_CLAIMS =
             List.of("bezwypadkow", "bezszkodow", "nie uczestniczy", "brak szkód", "brak szkod");
+
+    /**
+     * The phrases above whose meaning a preceding negation inverts. {@code "nie uczestniczy"} is
+     * absent on purpose — its own "nie" is part of the claim, so stripping a leading negation from
+     * it would delete the finding rather than correct it. {@code "brak szkód"} is absent because
+     * negating a noun phrase that way ("nie brak szkód") is not Polish anyone writes.
+     */
+    private static final Set<String> NEGATABLE_CLAIMS = Set.of("bezwypadkow", "bezszkodow");
+
+    /**
+     * A negation attached to the phrase that follows it: a "nie" separated from it by nothing, or by
+     * a copula or hedge that carries the negation forward ("nie jest", "nie do końca").
+     *
+     * <p>Anchored at the end on purpose, and matched only against the text <em>preceding</em> one
+     * occurrence. A check that merely asked whether "nie" appeared anywhere in the claim would be a
+     * bypass the seller can type — the advert is their text, so "nie mam nic do ukrycia, auto
+     * bezwypadkowe" would clear the contradiction. Unaccented spellings are accepted alongside the
+     * accented ones because the claim reaches us as free text.
+     */
+    private static final Pattern NEGATION_ATTACHED_TO_PHRASE = Pattern.compile(
+            "\\bnie(?:\\s+(?:jest|s[ąa]|by[łl][aoy]?|do\\s+ko[ńn]ca|ca[łl]kiem|w\\s+pe[łl]ni))*\\s+$");
+
+    /** {@code accidentClaim} is unbounded free text; a log line is not. */
+    private static final int LOGGED_CLAIM_LIMIT = 160;
 
     public AnalysisResult apply(AnalysisResult result, CepikResult cepik) {
         // Only a FOUND result carries registry facts. For every other status the lists are null by
@@ -121,12 +151,58 @@ public class CepikRiskAdjuster {
         return text.toString();
     }
 
+    /**
+     * Whether the listing asserts the vehicle has never been damaged.
+     *
+     * <p>Substring matching alone read a denial as the claim: {@code "nie jest bezwypadkowy"} — a
+     * seller disclosing the damage — contains {@code "bezwypadkow"}, so the honest listing earned
+     * {@code CEPIK_CONTRADICTS_LISTING} and a forced walk-away while saying nothing at all earned
+     * only {@code NEEDS_MORE_INFO}. So each occurrence is now checked against the text attached to
+     * it, and one un-negated assertion anywhere is still an assertion.
+     */
     private static boolean claimsAccidentFree(ExtractedData extracted) {
         if (extracted == null || extracted.accidentClaim() == null) {
             return false;
         }
         String claim = extracted.accidentClaim().toLowerCase(Locale.forLanguageTag("pl"));
-        return ACCIDENT_FREE_CLAIMS.stream().anyMatch(claim::contains);
+        boolean denied = false;
+        for (String phrase : ACCIDENT_FREE_CLAIMS) {
+            for (int at = claim.indexOf(phrase); at >= 0;
+                    at = claim.indexOf(phrase, at + phrase.length())) {
+                if (isDenied(claim, phrase, at)) {
+                    denied = true;
+                } else {
+                    return true;
+                }
+            }
+        }
+        if (denied) {
+            // Logged, and logged at INFO, because this is the branch that used to accuse an honest
+            // seller of lying and left no record of having done so. A judgement this consequential
+            // being unobservable is what let the defect sit in a test-file comment instead of a
+            // bug report.
+            log.info("Accident-free wording present but denied, so no contradiction is raised: {}",
+                    forLog(claim));
+        }
+        return false;
+    }
+
+    /** Whether the occurrence of {@code phrase} at {@code at} is negated by the text before it. */
+    private static boolean isDenied(String claim, String phrase, int at) {
+        return NEGATABLE_CLAIMS.contains(phrase)
+                && NEGATION_ATTACHED_TO_PHRASE.matcher(claim.substring(0, at)).find();
+    }
+
+    /**
+     * The advert is seller-supplied, so anything from it reaches the log as a payload rather than as
+     * data. Control characters go first — a newline inside a log line is a forged log line — and the
+     * length is bounded so one advert cannot flood the log it is evidence in.
+     */
+    private static String forLog(String claim) {
+        String flattened = claim.replaceAll("\\p{Cntrl}", " ");
+        return flattened.length() <= LOGGED_CLAIM_LIMIT
+                ? flattened
+                : flattened.substring(0, LOGGED_CLAIM_LIMIT) + "…";
     }
 
     /** Caps risk and recomputes overall the same way the scorers do — as the mean of the four. */

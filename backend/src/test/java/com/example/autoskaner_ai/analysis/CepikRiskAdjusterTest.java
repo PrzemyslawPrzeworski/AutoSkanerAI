@@ -1,6 +1,12 @@
 package com.example.autoskaner_ai.analysis;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -18,6 +24,33 @@ class CepikRiskAdjusterTest {
     private final CepikRiskAdjuster adjuster = new CepikRiskAdjuster();
 
     private static final String VIN = "NMTBZ3BE40R000000";
+
+    private ListAppender<ILoggingEvent> logs;
+
+    @BeforeEach
+    void captureLogs() {
+        logs = new ListAppender<>();
+        logs.start();
+        adjusterLogger().addAppender(logs);
+    }
+
+    @AfterEach
+    void releaseLogs() {
+        adjusterLogger().detachAppender(logs);
+        logs.stop();
+    }
+
+    private static ch.qos.logback.classic.Logger adjusterLogger() {
+        return (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(CepikRiskAdjuster.class);
+    }
+
+    /** Formatted, not raw: the placeholder is where an advert would smuggle a forged line in. */
+    private List<String> infoLogs() {
+        return logs.list.stream()
+                .filter(event -> event.getLevel() == Level.INFO)
+                .map(ILoggingEvent::getFormattedMessage)
+                .toList();
+    }
 
     private static AnalysisResult analysis(int risk, VerdictCode verdict, String accidentClaim) {
         return analysis(risk, overallFor(risk), verdict, accidentClaim);
@@ -380,5 +413,127 @@ class CepikRiskAdjusterTest {
         assertThat(result.riskFlags()).extracting(RiskFlag::code)
                 .doesNotContain("CEPIK_CONTRADICTS_LISTING");
         assertThat(result.verdict().code()).isEqualTo(VerdictCode.NEEDS_MORE_INFO);
+    }
+
+    /**
+     * The test above passes without ever exercising the matcher — {@code "szkoda naprawiona w ASO"}
+     * contains none of the accident-free phrases, so it reaches the contradiction branch by not
+     * reaching it. This is the case that does: a seller who <em>denies</em> being accident-free is
+     * disclosing the damage, and the substring match read that denial as the claim.
+     *
+     * <p>The harm was not a wrong number. {@code CEPIK_CONTRADICTS_LISTING} is the only finding
+     * whose description calls the seller a liar ("Sprzedający podaje nieprawdę") and the only one
+     * that forces {@code HIGH_RISK_SKIP} off a single damage. So the honest disclosure scored
+     * strictly worse than saying nothing at all, which is the incentive exactly backwards.
+     *
+     * <p>Asserted relative to the no-claim run rather than against 35: a listing that volunteers
+     * the damage must land precisely where a silent one lands, and that equality holds through a
+     * cap being retuned.
+     */
+    @Test
+    void aDeniedAccidentFreeClaimIsADisclosureRatherThanALie() {
+        for (String claim : List.of("nie jest bezwypadkowy", "nie bezwypadkowy",
+                "auto nie jest bezwypadkowe", "niestety nie bezszkodowy",
+                "nie do końca bezwypadkowy")) {
+            var result = adjuster.apply(analysis(88, VerdictCode.WORTH_CHECKING, claim), withDamage());
+
+            assertThat(result.riskFlags()).extracting(RiskFlag::code)
+                    .as("claim %s is a disclosure, not a contradiction", claim)
+                    .doesNotContain("CEPIK_CONTRADICTS_LISTING")
+                    .as("the damage is a registry fact and stays reported either way", claim)
+                    .contains("CEPIK_SIGNIFICANT_DAMAGE");
+            assertThat(result.verdict().code())
+                    .as("claim %s must not force a walk-away", claim)
+                    .isEqualTo(VerdictCode.NEEDS_MORE_INFO);
+            assertThat(result.scores().risk())
+                    .as("claim %s lands where a listing making no claim lands", claim)
+                    .isEqualTo(riskAfter(withDamage(), null));
+        }
+    }
+
+    /**
+     * The guard on the fix, and the reason the fix is narrow. The seller writes this text, so a
+     * negation check loose enough to scan the whole string is a bypass they can type: drop a "nie"
+     * anywhere in the advert and the contradiction finding disappears. Every claim here still
+     * asserts accident-free somewhere in it, so every one must still be caught.
+     *
+     * <p>Which makes the two directions unequal. A false accusation is unfair to one honest seller;
+     * a missed contradiction hands a buyer a reassuring verdict about a car the registry says was
+     * damaged. The negation must therefore be attached to the phrase it negates, not merely present.
+     */
+    @Test
+    void aNegationElsewhereInTheClaimDoesNotClearTheContradiction() {
+        for (String claim : List.of("nie mam nic do ukrycia, auto bezwypadkowe",
+                "nie sprowadzony, bezwypadkowy",
+                "nigdy nie było lakierowane, bezwypadkowy",
+                "bezwypadkowy, nie wymaga wkładu finansowego")) {
+            var result = adjuster.apply(analysis(88, VerdictCode.WORTH_CHECKING, claim), withDamage());
+
+            assertThat(result.riskFlags()).extracting(RiskFlag::code)
+                    .as("claim %s still asserts accident-free", claim)
+                    .contains("CEPIK_CONTRADICTS_LISTING");
+        }
+    }
+
+    /**
+     * The log line is the fix's other half, so it is asserted like behaviour rather than trusted
+     * like a comment. PIT made the case: the {@code if (denied)} guard survived, meaning nothing
+     * would notice the trace firing on the wrong branch or not firing at all — the same
+     * unobservability that let the defect live in a test-file comment instead of a bug report.
+     *
+     * <p>Asserted on the level and on the claim being present, not on the sentence. The wording is
+     * ours to reword; that an operator can find the decision and the text it was made from is not.
+     */
+    @Test
+    void aClearedDenialLeavesATraceAnOperatorCanFind() {
+        adjuster.apply(analysis(88, VerdictCode.WORTH_CHECKING, "nie jest bezwypadkowy"),
+                withDamage());
+
+        assertThat(infoLogs())
+                .as("the branch that used to accuse a seller must say when it decided not to")
+                .anySatisfy(line -> assertThat(line).contains("nie jest bezwypadkowy"));
+    }
+
+    /** The silent case stays silent: no accident-free wording, nothing to explain. */
+    @Test
+    void aClaimWithNoAccidentFreeWordingLogsNothing() {
+        adjuster.apply(analysis(88, VerdictCode.WORTH_CHECKING, "szkoda naprawiona w ASO"),
+                withDamage());
+
+        assertThat(infoLogs()).isEmpty();
+    }
+
+    /**
+     * The claim is seller-supplied text on its way into a log file, which makes it a payload. A
+     * newline would let an advert forge a log line, and the field has no length limit, so one advert
+     * could bury the entries around it. Both are bounded before the text is written.
+     */
+    @Test
+    void aSellerCannotForgeOrFloodTheLogThroughTheClaim() {
+        String forged = "nie jest bezwypadkowy\n2026-09-04 INFO  sfabrykowany wpis"
+                + " ".repeat(400);
+
+        adjuster.apply(analysis(88, VerdictCode.WORTH_CHECKING, forged), withDamage());
+
+        assertThat(infoLogs()).singleElement().satisfies(line -> {
+            assertThat(line).as("a newline in the advert may not become a newline in the log")
+                    .doesNotContain("\n").doesNotContain("\r");
+            assertThat(line).as("and the entry stays a bounded length")
+                    .hasSizeLessThan(400);
+        });
+    }
+
+    /**
+     * {@code "nie uczestniczy"} is on the phrase list <em>with</em> its own negation — the claim is
+     * that the car did not take part in a collision. So it is not negatable by the rule above, and
+     * a fix that stripped a leading "nie" from every phrase would delete this finding outright.
+     */
+    @Test
+    void aClaimWhoseOwnWordingIsNegativeStillCounts() {
+        var result = adjuster.apply(
+                analysis(88, VerdictCode.WORTH_CHECKING, "nie uczestniczył w kolizji"), withDamage());
+
+        assertThat(result.riskFlags()).extracting(RiskFlag::code)
+                .contains("CEPIK_CONTRADICTS_LISTING");
     }
 }

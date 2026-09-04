@@ -159,10 +159,11 @@ and were left open rather than pinned:
   (`AnalysisResponseParser.java:208`, rendered at
   `analysis-result.component.html:3`), so the result's first line can read
   reassuringly above a floored verdict.
-- The accident-claim phrase list (`CepikRiskAdjuster.java:38`) is a substring
+- ~~The accident-claim phrase list (`CepikRiskAdjuster.java:38`) is a substring
   match and not negation-aware, so an honest `"nie jest bezwypadkowy"`
   false-positives into `CEPIK_CONTRADICTS_LISTING` and `HIGH_RISK_SKIP` — the app
-  calls a truthful seller a liar.
+  calls a truthful seller a liar.~~ **Fixed 2026-09-04** (M3L5) — see "A bug worked
+  from note to fix" at the end of this section.
 - **Mutation testing covers the JVM side only.** PIT is wired and has run
   against `MarketPriceStatistics`; the frontend's 4 spec files / 41 tests have
   never been mutation-tested. Stryker is the tool for that stack, and the newest
@@ -274,6 +275,46 @@ The general rule this leaves behind: **vision earns its cost as a discovery pass
 not as an assertion layer.** Screenshots under `frontend/vision/` are scratch
 evidence for that one pass, not fixtures, and are not committed.
 
+**A bug worked from note to fix (2026-09-04).** The negation-unaware
+accident-claim matcher, listed as a §3 grounding gap above and again in §6.7, is
+fixed. Recorded because the *route* is reusable, not because the fix is large:
+
+- **The evidence phase was already done, in prose, and had stalled there.** The
+  defect was written up twice — in this file and in
+  `ListingClaimsCannotMoveTheFloorTest`'s class Javadoc, which said "it is unfixed.
+  No test here asserts it: **pinning a bug makes the fix a test failure**." That
+  reasoning is sound for a bug you are not fixing and is exactly what keeps one
+  parked. A known defect belongs in a failing test or in a ticket; a Javadoc is
+  neither, because nothing ever re-reads it.
+- **An existing test looked like coverage and wasn't.**
+  `anHonestListingThatAdmitsTheDamageIsNotAccusedOfLying` asserts precisely the
+  right property, on the one input that cannot exercise it — `"szkoda naprawiona w
+  ASO"` contains no accident-free phrase, so it reaches the contradiction branch by
+  never reaching it. Worth generalising: a test named after a behaviour proves
+  nothing about the matcher unless its input actually enters the matcher.
+- **The failing test came before the fix, and so did the guard against it.** Two
+  tests were written together: the reproduction (`"nie jest bezwypadkowy"` must not
+  contradict) and its opposite (`"nie mam nic do ukrycia, auto bezwypadkowe"` must
+  still contradict). The second **passed on the unfixed code**, which is what makes
+  it a guard rather than a restatement — the seller writes the advert, so a
+  negation check that scanned the whole claim would be a bypass they can type. The
+  two error directions are not symmetric: a false accusation is unfair to one
+  seller; a missed contradiction reassures a buyer about a registered wreck.
+- **The observability gap was the bug's real cause, and PIT caught it recurring.**
+  Nothing logged the verdict rewrite, so the false accusation was unobservable in
+  production — the defect could only ever be found by reading the code (OWASP
+  A10:2025). A log line was added, and PIT then reported its `if (denied)` guard as
+  a **survivor**: nothing would notice the new trace firing on the wrong branch or
+  not at all. Left there, the fix would have reproduced the original failure one
+  level up. Two tests closed it; the second pins log-injection defence (a newline
+  in an advert must not forge a log line), which is a security property rather than
+  a wording. `CepikRiskAdjuster` 87% → **90%**, test strength 88% → **92%**.
+- **A second way to read a false 0% from PIT.** `-Dmutation.targetTests` given a
+  comma-separated list of fully-qualified class names matched nothing and reported
+  `0/61 killed` over `BUILD SUCCESS`; the same run with `'…analysis.*'` reported
+  87%. §4's PIT row said a score of 0 means the version; it can also mean the
+  filter selected no tests. Check that before the code either way.
+
 ## 4. Stack
 
 The classic test base for this project. AI-native tools (if any) carry a
@@ -281,9 +322,9 @@ The classic test base for this project. AI-native tools (if any) carry a
 
 | Layer | Tool | Version | Notes |
 |---|---|---|---|
-| backend unit + integration | JUnit 5 via Maven surefire | Spring Boot 4.0.6 | 29 test files on disk; **25 classes / 229 tests run by default** (~15 s), across the analysis, cepik, and market packages. The other 4 are `live-llm`-tagged and excluded — they print no `Running` line at all, which is why a file count and a run count disagree here. The `live-tests` profile flips the include/exclude properties; `-Dgroups=live-llm` silently intersects to zero |
+| backend unit + integration | JUnit 5 via Maven surefire | Spring Boot 4.0.6 | 29 test files on disk; **25 classes / 235 tests run by default** (15.7 s), across the analysis, cepik, and market packages. The other 4 are `live-llm`-tagged and excluded — they print no `Running` line at all, which is why a file count and a run count disagree here. The `live-tests` profile flips the include/exclude properties; `-Dgroups=live-llm` silently intersects to zero |
 | frontend unit + component | vitest + jsdom via `@angular/build:unit-test` | Angular 21.2 | 4 spec files, 41 tests, ~2.6 s. Zoneless: no `fakeAsync` / `tick`; vitest matchers, not jasmine |
-| mutation (backend, selective) | PIT via `pitest-maven`, `mutation` profile | 1.29.10 | Off by default, never in `./mvnw test`. A selective gate, not a coverage target: `mutation.targetClasses` / `mutation.targetTests` are narrow properties meant to be overridden per run. `MarketPriceStatistics` scored **89%** (47/53) on 2026-09-04, up from 81%. **The version is load-bearing** — 1.20.4 cannot parse the dev JDK's class files and reports `BUILD SUCCESS` with 0% coverage, so a score of 0 means the tool, not the tests. See `CLAUDE.md` § "Mutation testing" |
+| mutation (backend, selective) | PIT via `pitest-maven`, `mutation` profile | 1.29.10 | Off by default, never in `./mvnw test`. A selective gate, not a coverage target: `mutation.targetClasses` / `mutation.targetTests` are narrow properties meant to be overridden per run. `MarketPriceStatistics` scored **89%** (47/53) and `CepikRiskAdjuster` **90%** (55/61, test strength 92%) on 2026-09-04, up from 81% and 87%. **The version is load-bearing** — 1.20.4 cannot parse the dev JDK's class files and reports `BUILD SUCCESS` with 0% coverage. A score of 0 means the tool or the filter, never the tests: a `targetTests` value given as a comma-separated list of class names also reports 0, where the same run with a `'pkg.*'` glob scored 87%. See `CLAUDE.md` § "Mutation testing" |
 | HTTP mocking (backend) | `MockRestServiceServer` (`spring-test`) | 7.0.7 | `MockRestServiceServer.bindTo(RestClient.Builder)`, then `server.verify()`. Used by `ListingFetchServiceTest`, `OpenRouterAnalysisServiceTest`, `MarketPriceFetchServiceTest`, since rollout Phase 1 also `CepikDamageReachesTheResponseTest` and `HistoriaPojazduSessionTest`, and since Phase 2 `LlmFailureReachesTheClientTest` and `AnalysisSurvivesEnrichmentFailureTest`. See §6.2 |
 | HTTP mocking (frontend) | `provideHttpClientTesting` + `vi.fn()` service doubles | Angular 21.2 | Already used by the existing specs |
 | live integration | JUnit tag `live-llm` + `live-tests` profile | — | Asserts real outcomes only. A proxy 403 on the reader host fails the market-price live test on purpose, so a blocked path stays visible instead of silently green |
@@ -501,7 +542,7 @@ Known gaps, left open on purpose. Each would have been *pinned* by a test assert
 
 - `CepikRiskAdjuster.capRisk` returns early when `risk <= cap`, skipping the `overall` recomputation. A model returning `risk: 3, overall: 97` for a car with a registered szkoda istotna keeps both numbers.
 - `verdict.label` — the model-authored headline, rendered as the result's first line — is never validated against `verdict.code`, so it can read reassuringly next to a floored verdict.
-- The accident-claim phrase list is not negation-aware. `"nie jest bezwypadkowy"` — an *honest* seller — still false-positives into `CEPIK_CONTRADICTS_LISTING` and `HIGH_RISK_SKIP`.
+- ~~The accident-claim phrase list is not negation-aware. `"nie jest bezwypadkowy"` — an *honest* seller — still false-positives into `CEPIK_CONTRADICTS_LISTING` and `HIGH_RISK_SKIP`.~~ **Fixed 2026-09-04**, with the guard against the loose fix and the missing log line; see "A bug worked from note to fix" at the end of §3.
 - `ListingFetchService` bounds only a *minimum* body length (100 chars), so a URL remains the unbounded path into the prompt while pasted text is capped at 20 000.
 - The 30 s NFR is **asserted, not enforced**. The 295 s worst case is still reachable; this phase made it visible and regression-guarded, not impossible. Enforcement is impl-review F10's deferred async work. (The figure was written here as ≈341 s, which was the pre-Phase-2 sum: Phase 2's own removal of the retry clamp took the LLM stage from 156 s to 110 s, and the Phase 7 backport instruction had been drafted before that landed. `RequestTimeoutBudgetTest.java:180` is the number's only source of truth.)
 
@@ -519,7 +560,9 @@ contributors should respect these unless the underlying assumption changes.
 
 - Local enforcement last verified: 2026-09-04 (§5.1 added — the three local layers now exist and every one of them was watched blocking a real failure, including a `git commit` that `core.hooksPath` refused. Two measurements drove the layering and are worth not re-deriving: scoping the frontend run to one spec saves 0.5 s of 6.4 s because the cost is the Angular bundle build, not the test count, and `npx vitest related` cannot run these specs at all without the Angular builder's transform — the same obstacle that blocks Stryker)
 - Strategy (§1–§5) last reviewed: 2026-09-04 (§5 split into 5.1 local enforcement and 5.2 the gates, with a formatting row added; §3's one BLOCKING carried item closed — `market-price-panel.component` now has a spec, verified by reverting the Phase 2 bug rather than by reading green; §4 backend row corrected to separate the 29 files on disk from the 25 classes that run, frontend row promoted from documentation to a verified figure, PIT row added). Previously reviewed 2026-09-03 (§2 Risk #5's Source figures replaced with the ones `roadmap.md:187` actually records — the min/median pairing previously cited there appears in no artifact and had been carried for two rollout phases; §3 Phase 2 flipped to `complete`, its carried-forward item closed, six new items carried into Phase 3; §4 counts and grounding-tool lines corrected — rollout Phase 2)
-- Stack versions last verified: 2026-09-04 (both suites re-run: backend 25 classes / 229 tests in 14.7 s, frontend 4 spec files / 39 tests in 2.30 s; `spring-test` 7.0.7 unchanged; PIT row added at 1.29.10). The frontend count moved to **41 in 2.55 s** later the same day with the scored-zero fix (end of §3); §4 carries the current figure, and the two hook labels in `.githooks/` carry it too, since a stale count there is the one place a reader would trust it without checking. **The frontend row is now a verified figure, not documentation.** The 2026-09-03 entry read "unrunnable on the current machine — no Node or npm"; that diagnosis was wrong in its cause. Node v22.22.1 / npm 10.9.4 were installed but ACL-locked by an elevated `nvm install`, so every shell reported the binary as missing rather than as forbidden. A toolchain that reads as absent may only be unreadable — check permissions before re-recording a row as unverifiable
+- Gate toolchain resolution last fixed: 2026-09-04 — `.githooks/common.sh` deferred to an inherited `JAVA_HOME` (`…\Zulu\zulu-8-jre\`, 32-bit, no `javac`) and an inherited `MAVEN_OPTS` (`-Xmx12g`), so the gates died on `Invalid maximum heap size` — a message about memory for a problem about Java. The pinned JDK now wins, `require_java` looks for `javac` rather than for a non-empty variable, and the heap budget is set rather than defaulted. **A toolchain check must test for the tool, not for the variable that should name it**; this is the third time a gate on this project failed by trusting a proxy for its own prerequisite (see the `catch → exit(0)` prettier hook, and the ACL-locked Node read as absent).
+- Debugging workflow last exercised: 2026-09-04 — the negation-unaware accident-claim matcher, taken from a parked prose note to a failing test, a fix, a guard against the over-broad fix, and the log line whose absence made the defect unobservable in the first place. Backend 229 → **235 tests**. Two lessons outlive the bug: **a known defect written into a Javadoc is not tracked** — "pinning a bug makes the fix a test failure" is correct and is also how one stays parked for months; and **PIT should be pointed at a fix, not only at a module** — it flagged the brand-new log guard as a survivor, i.e. the observability added to close an A10 gap was itself unobserved.
+- Stack versions last verified: 2026-09-04 (both suites re-run: backend 25 classes / 229 tests in 14.7 s, frontend 4 spec files / 39 tests in 2.30 s; `spring-test` 7.0.7 unchanged; PIT row added at 1.29.10). Both counts moved later the same day: the frontend to **41 in 2.55 s** with the scored-zero fix, the backend to **235 in 15.7 s** with the negation fix (both at the end of §3); §4 carries the current figures, and the hook labels in `.githooks/` carry them too, since a stale count there is the one place a reader would trust it without checking. **The frontend row is now a verified figure, not documentation.** The 2026-09-03 entry read "unrunnable on the current machine — no Node or npm"; that diagnosis was wrong in its cause. Node v22.22.1 / npm 10.9.4 were installed but ACL-locked by an elevated `nvm install`, so every shell reported the binary as missing rather than as forbidden. A toolchain that reads as absent may only be unreadable — check permissions before re-recording a row as unverifiable
 - AI-native tool references last verified: 2026-09-04 (Playwright CLI **and** Playwright MCP both installed and exercised, replacing the "runtime/browser: none" line that had stood since 2026-08-27; the "MCP still unavailable" note recorded earlier the same day is superseded. Context7 and Exa re-confirmed available and exercised; neither is *in* the stack — they ground it. See §4). Two install facts worth not re-deriving: `claude mcp list` reported the new server as `Failed to connect — timed out after 30000ms` on first run, which was the cold `npx` package download exceeding the handshake budget and not a bad config — warming the cache once (`npx -y @playwright/mcp@latest --help`) turned it green with no config change, so **suspect the download before editing the registration**. And the MCP server writes snapshots, console logs, and screenshots to the cwd it was launched from, which here is the repo root; `.playwright-mcp/` is gitignored for that reason
 - e2e scope last decided: 2026-09-04 — **one spec, deviating from the flat "no e2e" of 2026-08-27.** The deviation is recorded at the end of §3 with the evidence, and §4's e2e row now names a tool instead of "none". Two things worth not re-deriving. The mock profile is only *partly* a stable oracle: `MockMarketPriceEnrichmentService` ignores its input entirely (always 45000/55000/70000, sample 12), but `MockAiAnalysisService` is content-sensitive — the same listing scored `overall: 41` and `35` on a one-word edit — so scores and verdict must not be asserted at this layer, which is what makes the market-price panel the right target. And `CLAUDE.md`'s "dev server on :8080" is stale: the backend default is `${PORT:10000}`, which is also what `proxy.conf.json` targets and what the Playwright readiness probe hits (`/actuator/health`; a probe GET on the POST-only `/api/analyses` answers 500, which Playwright reads as "never became ready")
 - Browser transports and vision last compared: 2026-09-04 — **CLI stays the default, vision adds no spec.** Both transports read the same accessibility tree and produce the same role-based locators, so MCP's ~4× token cost buys interactive exploration, not better tests. MCP-generated code is not exempt from review: asked for a container screenshot it emitted `getByText('Oceny kategoriiKompletność71%')`, a concatenated-text locator that breaks on any score change. The vision pass found two real UI defects (end of §3) and neither became an e2e test — one was fixed and pinned by component tests, the other needs pixels but wants a deterministic differ rather than a VLM verdict. One correction is recorded there rather than quietly dropped: the claim that the score bars exposed no `aria-valuenow` was wrong, and it was wrong because a Playwright accessibility snapshot shows label text nodes but not host ARIA attributes — **an a11y snapshot is not an ARIA audit**

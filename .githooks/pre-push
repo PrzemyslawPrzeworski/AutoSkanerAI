@@ -25,7 +25,7 @@ else
   echo "pre-push:"
 fi
 
-step "backend suite (229 tests, ~15 s; live-llm excluded)"
+step "backend suite (235 tests, ~15 s; live-llm excluded)"
 run_backend_tests
 
 step "frontend suite (41 tests, ~6 s)"

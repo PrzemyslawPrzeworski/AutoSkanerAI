@@ -45,11 +45,19 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <h2>Known gaps, named so their absence is not read as coverage</h2>
  *
- * <p><b>Negation-awareness.</b> {@code CepikRiskAdjuster.ACCIDENT_FREE_CLAIMS} substring-matches, so
- * {@code "nie jest bezwypadkowy"} — an <em>honest</em> seller disclosing a damage — still matches
- * {@code "bezwypadkow"} and earns {@code CEPIK_CONTRADICTS_LISTING} plus a forced
- * {@code HIGH_RISK_SKIP}. That is a false accusation and it is unfixed. No test here asserts it:
- * pinning a bug makes the fix a test failure.
+ * <p><b>Negation-awareness — fixed 2026-09-04, and the note is kept for the direction it points
+ * in.</b> {@code CepikRiskAdjuster.ACCIDENT_FREE_CLAIMS} used to substring-match, so
+ * {@code "nie jest bezwypadkowy"} — an <em>honest</em> seller disclosing a damage — matched
+ * {@code "bezwypadkow"} and earned {@code CEPIK_CONTRADICTS_LISTING} plus a forced
+ * {@code HIGH_RISK_SKIP}. The matcher now checks each occurrence against the text attached to it;
+ * {@code CepikRiskAdjusterTest.aDeniedAccidentFreeClaimIsADisclosureRatherThanALie} pins it.
+ *
+ * <p>What belongs in <em>this</em> file is the other direction, and it is why the fix is narrow: the
+ * seller writes the advert, so a negation check loose enough to scan the whole claim would be a
+ * bypass they can type. {@code aNegationElsewhereInTheClaimDoesNotClearTheContradiction} is the
+ * guard, and it passed before the fix as well as after — a missed contradiction hands a buyer a
+ * reassuring verdict about a car the registry says was damaged, which is the worse of the two
+ * failures by a wide margin.
  *
  * <p><b>{@code capRisk}'s short-circuit.</b> {@code CepikRiskAdjuster.java:134} returns early when
  * {@code risk <= cap}, skipping the {@code overall} recomputation — so a model returning

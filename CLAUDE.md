@@ -101,6 +101,7 @@ PIT, behind the `mutation` profile, off by default and never wired into `./mvnw 
 - **A selective gate, not a coverage target.** `mutation.targetClasses` / `mutation.targetTests` are properties with narrow defaults, meant to be overridden per run (`-Dmutation.targetClasses=...`). Runtime scales with the mutant count, not the test count, so point it at the module a change or a `test-plan.md` risk actually touches.
 - **Do not chase 100%.** Survivors are questions, not a task list: would a real bug of this shape hurt a user? Add an assertion only when the answer is yes. A test written to kill an *equivalent* mutant — one whose change is unobservable — is a mirror of the implementation and breaks on the next refactor.
 - **The PIT version is load-bearing.** The dev JDK is 26 (class file major version 70). `pitest-maven` 1.20.4 cannot parse it and reports `BUILD SUCCESS` with `0/53 killed, 0% line coverage` — a mutation score of zero caused entirely by the tooling. 1.29.10 works. **If the score ever reads 0, suspect the tool before the tests.**
+- **A comma-separated list of test classes in `mutation.targetTests` is the second way to get a false 0%.** `-Dmutation.targetTests=a.b.FooTest,a.b.BarTest` matched nothing and reported `0/61 killed` over `BUILD SUCCESS`; `-Dmutation.targetTests='a.b.*'` on the same code reported 87%. So the rule above generalises: **a score of 0 is a tooling result until proven otherwise** — check the version, then check that the filter selected any tests at all.
 - `live-llm` is excluded, for the same reason it is excluded from `./mvnw test`: a mutant must never be judged by whether somebody's API key worked today.
 
 `MarketPriceStatistics` on 2026-09-04: **89%** (47/53 killed, 95% line coverage, 0 uncovered mutants), up from a first baseline of 81% (43/53, 1 uncovered). The first run found two real gaps, and three tests closed them:
@@ -109,6 +110,8 @@ PIT, behind the `mutation` profile, off by default and never wired into `./mvnw 
 - **Neither arm of the Tukey hinge was pinned, and one had no coverage at all** — no test reached `withoutIqrOutliers` with an odd sample, so `sorted.size() % 2 == 0 ? half : half + 1` could have used either arm unnoticed. Two tests, because the two arms need opposite samples: `anOddSamplePutsItsMedianInBothHalvesWhenComputingTheHinges` kills the negate and `half + 1` → `half - 1` mutants, and `anEvenSampleTakesExactlyHalfIntoEachHinge` kills the `% 2` → `* 2` mutant, which on an *odd* sample selects the same arm as the original and so is unkillable there.
 
 The 6 remaining survivors are left alive deliberately. Five are `ConditionalsBoundary` mutants on the inclusivity of the ±3× band edges (124, 125) and the IQR fence edges (93, 142 ×2): pinning the exact `>=`-vs-`>` of a constant the code's own comment calls wide on purpose mirrors the implementation rather than defending a behaviour. The sixth is genuinely **equivalent** — flipping the `iqr == 0` early return from `sorted` to empty changes nothing, because the caller rejects a too-small fenced list and keeps the untrimmed sample either way, so no test can kill it.
+
+`CepikRiskAdjuster` on 2026-09-04: **90%** (55/61 killed, 99% line coverage, test strength 92%), up from 87% / 88% when the negation fix first went green. PIT earned its run here by asking a question the green suite could not: the `if (denied)` guard around the new **log line survived**, which meant nothing would notice the trace firing on the wrong branch or not firing at all. That log exists *because* the defect was unobservable, so leaving it unobserved reproduced the original failure one level up — the two log tests came from that survivor, and the log-injection one pins a security property rather than a wording. Of the six left alive, five are pre-existing and outside the change (`capRisk` / `applyFloor` / `describeDamage` / `moreSevere`, one of them a defensive `b == null` guard no caller can reach), and the sixth is the `<=` on the log-truncation constant.
 
 ## Monorepo structure
 
@@ -169,6 +172,18 @@ versioned but git does not pick them up on its own.
   is not an option at all — plain Vitest has no Angular transform, so it
   collects the specs and dies at `describe(...)`, which is the same obstacle
   that blocks Stryker.
+- **`.githooks/common.sh` pins the JDK and the heap itself, over whatever the
+  environment says.** This machine's system-wide `JAVA_HOME` is
+  `C:\Program Files (x86)\Zulu\zulu-8-jre\` — a 32-bit Java 8 JRE with no
+  `javac` — and `MAVEN_OPTS` arrives as `-Xmx12g …`, which a 32-bit VM cannot
+  represent. The gates therefore died on `Invalid maximum heap size: -Xmx12g`, a
+  message about memory for a problem about Java. Three assumptions failed at
+  once: the dev JDK was filled in only when `JAVA_HOME` was *empty*, so a wrong
+  value beat the pinned one; `require_java` tested that the variable was
+  non-empty, and a JRE passes that; and `MAVEN_OPTS` was defaulted rather than
+  set, so a budget the environment could override was not a budget. **`require_java`
+  now looks for `javac`, not for a variable** — extend that rule to any toolchain
+  check added here, because "present and wrong" reads far worse than "absent".
 - Backend edits are **not** gated per-edit; `./mvnw -o test` is ~15 s, a
   commit-time cost. It runs offline for speed, so a newly added dependency can
   fail pre-commit on its own — the hook says so when it fails.
@@ -206,6 +221,8 @@ Verification status (2026-08-26): both paths are confirmed against production, w
 - The adjustment is deterministic, not a second LLM call: a registered structural damage must not be able to score 88 because a model weighed it mildly.
 - Risk ceilings, never raises — theft marker 5, odometer rollback 20, damage contradicting an accident-free claim 25, szkoda istotna 35, no OC policy 70. A listing the model already scored lower keeps its score, and `overall` is recomputed as the mean of the four categories but never raised.
 - Damage alone floors the verdict at `NEEDS_MORE_INFO`, not `HIGH_RISK_SKIP`: a properly repaired damage with a positive post-repair inspection can be a fair purchase at the right price. A listing that claims `bezwypadkowy` *and* carries a registry damage is a separate, worse finding (`CEPIK_CONTRADICTS_LISTING`) and does force `HIGH_RISK_SKIP`.
+- **The accident-free matcher is negation-aware, and deliberately only just.** `ACCIDENT_FREE_CLAIMS` is still substring-matched, but each occurrence is checked against the text immediately before it, so `"nie jest bezwypadkowy"` — an honest seller disclosing the damage — no longer earns `CEPIK_CONTRADICTS_LISTING` and a forced `HIGH_RISK_SKIP`. Before that fix the honest listing scored *worse* than one that said nothing, which is the incentive backwards. Three constraints hold the fix in place: the negation must be **attached** to the phrase (a "nie" anywhere in the claim would be a bypass the seller can type, since they write the advert — `"nie mam nic do ukrycia, auto bezwypadkowe"`); `"nie uczestniczy"` is **not** in `NEGATABLE_CLAIMS` because its own "nie" is the claim; and the two error directions are not equal — a false accusation is unfair to one seller, a missed contradiction reassures a buyer about a registered wreck. When in doubt, flag.
+- **The adjuster logs when a denial clears the contradiction.** It is the only trace of a decision that rewrites a verdict, and its absence is why the defect above sat in a test-file comment rather than a bug report (OWASP A10). The claim is seller-supplied text on its way into a log file, so `forLog` strips control characters and bounds the length — a newline in an advert would otherwise forge a log line.
 - **Only `FOUND` results adjust anything.** `NOT_FOUND` / `LOOKUP_FAILED` / `MISSING_INPUTS`, and a `FOUND` result whose `damageRecords` is null, must leave the score untouched in both directions — same null-is-not-empty rule as above. Tested explicitly.
 
 The registry-vs-listing mileage check currently lives only in the frontend component (`max(2000 km, 5%)` tolerance, registry-higher direction only) and does not feed the score. If it moves into scoring, delete the TypeScript copy rather than keeping two.
