@@ -6,7 +6,7 @@
 >
 > Refresh: re-run `/10x-test-plan --refresh` when stale (see §8).
 >
-> Last updated: 2026-09-03
+> Last updated: 2026-09-04
 
 ## 1. Strategy
 
@@ -125,18 +125,32 @@ and were left open rather than pinned:
   does not feed the score, and there is no backend counterpart. Per
   `CLAUDE.md`, if it ever moves into scoring, delete the TypeScript copy
   rather than keeping two.
-- **BLOCKING for Phase 3.** `market-price-panel.component` has **no spec**, and
-  Phase 2 changed what it renders: the `sampleSize < 3` caveat was replaced by
-  three blocks driven by the server's `sampleQuality` and `discardedCount`. No
-  Node exists on the machine Phase 2 ran on, so that template edit is reviewed
-  and unverified — a broken caveat would ship silently. This is the one carried
-  item Phase 3 may not defer again: Phase 2 crossed its own "no frontend change"
-  guardrail to make it, on the reasoning that a server field with no reader is
-  the failure Phase 6 had just caught in Phase 3. That reasoning only holds if
-  the reader is eventually verified. Phase 3 must add a spec covering all four
-  arms — `DISPERSED`, `THIN`, `SUFFICIENT`, and a null quality — plus the
-  `discardedCount` block, before it does anything else on this list
-  (impl-review F4).
+- ~~**BLOCKING for Phase 3.** `market-price-panel.component` has **no spec**~~ —
+  **closed 2026-09-04.** `market-price-panel.component.spec.ts` now covers all
+  four `sampleQuality` arms (`DISPERSED`, `THIN`, `SUFFICIENT`, null), the
+  `discardedCount` block including its `0`-vs-`null` truthy check, both degraded
+  statuses, and the collapsed-panel case — 13 tests. Two things worth carrying
+  forward from writing it:
+  - **The spec was proven by reverting the bug, not by reading green.**
+    Reintroducing Phase 2's old `sampleSize < 3` condition turns 3 tests red,
+    one of which (`null quality → no caveat invented on the client`) is exactly
+    the regression the Phase 2 edit existed to prevent. A spec written against a
+    template nobody had executed is otherwise indistinguishable from one that
+    asserts nothing.
+  - **That revert-check is also what exposed a weak assertion of my own.** The
+    distinctness test (`DISPERSED and THIN do not render the same sentence`)
+    passed under the reintroduced bug, because `DISPERSED` then rendered no
+    caveat at all and `undefined !== 'Mała próbka…'` is trivially true. It now
+    asserts both operands exist first. A comparison is only as strong as its
+    weakest side, and reading the test would not have shown that.
+
+  The unblocking was environmental, not technical: Node existed but was
+  unreadable — an elevated `nvm install` had left ACLs on `%LOCALAPPDATA%\nvm`
+  excluding the normal user, so every shell reported `Access to the path
+  'C:\nvm4w\nodejs' is denied` and `node` read as missing. `icacls … /grant
+  "%USERNAME%":(OI)(CI)RX /T` fixed it. If the frontend row ever goes
+  unverifiable again, check permissions before concluding the toolchain is
+  absent (impl-review F4).
 - `CepikRiskAdjuster.capRisk` (`CepikRiskAdjuster.java:134`) returns early when
   `risk <= cap` and skips the `overall` recomputation, so a model returning
   `risk: 3, overall: 97` for a car with a registered szkoda istotna keeps both
@@ -173,8 +187,9 @@ The classic test base for this project. AI-native tools (if any) carry a
 
 | Layer | Tool | Version | Notes |
 |---|---|---|---|
-| backend unit + integration | JUnit 5 via Maven surefire | Spring Boot 4.0.6 | 28 test files, 224 tests (~15 s), across the analysis, cepik, and market packages. `live-llm` is excluded by default; the `live-tests` profile flips the include/exclude properties — `-Dgroups=live-llm` silently intersects to zero |
-| frontend unit + component | vitest + jsdom via `@angular/build:unit-test` | Angular 21.2 | 3 spec files, 26 tests, ~2 s. Zoneless: no `fakeAsync` / `tick`; vitest matchers, not jasmine |
+| backend unit + integration | JUnit 5 via Maven surefire | Spring Boot 4.0.6 | 29 test files on disk; **25 classes / 229 tests run by default** (~15 s), across the analysis, cepik, and market packages. The other 4 are `live-llm`-tagged and excluded — they print no `Running` line at all, which is why a file count and a run count disagree here. The `live-tests` profile flips the include/exclude properties; `-Dgroups=live-llm` silently intersects to zero |
+| frontend unit + component | vitest + jsdom via `@angular/build:unit-test` | Angular 21.2 | 4 spec files, 39 tests, ~2.3 s. Zoneless: no `fakeAsync` / `tick`; vitest matchers, not jasmine |
+| mutation (backend, selective) | PIT via `pitest-maven`, `mutation` profile | 1.29.10 | Off by default, never in `./mvnw test`. A selective gate, not a coverage target: `mutation.targetClasses` / `mutation.targetTests` are narrow properties meant to be overridden per run. `MarketPriceStatistics` scored **89%** (47/53) on 2026-09-04, up from 81%. **The version is load-bearing** — 1.20.4 cannot parse the dev JDK's class files and reports `BUILD SUCCESS` with 0% coverage, so a score of 0 means the tool, not the tests. See `CLAUDE.md` § "Mutation testing" |
 | HTTP mocking (backend) | `MockRestServiceServer` (`spring-test`) | 7.0.7 | `MockRestServiceServer.bindTo(RestClient.Builder)`, then `server.verify()`. Used by `ListingFetchServiceTest`, `OpenRouterAnalysisServiceTest`, `MarketPriceFetchServiceTest`, since rollout Phase 1 also `CepikDamageReachesTheResponseTest` and `HistoriaPojazduSessionTest`, and since Phase 2 `LlmFailureReachesTheClientTest` and `AnalysisSurvivesEnrichmentFailureTest`. See §6.2 |
 | HTTP mocking (frontend) | `provideHttpClientTesting` + `vi.fn()` service doubles | Angular 21.2 | Already used by the existing specs |
 | live integration | JUnit tag `live-llm` + `live-tests` profile | — | Asserts real outcomes only. A proxy 403 on the reader host fails the market-price live test on purpose, so a blocked path stays visible instead of silently green |
@@ -366,8 +381,8 @@ contributors should respect these unless the underlying assumption changes.
 
 ## 8. Freshness Ledger
 
-- Strategy (§1–§5) last reviewed: 2026-09-03 (§2 Risk #5's Source figures replaced with the ones `roadmap.md:187` actually records — the min/median pairing previously cited there appears in no artifact and had been carried for two rollout phases; §3 Phase 2 flipped to `complete`, its carried-forward item closed, six new items carried into Phase 3; §4 counts and grounding-tool lines corrected — rollout Phase 2)
-- Stack versions last verified: 2026-09-03 (backend counts re-counted from a full run: 28 files, 224 tests; `spring-test` 7.0.7 unchanged; frontend untouched since 2026-08-27 and **unrunnable on the current machine** — no Node or npm, so the frontend row is documentation, not a verified figure)
+- Strategy (§1–§5) last reviewed: 2026-09-04 (§3's one BLOCKING carried item closed — `market-price-panel.component` now has a spec, verified by reverting the Phase 2 bug rather than by reading green; §4 backend row corrected to separate the 29 files on disk from the 25 classes that run, frontend row promoted from documentation to a verified figure, PIT row added). Previously reviewed 2026-09-03 (§2 Risk #5's Source figures replaced with the ones `roadmap.md:187` actually records — the min/median pairing previously cited there appears in no artifact and had been carried for two rollout phases; §3 Phase 2 flipped to `complete`, its carried-forward item closed, six new items carried into Phase 3; §4 counts and grounding-tool lines corrected — rollout Phase 2)
+- Stack versions last verified: 2026-09-04 (both suites re-run: backend 25 classes / 229 tests in 14.7 s, frontend 4 spec files / 39 tests in 2.30 s; `spring-test` 7.0.7 unchanged; PIT row added at 1.29.10). **The frontend row is now a verified figure, not documentation.** The 2026-09-03 entry read "unrunnable on the current machine — no Node or npm"; that diagnosis was wrong in its cause. Node v22.22.1 / npm 10.9.4 were installed but ACL-locked by an elevated `nvm install`, so every shell reported the binary as missing rather than as forbidden. A toolchain that reads as absent may only be unreadable — check permissions before re-recording a row as unverifiable
 - AI-native tool references last verified: 2026-09-03 (Context7 and Exa are available and were exercised; neither is *in* the stack — they ground it. See §4)
 
 Refresh (`/10x-test-plan --refresh`) when:
