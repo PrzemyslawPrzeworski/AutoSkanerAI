@@ -49,9 +49,13 @@ both eras" — the area is busy because everything has to go through it.
 **4. The frontend has zero cycles and one genuinely stable core.** 34 modules, 67
 dependencies, no cycles at all. `src/app/shared/models` is **Ca=11, Ce=0, I=0%** — the
 maximally stable node, imported by 6 of the 10 other production TS files under `src/app` and
-importing nothing. That is the right shape for a type-only module, and it is also why it is
+importing nothing. That is the right shape for a foundation module, and it is also why it is
 dangerous: it is the hand-written mirror of the Java records, so a wrong edit there reaches
-everything, and no compiler on either side will object.
+everything, and no compiler on either side will object. **It is not type-only, despite the
+folder name** — `vehicle-data.ts` exports 8 functions, including the VIN validation
+(`vinError`, `normaliseVin`) and the request builder (`draftToRequest`). So the most-depended-on
+folder in the app contains behaviour, and Ca=11 applies to that behaviour too. Found while
+writing Artifact 3; see its §6.
 
 **5. My own layering rule was wrong, and the violation is the finding.** `dependency-cruiser`
 reports 2 errors for `panels-do-not-import-each-other`: `analysis-result` imports
@@ -165,9 +169,13 @@ tends to become a test of the controller.
 3. **`cepik-result.component` and `vehicle-data-form.component` have no spec.** Confirmed
    structurally: dependency-cruiser lists spec modules for `analysis-result`,
    `market-price-panel`, `analyzer` and `analysis.service`, and none for those two.
-   `vehicle-data-form` is the worse gap of the pair — `frontend/CLAUDE.md` puts the VIN shape
-   check and the mileage-tolerance check inside it, so untested logic, not just untested
-   markup.
+   **This does not mean untested** — checked while writing Artifact 3, and
+   `analyzer.component.spec.ts` exercises the VIN and draft logic substantially through the
+   component (malformed VIN blocks submission, VIN-only submission succeeds, input is trimmed
+   and upper-cased, prefill leaves `vin` empty). The accurate finding is narrower: the 8 pure
+   functions in `shared/models/vehicle-data.ts` are covered **only transitively**, so their
+   coverage is coupled to the component's rendering, and a direct spec would be cheap. Note
+   that this is the inference §7 warns about for orphans, made one section later.
 4. **Enrichment failure containment lives in the caller, not the callee.** The only thing
    keeping a registry session failure from failing an entire analysis is a `catch
    (RuntimeException)` in `AnalysisController`. `cepik`'s fan-in of 1 is what makes that safe

@@ -9,7 +9,8 @@
  * never "no coupling". See `context/map/artifact-2-structure.md`.
  *
  * The rules encode the layering the app already has, so a violation is news:
- *   environments, shared/models  (foundation — types and constants, no behaviour)
+ *   environments, shared/models  (foundation — nothing below it; note this is NOT
+ *                                types-only: vehicle-data.ts holds 8 functions)
  *     -> core/services           (HTTP, DI)
  *       -> features/analyzer     (the host component)
  *         -> features/analyzer/components/*  (leaf panels)

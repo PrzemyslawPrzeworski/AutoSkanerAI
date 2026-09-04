@@ -64,6 +64,12 @@ Top files, all-time:
 | 9 | `context/foundation/roadmap.md`, `frontend/.../analyzer.component.ts`, `frontend/.../shared/models/analysis.models.ts`, `backend/pom.xml`, `backend/.../AnalysisController.java` |
 | 8 | `frontend/.../analysis-result.component.html`, `backend/.../RealCepikEnrichmentService.java` |
 
+**One area is missing from the table above**, added after Artifact 3 measured it:
+`context/changes/` was touched by **58 commits — 60% of all of them**, which would top this
+table by nearly double. It is excluded from "hot territory" here because it is not code and
+a change doc is *supposed* to change with every change. Artifact 3 §2 explains why the number
+still matters: it is this project's substitute for a colleague.
+
 **`backend:analysis` is the centre of gravity.** It holds the controller, the LLM
 providers, the parser and `CepikRiskAdjuster`, and it is the only area that was hot in
 both eras. Anything landing there is landing in the busiest room in the house.
