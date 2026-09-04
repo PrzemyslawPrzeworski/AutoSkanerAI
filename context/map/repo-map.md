@@ -127,8 +127,14 @@ The couplings worth knowing, in order of what a change to them costs:
    mirror, no compiler on either side, backend tests assert their own JSON, frontend tests
    assert against hand-written doubles — so a field rename ships green with a blank panel.
    **[git]** confirms it is maintained deliberately (6 of 9 model-file commits also touched
-   `backend/src/main/java`) and that it has **already drifted once**: `88d2658` edited the
-   TypeScript side alone, in a commit whose message calls it a fix.
+   `backend/src/main/java`) and that it drifted once: `88d2658` edited the TypeScript side alone,
+   in a commit whose message calls it a fix. **That drift is closed** — 14 shapes and ~87 leaf
+   fields now match name-for-name. The risk is **asymmetric**, which is the part to act on:
+   Java-first is silent (javac walks you through every call site, all 276 tests and the
+   production build pass, the panel goes blank in production), TypeScript-first is loud
+   (`strictTemplates` plus 6 fully-typed fixtures fail at once). **Edit TypeScript first.** Five
+   live non-name mismatches and a ~8% verifier coverage figure are in
+   `context/changes/analysis-flow-analysis/research.md` §3.
 2. **Two backend package cycles — [imports, low confidence, grep-verified].**
    `analysis ↔ cepik` and `analysis ↔ market`. One mistake made twice: both integrations'
    domain records were filed in `analysis` (`CepikResult`, `CepikStatus`, `DamageRecord`,
@@ -154,13 +160,18 @@ regeneration is cheap and one maintained by hand is not. Here:
 - **No regeneration coupling exists.** There is no codegen in the repo — no OpenAPI
   generator, no schema-to-TS pipeline, no snapshot fixtures. **Every** co-change listed above
   cost someone an edit, so read all of them at full price.
-- **Mock coupling exists and is unusually expensive.** Three `@Profile("mock")` beans stand in
-  for the LLM, the registry and the market fetch. `MockMarketPriceEnrichmentService` ignores
-  its input and is safely constant — but `MockAiAnalysisService` is **content-sensitive**: one
-  word of listing text moved `overall` from 41 to 35. It is the E2E oracle, so a change to it
-  silently changes what the only Playwright spec means. That inverts the usual rule: this mock
-  is *more* expensive to touch than the production code it stands in for, which is why the
-  contract spec deliberately asserts no scores.
+- **Mock coupling exists, and the expensive one is not the one you would guess.** Three
+  `@Profile("mock")` beans stand in for the LLM, the registry and the market fetch.
+  `MockMarketPriceEnrichmentService` ignores its input and is safely constant.
+  `MockAiAnalysisService` is **content-sensitive** — one word of listing text moved `overall`
+  from 41 to 35 — but that is a *latent* liability, not a live one: no test uses it as an
+  oracle. The contract spec asserts only `marketPriceContext` fields, `seed.spec.ts` asserts a
+  200 and one heading, and every backend controller test uses `standaloneSetup` with
+  hand-written stubs. It becomes a hazard the moment anyone adds a score assertion to an E2E
+  spec. **The mock that shapes meaning today is `MockCepikService`, by constancy rather than
+  content-sensitivity:** it returns `LOOKUP_FAILED` unconditionally, so `CepikRiskAdjuster`'s
+  254 lines are never executed by any end-to-end path in the repo. Measured in
+  `context/changes/analysis-flow-analysis/research.md` §2.1.
 - **Fixtures change only by capture, never by edit** — `backend/src/test/resources/cepik/*.json`
   must be verbatim payloads. That rule is what made the invented-field-name defect findable.
 
@@ -174,7 +185,7 @@ regeneration is cheap and one maintained by hand is not. Here:
 | **`analysis` as a package** | 54% of the backend with no seam, both cycles, and the resilience policy buried in a private helper | `backend/.../analysis/` |
 | **`cepik`** | behaviour defined by a government site nobody controls; 100% agent-authored with zero solo commits; Era 2 found its field names invented | `backend/.../cepik/` |
 | **`common`** | defines every endpoint's failure contract, reachable only over HTTP, fan-in 0 so nothing warns you | `common/GlobalExceptionHandler.java` |
-| **the mock oracle** | the E2E spec's meaning depends on a mock's prose | `analysis/MockAiAnalysisService.java` |
+| **the `mock` profile** | it is a different program, not a stub of the same one: it inverts the accident rule on one text, leaves `CepikRiskAdjuster` unexecuted, and does not cover the listing fetch — while being the only profile any gate runs | `cepik/MockCepikService.java`, `analysis/MockAiAnalysisService.java` |
 | **`vehicle-data-form` + `vehicle-data.ts`** | holds the VIN and mileage rules, is the newest code, and is the only shipped feature with no plan, research or review record | `frontend/.../vehicle-data-form/`, `shared/models/vehicle-data.ts` |
 
 And one business invariant that outranks all of them: **absence of accident data means

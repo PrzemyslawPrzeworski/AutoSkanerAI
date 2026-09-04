@@ -168,7 +168,7 @@ Three frozen things are worth a second look:
 |---|---|---|
 | 2026-05-24 / 05-31 | `RiskAnalysisController` + `RiskAnalysisRequest` + `RiskAnalysisResponse` + `RiskAnalysisControllerTest` | **Confirmed dead.** `CLAUDE.md` calls `POST /api/analysis/risk` "deprecated, to be removed after S-01 ships"; S-01 shipped. A repo-wide grep finds these four files referenced by *nothing but each other* — no frontend caller, no e2e spec. 4 files and part of the 235-test count, defending an endpoint no client uses. |
 | 2026-06-02 | `BedrockClaudeAnalysisService` + `BedrockConfig` | A complete second LLM provider, untouched for three months, that **cannot run in production by design** — the only AWS credential source is a short-lived corporate SSO profile. It is dev-only on purpose, but nothing exercises it, so it is a maintenance surface with no live signal. |
-| 2026-06-02 | `MockAiAnalysisService` | Frozen and that is *correct* — it is the E2E oracle. Named here only so a future reader does not mistake it for rot. Note it is content-sensitive (one word moved `overall` 41 → 35), which is why the e2e spec asserts no scores. |
+| 2026-06-02 | `MockAiAnalysisService` | Frozen and that is *correct*. Named here only so a future reader does not mistake it for rot. It is content-sensitive (one word moved `overall` 41 → 35), but **no test uses it as an oracle** — the e2e spec asserts no scores and the backend tests use hand-written stubs, so the sensitivity is latent, not live. Corrected 2026-09-04; see `context/changes/analysis-flow-analysis/research.md` §6. |
 
 ---
 
