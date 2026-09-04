@@ -1,0 +1,42 @@
+#!/bin/sh
+# Middle local layer: scoped to what is actually staged.
+#
+# Carries the checks too slow for the per-edit hook -- chiefly the backend suite at ~15 s, which is a
+# commit-time cost, not a keystroke-time one. Scoped by staged path so a docs-only commit stays
+# instant and a Java-only commit does not pay for the frontend.
+#
+# What this layer catches that the per-edit hook cannot: edits that never went through Write|Edit at
+# all -- a manual change in the editor, a `git checkout -p`, a merge resolution, anything the agent
+# did not make.
+
+. "$(dirname "$0")/common.sh"
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+[ -n "$STAGED" ] || exit 0
+
+FRONTEND_SOURCES=$(echo "$STAGED" | grep -E '^frontend/src/.*\.(ts|html|scss)$' || true)
+BACKEND_SOURCES=$(echo "$STAGED" | grep -E '^backend/(src/.*\.java|pom\.xml)$' || true)
+
+[ -n "$FRONTEND_SOURCES" ] || [ -n "$BACKEND_SOURCES" ] || exit 0
+
+echo "pre-commit:"
+
+if [ -n "$FRONTEND_SOURCES" ]; then
+  require_node
+  step "prettier --check on staged frontend sources"
+  # --check, not --write: a hook that rewrites staged files commits something the author never saw.
+  # The per-edit hook already formats on the way in, so reaching here means the file bypassed it.
+  if ! (cd frontend && echo "$FRONTEND_SOURCES" | sed 's|^frontend/||' | xargs npx prettier --check); then
+    fail "staged frontend files are not formatted. Run: cd frontend && npx prettier --write \"src/**/*.{ts,html,scss}\""
+  fi
+
+  step "frontend suite (39 tests, ~6 s)"
+  run_frontend_tests
+fi
+
+if [ -n "$BACKEND_SOURCES" ]; then
+  step "backend suite (229 tests, ~15 s; live-llm excluded)"
+  run_backend_tests
+fi
+
+echo "  ok"

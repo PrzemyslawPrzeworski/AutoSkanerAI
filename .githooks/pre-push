@@ -1,0 +1,44 @@
+#!/bin/sh
+# Outermost local layer -- and in this repo it is also the LAST layer, which is why it is the heavy
+# one.
+#
+# There is no CI yet (context/foundation/test-plan.md section 5 puts the suites at "local now, CI
+# after section 3 Phase 4"), and both hosts auto-deploy on push to main: Render builds the backend,
+# Cloudflare Pages builds the frontend. So a push to main reaches production with nothing between.
+# Normally pre-push is a cheap pre-filter in front of CI; here it stands where CI would.
+#
+# Unlike pre-commit this ignores staged scope and checks the whole tree, because that is what the
+# hosts will build -- including anything committed while a hook was bypassed.
+
+. "$(dirname "$0")/common.sh"
+
+# stdin gives one line per pushed ref: <local ref> <local sha> <remote ref> <remote sha>.
+PUSHED_REFS=$(cat)
+case "$PUSHED_REFS" in
+  *refs/heads/main*) PUSHING_MAIN=1 ;;
+  *) PUSHING_MAIN=0 ;;
+esac
+
+if [ "$PUSHING_MAIN" = "1" ]; then
+  echo "pre-push: main is a production deploy (Render + Cloudflare, no CI in between)"
+else
+  echo "pre-push:"
+fi
+
+step "backend suite (229 tests, ~15 s; live-llm excluded)"
+run_backend_tests
+
+step "frontend suite (39 tests, ~6 s)"
+run_frontend_tests
+
+# Only for main, because the production bundle is the artefact Cloudflare actually builds. A broken
+# prod build passes both test suites -- template type errors surface in the AOT build, not in jsdom.
+if [ "$PUSHING_MAIN" = "1" ]; then
+  step "frontend production build (~4 s) -- what Cloudflare Pages will run"
+  if ! (cd frontend && npm run build > /tmp/hook-build.log 2>&1); then
+    tail -40 /tmp/hook-build.log
+    fail "production build failed -- this would have broken the Cloudflare deploy."
+  fi
+fi
+
+echo "  ok"
