@@ -1,10 +1,10 @@
 ---
 change_id: testing-availability-failure-paths
 title: Test rollout Phase 2 — availability and failure paths
-status: impl_reviewed
+status: archived
 created: 2026-09-03
-updated: 2026-09-03
-archived_at: null
+updated: 2026-09-04
+archived_at: 2026-09-04T08:00:40Z
 ---
 
 ## Notes
