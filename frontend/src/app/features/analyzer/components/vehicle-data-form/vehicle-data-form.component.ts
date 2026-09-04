@@ -22,7 +22,7 @@ import { VehicleDataDraft, vinError } from '../../../../shared/models/vehicle-da
   selector: 'app-vehicle-data-form',
   imports: [InputTextModule, TextareaModule, MessageModule],
   templateUrl: './vehicle-data-form.component.html',
-  styleUrl: './vehicle-data-form.component.scss'
+  styleUrl: './vehicle-data-form.component.scss',
 })
 export class VehicleDataFormComponent {
   readonly draft = model.required<VehicleDataDraft>();
@@ -31,6 +31,6 @@ export class VehicleDataFormComponent {
   readonly vinError = computed(() => vinError(this.draft().vin));
 
   set(field: keyof VehicleDataDraft, value: string): void {
-    this.draft.update(current => ({ ...current, [field]: value }));
+    this.draft.update((current) => ({ ...current, [field]: value }));
   }
 }

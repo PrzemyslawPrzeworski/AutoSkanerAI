@@ -3,15 +3,26 @@ import { DatePipe } from '@angular/common';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
 import { ProgressBarModule } from 'primeng/progressbar';
-import { AnalysisResult, CepikResult, MarketPriceContext } from '../../../../shared/models/analysis.models';
+import {
+  AnalysisResult,
+  CepikResult,
+  MarketPriceContext,
+} from '../../../../shared/models/analysis.models';
 import { CepikResultComponent } from '../cepik-result/cepik-result.component';
 import { MarketPricePanelComponent } from '../market-price-panel/market-price-panel.component';
 
 @Component({
   selector: 'app-analysis-result',
-  imports: [DatePipe, CardModule, TagModule, ProgressBarModule, CepikResultComponent, MarketPricePanelComponent],
+  imports: [
+    DatePipe,
+    CardModule,
+    TagModule,
+    ProgressBarModule,
+    CepikResultComponent,
+    MarketPricePanelComponent,
+  ],
   templateUrl: './analysis-result.component.html',
-  styleUrl: './analysis-result.component.scss'
+  styleUrl: './analysis-result.component.scss',
 })
 export class AnalysisResultComponent {
   readonly result = input.required<AnalysisResult>();
@@ -22,9 +33,12 @@ export class AnalysisResultComponent {
 
   readonly verdictClass = computed(() => {
     switch (this.result().verdict.code) {
-      case 'WORTH_CHECKING': return 'verdict-green';
-      case 'NEEDS_MORE_INFO': return 'verdict-orange';
-      case 'HIGH_RISK_SKIP': return 'verdict-red';
+      case 'WORTH_CHECKING':
+        return 'verdict-green';
+      case 'NEEDS_MORE_INFO':
+        return 'verdict-orange';
+      case 'HIGH_RISK_SKIP':
+        return 'verdict-red';
     }
   });
 
@@ -36,7 +50,7 @@ export class AnalysisResultComponent {
   readonly showExpandLink = computed(() => this.result().riskFlags.length > 4);
 
   toggleFlags(): void {
-    this.riskFlagsExpanded.update(v => !v);
+    this.riskFlagsExpanded.update((v) => !v);
   }
 
   scoreColor(value: number): string {
@@ -47,34 +61,47 @@ export class AnalysisResultComponent {
 
   severityLabel(severity: string): string {
     switch (severity) {
-      case 'HIGH': return 'WYSOKI';
-      case 'MEDIUM': return 'ŚREDNI';
-      case 'LOW': return 'NISKI';
-      default: return severity;
+      case 'HIGH':
+        return 'WYSOKI';
+      case 'MEDIUM':
+        return 'ŚREDNI';
+      case 'LOW':
+        return 'NISKI';
+      default:
+        return severity;
     }
   }
 
   severitySeverity(severity: string): 'danger' | 'warn' | 'info' {
     switch (severity) {
-      case 'HIGH': return 'danger';
-      case 'MEDIUM': return 'warn';
-      default: return 'info';
+      case 'HIGH':
+        return 'danger';
+      case 'MEDIUM':
+        return 'warn';
+      default:
+        return 'info';
     }
   }
 
   equipmentLabel(status: string): string {
     switch (status) {
-      case 'CONFIRMED': return 'Potwierdzono';
-      case 'MISSING': return 'Brak';
-      default: return 'Niesprecyzowane';
+      case 'CONFIRMED':
+        return 'Potwierdzono';
+      case 'MISSING':
+        return 'Brak';
+      default:
+        return 'Niesprecyzowane';
     }
   }
 
   equipmentSeverity(status: string): 'success' | 'danger' | 'secondary' {
     switch (status) {
-      case 'CONFIRMED': return 'success';
-      case 'MISSING': return 'danger';
-      default: return 'secondary';
+      case 'CONFIRMED':
+        return 'success';
+      case 'MISSING':
+        return 'danger';
+      default:
+        return 'secondary';
     }
   }
 

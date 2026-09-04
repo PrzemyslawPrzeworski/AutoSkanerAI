@@ -14,7 +14,7 @@ import {
   isDraftEmpty,
   missingRegistryFields,
   prefillFromExtracted,
-  vinError
+  vinError,
 } from '../../shared/models/vehicle-data';
 import { AnalysisResultComponent } from './components/analysis-result/analysis-result.component';
 import { VehicleDataFormComponent } from './components/vehicle-data-form/vehicle-data-form.component';
@@ -28,10 +28,10 @@ import { VehicleDataFormComponent } from './components/vehicle-data-form/vehicle
     MessageModule,
     SkeletonModule,
     AnalysisResultComponent,
-    VehicleDataFormComponent
+    VehicleDataFormComponent,
   ],
   templateUrl: './analyzer.component.html',
-  styleUrl: './analyzer.component.scss'
+  styleUrl: './analyzer.component.scss',
 })
 export class AnalyzerComponent implements OnDestroy {
   url = signal('');
@@ -50,7 +50,7 @@ export class AnalyzerComponent implements OnDestroy {
    * history panel is empty — that guessing is the whole reason this slice exists.
    */
   readonly registryInputsMissing = computed(
-    () => this.analysisResponse()?.cepikResult?.status === 'MISSING_INPUTS'
+    () => this.analysisResponse()?.cepikResult?.status === 'MISSING_INPUTS',
   );
 
   readonly vinError = computed(() => vinError(this.vehicleDraft().vin));
@@ -61,7 +61,7 @@ export class AnalyzerComponent implements OnDestroy {
     'Analizuję ogłoszenie...',
     'Sprawdzam ryzyko i wyposażenie...',
     'Sprawdzam historię w rejestrze...',
-    'Generuję rekomendacje...'
+    'Generuję rekomendacje...',
   ];
   private msgIndex = 0;
 
@@ -72,7 +72,7 @@ export class AnalyzerComponent implements OnDestroy {
   }
 
   toggleListingFields(): void {
-    this.listingFieldsOpen.update(open => !open);
+    this.listingFieldsOpen.update((open) => !open);
   }
 
   submit(): void {
@@ -102,22 +102,22 @@ export class AnalyzerComponent implements OnDestroy {
 
     this.analysisService
       .analyze(
-        draftToRequest({ url: urlVal || undefined, listingText: textVal || undefined }, draft)
+        draftToRequest({ url: urlVal || undefined, listingText: textVal || undefined }, draft),
       )
       .subscribe({
-        next: response => {
+        next: (response) => {
           this.stopRotation();
           this.loading.set(false);
           if (response.fetchStatus === 'url_failed') {
             this.fetchFailedBanner.set(
-              'Nie udało się pobrać ogłoszenia. Wklej treść ręcznie poniżej.'
+              'Nie udało się pobrać ogłoszenia. Wklej treść ręcznie poniżej.',
             );
           } else if (response.analysis) {
             this.analysisResponse.set(response);
             // Seeds the follow-up form, so a user completing the registry data only types what
             // is genuinely missing.
-            this.vehicleDraft.update(current =>
-              prefillFromExtracted(current, response.analysis?.extracted)
+            this.vehicleDraft.update((current) =>
+              prefillFromExtracted(current, response.analysis?.extracted),
             );
           } else {
             this.error.set('Otrzymano niepełną odpowiedź serwera.');
@@ -127,7 +127,7 @@ export class AnalyzerComponent implements OnDestroy {
           this.stopRotation();
           this.loading.set(false);
           this.error.set(this.mapError(err));
-        }
+        },
       });
   }
 
@@ -144,7 +144,7 @@ export class AnalyzerComponent implements OnDestroy {
     const missing = missingRegistryFields(this.vehicleDraft());
     if (missing.length) {
       this.error.set(
-        `Rejestr potrzebuje jeszcze: ${missing.join(', ')}. Bez tego nie da się go zapytać.`
+        `Rejestr potrzebuje jeszcze: ${missing.join(', ')}. Bez tego nie da się go zapytać.`,
       );
       return;
     }

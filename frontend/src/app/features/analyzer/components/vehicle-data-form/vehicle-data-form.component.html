@@ -60,48 +60,96 @@
     <div class="field-grid">
       <div class="field">
         <label for="vd-make">Marka</label>
-        <input id="vd-make" pInputText class="w-full" maxlength="60" placeholder="np. Toyota"
-          [value]="draft().make" (input)="set('make', $any($event.target).value)" />
+        <input
+          id="vd-make"
+          pInputText
+          class="w-full"
+          maxlength="60"
+          placeholder="np. Toyota"
+          [value]="draft().make"
+          (input)="set('make', $any($event.target).value)"
+        />
       </div>
 
       <div class="field">
         <label for="vd-model">Model</label>
-        <input id="vd-model" pInputText class="w-full" maxlength="60" placeholder="np. Corolla"
-          [value]="draft().model" (input)="set('model', $any($event.target).value)" />
+        <input
+          id="vd-model"
+          pInputText
+          class="w-full"
+          maxlength="60"
+          placeholder="np. Corolla"
+          [value]="draft().model"
+          (input)="set('model', $any($event.target).value)"
+        />
       </div>
 
       <div class="field">
         <label for="vd-year">Rok produkcji</label>
-        <input id="vd-year" pInputText class="w-full" inputmode="numeric" maxlength="4"
+        <input
+          id="vd-year"
+          pInputText
+          class="w-full"
+          inputmode="numeric"
+          maxlength="4"
           placeholder="np. 2022"
-          [value]="draft().year" (input)="set('year', $any($event.target).value)" />
+          [value]="draft().year"
+          (input)="set('year', $any($event.target).value)"
+        />
       </div>
 
       <div class="field">
         <label for="vd-price">Cena (PLN)</label>
-        <input id="vd-price" pInputText class="w-full" inputmode="numeric" maxlength="12"
+        <input
+          id="vd-price"
+          pInputText
+          class="w-full"
+          inputmode="numeric"
+          maxlength="12"
           placeholder="np. 82900"
-          [value]="draft().priceAmount" (input)="set('priceAmount', $any($event.target).value)" />
+          [value]="draft().priceAmount"
+          (input)="set('priceAmount', $any($event.target).value)"
+        />
       </div>
 
       <div class="field">
         <label for="vd-mileage">Przebieg (km)</label>
-        <input id="vd-mileage" pInputText class="w-full" inputmode="numeric" maxlength="9"
+        <input
+          id="vd-mileage"
+          pInputText
+          class="w-full"
+          inputmode="numeric"
+          maxlength="9"
           placeholder="np. 26320"
-          [value]="draft().mileageKm" (input)="set('mileageKm', $any($event.target).value)" />
+          [value]="draft().mileageKm"
+          (input)="set('mileageKm', $any($event.target).value)"
+        />
       </div>
 
       <div class="field">
         <label for="vd-fuel">Paliwo</label>
-        <input id="vd-fuel" pInputText class="w-full" maxlength="40" placeholder="np. hybryda"
-          [value]="draft().fuel" (input)="set('fuel', $any($event.target).value)" />
+        <input
+          id="vd-fuel"
+          pInputText
+          class="w-full"
+          maxlength="40"
+          placeholder="np. hybryda"
+          [value]="draft().fuel"
+          (input)="set('fuel', $any($event.target).value)"
+        />
       </div>
 
       <div class="field">
         <label for="vd-transmission">Skrzynia biegów</label>
-        <input id="vd-transmission" pInputText class="w-full" maxlength="40"
+        <input
+          id="vd-transmission"
+          pInputText
+          class="w-full"
+          maxlength="40"
           placeholder="np. automatyczna"
-          [value]="draft().transmission" (input)="set('transmission', $any($event.target).value)" />
+          [value]="draft().transmission"
+          (input)="set('transmission', $any($event.target).value)"
+        />
       </div>
     </div>
 

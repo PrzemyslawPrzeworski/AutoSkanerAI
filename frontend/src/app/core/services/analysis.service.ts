@@ -9,9 +9,6 @@ export class AnalysisService {
   private readonly http = inject(HttpClient);
 
   analyze(request: AnalysisRequest): Observable<AnalysisResponse> {
-    return this.http.post<AnalysisResponse>(
-      `${environment.apiUrl}/api/analyses`,
-      request
-    );
+    return this.http.post<AnalysisResponse>(`${environment.apiUrl}/api/analyses`, request);
   }
 }

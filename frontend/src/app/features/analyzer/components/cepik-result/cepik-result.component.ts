@@ -1,5 +1,11 @@
 import { Component, computed, input, signal } from '@angular/core';
-import { CepikResult, DamageRecord, ExtractedData, MileageStamp, VehicleEvent } from '../../../../shared/models/analysis.models';
+import {
+  CepikResult,
+  DamageRecord,
+  ExtractedData,
+  MileageStamp,
+  VehicleEvent,
+} from '../../../../shared/models/analysis.models';
 
 /**
  * Three-state, never two. `damageRecords === null` means the registry was never asked or did not
@@ -20,7 +26,7 @@ export interface CepikAlert {
   standalone: true,
   imports: [],
   templateUrl: './cepik-result.component.html',
-  styleUrl: './cepik-result.component.scss'
+  styleUrl: './cepik-result.component.scss',
 })
 export class CepikResultComponent {
   readonly cepikResult = input.required<CepikResult | null>();
@@ -32,11 +38,11 @@ export class CepikResultComponent {
   timelineExpanded = signal(false);
 
   toggleMileage(): void {
-    this.mileageExpanded.update(v => !v);
+    this.mileageExpanded.update((v) => !v);
   }
 
   toggleTimeline(): void {
-    this.timelineExpanded.update(v => !v);
+    this.timelineExpanded.update((v) => !v);
   }
 
   readonly damages = computed<DamageRecord[]>(() => this.cepikResult()?.damageRecords ?? []);
@@ -68,14 +74,16 @@ export class CepikResultComponent {
     if (result.vehicleLost === true) {
       alerts.push({
         title: 'Pojazd zgłoszony jako utracony',
-        detail: 'CEPiK oznacza ten pojazd jako utracony (kradzież). Nie kupuj bez wyjaśnienia w policji.'
+        detail:
+          'CEPiK oznacza ten pojazd jako utracony (kradzież). Nie kupuj bez wyjaśnienia w policji.',
       });
     }
 
     if (result.odometerRolledBack === true) {
       alerts.push({
         title: 'Rejestr wykrył cofnięcie drogomierza',
-        detail: 'Kolejny odczyt licznika był niższy od poprzedniego. Faktyczny przebieg jest nieznany.'
+        detail:
+          'Kolejny odczyt licznika był niższy od poprzedniego. Faktyczny przebieg jest nieznany.',
       });
     }
 
@@ -85,7 +93,10 @@ export class CepikResultComponent {
       if (damage.insurer) parts.push('ubezpieczyciel: ' + damage.insurer);
       alerts.push({
         title: 'Szkoda istotna — ' + (damage.date ?? 'data nieznana'),
-        detail: parts.length > 0 ? parts.join(' · ') : (damage.description ?? 'Brak szczegółów w rejestrze.')
+        detail:
+          parts.length > 0
+            ? parts.join(' · ')
+            : (damage.description ?? 'Brak szczegółów w rejestrze.'),
       });
     }
 
@@ -102,9 +113,14 @@ export class CepikResultComponent {
     if (!result || !listing) return [];
     const mismatches: string[] = [];
 
-    if (result.yearOfManufacture !== null && listing.year !== null
-        && result.yearOfManufacture !== listing.year) {
-      mismatches.push(`Rok produkcji: rejestr ${result.yearOfManufacture}, ogłoszenie ${listing.year}`);
+    if (
+      result.yearOfManufacture !== null &&
+      listing.year !== null &&
+      result.yearOfManufacture !== listing.year
+    ) {
+      mismatches.push(
+        `Rok produkcji: rejestr ${result.yearOfManufacture}, ogłoszenie ${listing.year}`,
+      );
     }
 
     // Registry names are upper-case and often carry the make inside the model ("TOYOTA COROLLA"),

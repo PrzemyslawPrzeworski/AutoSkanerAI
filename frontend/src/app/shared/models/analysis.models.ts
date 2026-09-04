@@ -2,7 +2,10 @@ export type VerdictCode = 'WORTH_CHECKING' | 'NEEDS_MORE_INFO' | 'HIGH_RISK_SKIP
 
 export type CepikStatus = 'FOUND' | 'NOT_FOUND' | 'LOOKUP_FAILED' | 'MISSING_INPUTS';
 
-export interface MileageStamp { date: string; mileageKm: number | null; }
+export interface MileageStamp {
+  date: string;
+  mileageKm: number | null;
+}
 export interface DamageRecord {
   // Nullable: the backend reads this from the registry event's date field, which may be absent.
   date: string | null;
@@ -11,7 +14,10 @@ export interface DamageRecord {
   categories: string[] | null;
 }
 
-export interface EventDetail { name: string; value: string | null; }
+export interface EventDetail {
+  name: string;
+  value: string | null;
+}
 export interface VehicleEvent {
   date: string | null;
   type: string | null;

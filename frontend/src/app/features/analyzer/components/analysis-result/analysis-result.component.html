@@ -12,13 +12,16 @@
 <div class="section">
   <h3>Oceny kategorii</h3>
   <div class="scores-list">
-    @for (item of [
-      { label: 'Kompletność', value: result().scores.completeness },
-      { label: 'Wyposażenie', value: result().scores.equipment },
-      { label: 'Ryzyko', value: result().scores.risk },
-      { label: 'Wartość', value: result().scores.value },
-      { label: 'Łącznie', value: result().scores.overall }
-    ]; track item.label) {
+    @for (
+      item of [
+        { label: 'Kompletność', value: result().scores.completeness },
+        { label: 'Wyposażenie', value: result().scores.equipment },
+        { label: 'Ryzyko', value: result().scores.risk },
+        { label: 'Wartość', value: result().scores.value },
+        { label: 'Łącznie', value: result().scores.overall },
+      ];
+      track item.label
+    ) {
       <div class="score-row">
         <span class="score-label">{{ item.label }}</span>
         <p-progressbar
@@ -37,22 +40,70 @@
   <h3>Dane ogłoszenia</h3>
   <table class="data-table">
     <tbody>
-      <tr><td>Marka</td><td>{{ str(result().extracted.make) }}</td></tr>
-      <tr><td>Model</td><td>{{ str(result().extracted.model) }}</td></tr>
-      <tr><td>Rok produkcji</td><td>{{ str(result().extracted.year) }}</td></tr>
-      <tr><td>Cena</td><td>{{ str(result().extracted.priceAmount) }}</td></tr>
-      <tr><td>Waluta</td><td>{{ str(result().extracted.priceCurrency) }}</td></tr>
-      <tr><td>Przebieg (km)</td><td>{{ str(result().extracted.mileageKm) }}</td></tr>
-      <tr><td>Rodzaj paliwa</td><td>{{ str(result().extracted.fuel) }}</td></tr>
-      <tr><td>Skrzynia biegów</td><td>{{ str(result().extracted.transmission) }}</td></tr>
-      <tr><td>Kraj pochodzenia</td><td>{{ str(result().extracted.originCountry) }}</td></tr>
-      <tr><td>Typ sprzedającego</td><td>{{ str(result().extracted.sellerType) }}</td></tr>
-      <tr><td>Historia serwisowa</td><td>{{ format(result().extracted.serviceHistoryMentioned) }}</td></tr>
-      <tr><td>Deklaracja dot. wypadków</td><td>{{ str(result().extracted.accidentClaim) }}</td></tr>
-      <tr><td>Numer VIN podany</td><td>{{ format(result().extracted.vinPresent) }}</td></tr>
-      <tr><td>Numer VIN</td><td>{{ str(result().extracted.vin) }}</td></tr>
-      <tr><td>Nr rejestracyjny</td><td>{{ str(result().extracted.registrationPlate) }}</td></tr>
-      <tr><td>Data 1. rejestracji</td><td>{{ str(result().extracted.firstRegistrationDate) }}</td></tr>
+      <tr>
+        <td>Marka</td>
+        <td>{{ str(result().extracted.make) }}</td>
+      </tr>
+      <tr>
+        <td>Model</td>
+        <td>{{ str(result().extracted.model) }}</td>
+      </tr>
+      <tr>
+        <td>Rok produkcji</td>
+        <td>{{ str(result().extracted.year) }}</td>
+      </tr>
+      <tr>
+        <td>Cena</td>
+        <td>{{ str(result().extracted.priceAmount) }}</td>
+      </tr>
+      <tr>
+        <td>Waluta</td>
+        <td>{{ str(result().extracted.priceCurrency) }}</td>
+      </tr>
+      <tr>
+        <td>Przebieg (km)</td>
+        <td>{{ str(result().extracted.mileageKm) }}</td>
+      </tr>
+      <tr>
+        <td>Rodzaj paliwa</td>
+        <td>{{ str(result().extracted.fuel) }}</td>
+      </tr>
+      <tr>
+        <td>Skrzynia biegów</td>
+        <td>{{ str(result().extracted.transmission) }}</td>
+      </tr>
+      <tr>
+        <td>Kraj pochodzenia</td>
+        <td>{{ str(result().extracted.originCountry) }}</td>
+      </tr>
+      <tr>
+        <td>Typ sprzedającego</td>
+        <td>{{ str(result().extracted.sellerType) }}</td>
+      </tr>
+      <tr>
+        <td>Historia serwisowa</td>
+        <td>{{ format(result().extracted.serviceHistoryMentioned) }}</td>
+      </tr>
+      <tr>
+        <td>Deklaracja dot. wypadków</td>
+        <td>{{ str(result().extracted.accidentClaim) }}</td>
+      </tr>
+      <tr>
+        <td>Numer VIN podany</td>
+        <td>{{ format(result().extracted.vinPresent) }}</td>
+      </tr>
+      <tr>
+        <td>Numer VIN</td>
+        <td>{{ str(result().extracted.vin) }}</td>
+      </tr>
+      <tr>
+        <td>Nr rejestracyjny</td>
+        <td>{{ str(result().extracted.registrationPlate) }}</td>
+      </tr>
+      <tr>
+        <td>Data 1. rejestracji</td>
+        <td>{{ str(result().extracted.firstRegistrationDate) }}</td>
+      </tr>
     </tbody>
   </table>
 </div>
@@ -74,7 +125,11 @@
     </div>
     @if (showExpandLink()) {
       <button class="expand-link" (click)="toggleFlags()">
-        {{ riskFlagsExpanded() ? 'Pokaż mniej' : 'Pokaż wszystkie (' + result().riskFlags.length + ')' }}
+        {{
+          riskFlagsExpanded()
+            ? 'Pokaż mniej'
+            : 'Pokaż wszystkie (' + result().riskFlags.length + ')'
+        }}
       </button>
     }
   </div>
@@ -122,5 +177,5 @@
 <div class="meta-footer">
   Analiza: {{ result().meta.provider }} · {{ result().meta.model }} ·
   {{ result().meta.latencyMs }}ms ·
-  {{ result().meta.generatedAt | date:'short' }}
+  {{ result().meta.generatedAt | date: 'short' }}
 </div>

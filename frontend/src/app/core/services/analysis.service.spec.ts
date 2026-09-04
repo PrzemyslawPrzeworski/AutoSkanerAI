@@ -10,7 +10,7 @@ describe('AnalysisService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()]
+      providers: [provideHttpClient(), provideHttpClientTesting()],
     });
     service = TestBed.inject(AnalysisService);
     httpMock = TestBed.inject(HttpTestingController);
@@ -24,10 +24,10 @@ describe('AnalysisService', () => {
       fetchFailureReason: null,
       analysis: null,
       cepikResult: null,
-      marketPriceContext: null
+      marketPriceContext: null,
     };
 
-    service.analyze({ listingText: 'BMW 3 2020' }).subscribe(res => {
+    service.analyze({ listingText: 'BMW 3 2020' }).subscribe((res) => {
       expect(res.fetchStatus).toBe('text');
     });
 
@@ -43,8 +43,11 @@ describe('AnalysisService', () => {
     const req = httpMock.expectOne('/api/analyses');
     expect(req.request.body).toEqual({ url: 'https://otomoto.pl/listing/1' });
     req.flush({
-      fetchStatus: 'url_failed', fetchFailureReason: 'blocked', analysis: null,
-      cepikResult: null, marketPriceContext: null
+      fetchStatus: 'url_failed',
+      fetchFailureReason: 'blocked',
+      analysis: null,
+      cepikResult: null,
+      marketPriceContext: null,
     });
   });
 
@@ -55,7 +58,7 @@ describe('AnalysisService', () => {
         manual: { make: 'Toyota', year: 2022 },
         vin: 'NMTBZ3BE40R000000',
         registrationPlate: 'WX00000',
-        firstRegistrationDate: '2022-04-12'
+        firstRegistrationDate: '2022-04-12',
       })
       .subscribe();
 
@@ -63,30 +66,37 @@ describe('AnalysisService', () => {
     expect(req.request.body.manual).toEqual({ make: 'Toyota', year: 2022 });
     expect(req.request.body.vin).toBe('NMTBZ3BE40R000000');
     req.flush({
-      fetchStatus: 'ok', fetchFailureReason: null, analysis: null,
-      cepikResult: null, marketPriceContext: null
+      fetchStatus: 'ok',
+      fetchFailureReason: null,
+      analysis: null,
+      cepikResult: null,
+      marketPriceContext: null,
     });
   });
 
   it('propagates 400 HttpErrorResponse', () => {
     service.analyze({ listingText: '' }).subscribe({
-      error: err => expect(err.status).toBe(400)
+      error: (err) => expect(err.status).toBe(400),
     });
 
-    httpMock.expectOne('/api/analyses').flush(
-      { status: 400, error: 'Błąd walidacji', messages: [], timestamp: '' },
-      { status: 400, statusText: 'Bad Request' }
-    );
+    httpMock
+      .expectOne('/api/analyses')
+      .flush(
+        { status: 400, error: 'Błąd walidacji', messages: [], timestamp: '' },
+        { status: 400, statusText: 'Bad Request' },
+      );
   });
 
   it('propagates 502 HttpErrorResponse', () => {
     service.analyze({ listingText: 'test' }).subscribe({
-      error: err => expect(err.status).toBe(502)
+      error: (err) => expect(err.status).toBe(502),
     });
 
-    httpMock.expectOne('/api/analyses').flush(
-      { status: 502, error: 'Błąd usługi LLM', messages: [], timestamp: '' },
-      { status: 502, statusText: 'Bad Gateway' }
-    );
+    httpMock
+      .expectOne('/api/analyses')
+      .flush(
+        { status: 502, error: 'Błąd usługi LLM', messages: [], timestamp: '' },
+        { status: 502, statusText: 'Bad Gateway' },
+      );
   });
 });

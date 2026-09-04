@@ -5,7 +5,7 @@ import { MarketPricePanelComponent } from './market-price-panel.component';
 import {
   MarketPriceContext,
   MarketPriceSampleQuality,
-  MarketPriceStatus
+  MarketPriceStatus,
 } from '../../../../shared/models/analysis.models';
 
 /**
@@ -39,7 +39,7 @@ function makeContext(overrides: Partial<MarketPriceContext> = {}): MarketPriceCo
     fetchedAt: '2026-09-04T10:00:00Z',
     sampleQuality: 'SUFFICIENT' as MarketPriceSampleQuality,
     discardedCount: 0,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -68,12 +68,12 @@ describe('MarketPricePanelComponent', () => {
   function caveatTexts(): string[] {
     return fixture.debugElement
       .queryAll(By.css('.caveat'))
-      .map(el => el.nativeElement.textContent.replace(/\s+/g, ' ').trim());
+      .map((el) => el.nativeElement.textContent.replace(/\s+/g, ' ').trim());
   }
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [MarketPricePanelComponent]
+      imports: [MarketPricePanelComponent],
     }).compileComponents();
   });
 
@@ -169,8 +169,8 @@ describe('MarketPricePanelComponent', () => {
 
     const texts = caveatTexts();
     expect(texts.length).toBe(2);
-    expect(texts.some(t => t.includes('Mała próbka'))).toBe(true);
-    expect(texts.some(t => t.includes('Pominięto 2'))).toBe(true);
+    expect(texts.some((t) => t.includes('Mała próbka'))).toBe(true);
+    expect(texts.some((t) => t.includes('Pominięto 2'))).toBe(true);
   });
 
   // -------------------------------------------------------------------------------------------
@@ -207,11 +207,17 @@ describe('MarketPricePanelComponent', () => {
   it('FETCH_FAILED says the comparison is unavailable and shows no range', () => {
     // The degraded records carry null prices, so a header that rendered anyway would read
     // "Kontekst cenowy: – PLN". Asserting the OK header is absent is the load-bearing half.
-    create(makeContext({
-      status: 'FETCH_FAILED',
-      minPricePln: null, medianPricePln: null, maxPricePln: null, sampleSize: null,
-      sampleQuality: null, discardedCount: null
-    }));
+    create(
+      makeContext({
+        status: 'FETCH_FAILED',
+        minPricePln: null,
+        medianPricePln: null,
+        maxPricePln: null,
+        sampleSize: null,
+        sampleQuality: null,
+        discardedCount: null,
+      }),
+    );
 
     const degraded = fixture.debugElement.query(By.css('.panel-degraded'));
     expect(degraded).not.toBeNull();
@@ -223,11 +229,17 @@ describe('MarketPricePanelComponent', () => {
     // The two degraded branches must stay distinguishable: one means the fetch broke, the other
     // means the fetch worked and there were not enough comparable listings. Collapsing them tells
     // the user to retry something that will return the same answer.
-    create(makeContext({
-      status: 'INSUFFICIENT_DATA',
-      minPricePln: null, medianPricePln: null, maxPricePln: null, sampleSize: null,
-      sampleQuality: null, discardedCount: null
-    }));
+    create(
+      makeContext({
+        status: 'INSUFFICIENT_DATA',
+        minPricePln: null,
+        medianPricePln: null,
+        maxPricePln: null,
+        sampleSize: null,
+        sampleQuality: null,
+        discardedCount: null,
+      }),
+    );
 
     const degraded = fixture.debugElement.query(By.css('.panel-degraded'));
     expect(degraded.nativeElement.textContent).toContain('Brak wystarczających ogłoszeń');

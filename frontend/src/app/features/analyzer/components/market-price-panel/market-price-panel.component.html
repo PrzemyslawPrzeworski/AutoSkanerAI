@@ -1,10 +1,20 @@
 @if (marketPriceContext() && marketPriceContext()!.status !== 'MISSING_INPUTS') {
   <div class="market-price-panel">
-
     @if (marketPriceContext()!.status === 'OK') {
-      <div class="panel-header" (click)="toggle()" (keydown.enter)="toggle()" (keydown.space)="toggle()" tabindex="0" role="button">
-        <span class="panel-title">Kontekst cenowy:
-          <strong>{{ marketPriceContext()!.minPricePln | number:'1.0-0' }} – {{ marketPriceContext()!.maxPricePln | number:'1.0-0' }} PLN</strong>
+      <div
+        class="panel-header"
+        (click)="toggle()"
+        (keydown.enter)="toggle()"
+        (keydown.space)="toggle()"
+        tabindex="0"
+        role="button"
+      >
+        <span class="panel-title"
+          >Kontekst cenowy:
+          <strong
+            >{{ marketPriceContext()!.minPricePln | number: '1.0-0' }} –
+            {{ marketPriceContext()!.maxPricePln | number: '1.0-0' }} PLN</strong
+          >
         </span>
         <span class="toggle-icon">{{ expanded() ? '▲' : '▼' }}</span>
       </div>
@@ -13,7 +23,7 @@
         <div class="panel-body">
           <div class="price-row">
             <span>Mediana</span>
-            <strong>{{ marketPriceContext()!.medianPricePln | number:'1.0-0' }} PLN</strong>
+            <strong>{{ marketPriceContext()!.medianPricePln | number: '1.0-0' }} PLN</strong>
           </div>
           <div class="price-row">
             <span>Liczba ogłoszeń</span>
@@ -28,13 +38,14 @@
           -->
           @if (marketPriceContext()!.sampleQuality === 'DISPERSED') {
             <div class="caveat">
-              Ceny w tych ogłoszeniach bardzo się różnią — zakres nie opisuje jednego rynku,
-              traktuj go wyłącznie orientacyjnie
+              Ceny w tych ogłoszeniach bardzo się różnią — zakres nie opisuje jednego rynku, traktuj
+              go wyłącznie orientacyjnie
             </div>
           }
           @if (marketPriceContext()!.sampleQuality === 'THIN') {
             <div class="caveat">
-              Mała próbka ({{ marketPriceContext()!.sampleSize }} ogłoszeń) — traktuj zakres orientacyjnie
+              Mała próbka ({{ marketPriceContext()!.sampleSize }} ogłoszeń) — traktuj zakres
+              orientacyjnie
             </div>
           }
 
@@ -51,7 +62,12 @@
           }
 
           @if (marketPriceContext()!.queryUrl) {
-            <a [href]="marketPriceContext()!.queryUrl" target="_blank" rel="noopener noreferrer" class="otomoto-link">
+            <a
+              [href]="marketPriceContext()!.queryUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="otomoto-link"
+            >
               Zobacz porównywalne ogłoszenia na Otomoto
             </a>
           }
@@ -63,16 +79,19 @@
       <div class="panel-degraded">
         <span>Porównanie cen niedostępne</span>
         @if (marketPriceContext()!.queryUrl) {
-          <a [href]="marketPriceContext()!.queryUrl" target="_blank" rel="noopener noreferrer" class="otomoto-link">Otomoto</a>
+          <a
+            [href]="marketPriceContext()!.queryUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="otomoto-link"
+            >Otomoto</a
+          >
         }
       </div>
     }
 
     @if (marketPriceContext()!.status === 'INSUFFICIENT_DATA') {
-      <div class="panel-degraded">
-        Brak wystarczających ogłoszeń do porównania
-      </div>
+      <div class="panel-degraded">Brak wystarczających ogłoszeń do porównania</div>
     }
-
   </div>
 }

@@ -5,9 +5,15 @@
   text-align: center;
   color: #fff;
 
-  &.verdict-green { background: #16a34a; }
-  &.verdict-orange { background: #ea580c; }
-  &.verdict-red { background: #dc2626; }
+  &.verdict-green {
+    background: #16a34a;
+  }
+  &.verdict-orange {
+    background: #ea580c;
+  }
+  &.verdict-red {
+    background: #dc2626;
+  }
 }
 
 .verdict-label {
@@ -83,7 +89,9 @@
     }
   }
 
-  tr:last-child td { border-bottom: none; }
+  tr:last-child td {
+    border-bottom: none;
+  }
 }
 
 .risk-list {
@@ -112,7 +120,9 @@
   padding: 0.5rem 0 0;
   text-decoration: underline;
 
-  &:hover { color: #0a58ca; }
+  &:hover {
+    color: #0a58ca;
+  }
 }
 
 .equipment-grid {

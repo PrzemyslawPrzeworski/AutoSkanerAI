@@ -31,7 +31,7 @@ export function emptyDraft(): VehicleDataDraft {
     mileageKm: '',
     fuel: '',
     transmission: '',
-    notes: ''
+    notes: '',
   };
 }
 
@@ -50,7 +50,7 @@ export function missingRegistryFields(draft: VehicleDataDraft): string[] {
 }
 
 export function isDraftEmpty(draft: VehicleDataDraft): boolean {
-  return Object.values(draft).every(value => !value.trim());
+  return Object.values(draft).every((value) => !value.trim());
 }
 
 /**
@@ -59,7 +59,7 @@ export function isDraftEmpty(draft: VehicleDataDraft): boolean {
  */
 export function prefillFromExtracted(
   draft: VehicleDataDraft,
-  extracted: ExtractedData | null | undefined
+  extracted: ExtractedData | null | undefined,
 ): VehicleDataDraft {
   if (!extracted) return draft;
   return {
@@ -67,7 +67,7 @@ export function prefillFromExtracted(
     vin: draft.vin.trim() || extracted.vin || '',
     registrationPlate: draft.registrationPlate.trim() || extracted.registrationPlate || '',
     firstRegistrationDate:
-      draft.firstRegistrationDate.trim() || extracted.firstRegistrationDate || ''
+      draft.firstRegistrationDate.trim() || extracted.firstRegistrationDate || '',
   };
 }
 
@@ -99,7 +99,7 @@ export function vinError(raw: string): string | null {
  */
 export function draftToRequest(
   base: Pick<AnalysisRequest, 'url' | 'listingText'>,
-  draft: VehicleDataDraft
+  draft: VehicleDataDraft,
 ): AnalysisRequest {
   const manual = {
     make: text(draft.make),
@@ -109,16 +109,16 @@ export function draftToRequest(
     mileageKm: integer(draft.mileageKm),
     fuel: text(draft.fuel),
     transmission: text(draft.transmission),
-    notes: text(draft.notes)
+    notes: text(draft.notes),
   };
-  const hasManual = Object.values(manual).some(value => value !== undefined);
+  const hasManual = Object.values(manual).some((value) => value !== undefined);
 
   return {
     ...base,
     manual: hasManual ? manual : undefined,
     vin: draft.vin.trim() ? normaliseVin(draft.vin) : undefined,
     registrationPlate: text(draft.registrationPlate)?.toUpperCase(),
-    firstRegistrationDate: text(draft.firstRegistrationDate)
+    firstRegistrationDate: text(draft.firstRegistrationDate),
   };
 }
 

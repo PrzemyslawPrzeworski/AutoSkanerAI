@@ -8,34 +8,65 @@ import {
   AnalysisRequest,
   AnalysisResponse,
   AnalysisResult,
-  CepikResult
+  CepikResult,
 } from '../../shared/models/analysis.models';
 import { of, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 
 const mockResult: AnalysisResult = {
   extracted: {
-    make: 'BMW', model: '3', year: 2020, priceAmount: null, priceCurrency: null,
-    mileageKm: null, fuel: null, transmission: null, originCountry: null,
-    sellerType: null, serviceHistoryMentioned: null, accidentClaim: null, vinPresent: null,
-    vin: null, registrationPlate: 'WX00000', firstRegistrationDate: '2020-05-01'
+    make: 'BMW',
+    model: '3',
+    year: 2020,
+    priceAmount: null,
+    priceCurrency: null,
+    mileageKm: null,
+    fuel: null,
+    transmission: null,
+    originCountry: null,
+    sellerType: null,
+    serviceHistoryMentioned: null,
+    accidentClaim: null,
+    vinPresent: null,
+    vin: null,
+    registrationPlate: 'WX00000',
+    firstRegistrationDate: '2020-05-01',
   },
   equipment: [],
   riskFlags: [],
   sellerQuestions: [],
   scores: { completeness: 70, equipment: 70, risk: 70, value: 70, overall: 70 },
   verdict: { code: 'WORTH_CHECKING', label: 'warto sprawdzić' },
-  meta: { provider: 'mock', model: 'mock-v1', latencyMs: 10, generatedAt: new Date().toISOString() }
+  meta: {
+    provider: 'mock',
+    model: 'mock-v1',
+    latencyMs: 10,
+    generatedAt: new Date().toISOString(),
+  },
 };
 
 const missingInputs: CepikResult = {
   status: 'MISSING_INPUTS',
-  vin: null, firstRegistrationDatePl: null, deregisteredDate: null, originCountry: null,
-  ownerCount: null, mileageStamps: null, damageRecords: null,
-  lookupUrl: 'https://historiapojazdu.gov.pl', fetchedAt: new Date().toISOString(),
-  make: null, model: null, vehicleType: null, yearOfManufacture: null,
-  registrationStatus: null, technicalInspectionStatus: null, ocInsuranceValid: null,
-  vehicleLost: null, odometerRolledBack: null, registrationProvince: null, events: null
+  vin: null,
+  firstRegistrationDatePl: null,
+  deregisteredDate: null,
+  originCountry: null,
+  ownerCount: null,
+  mileageStamps: null,
+  damageRecords: null,
+  lookupUrl: 'https://historiapojazdu.gov.pl',
+  fetchedAt: new Date().toISOString(),
+  make: null,
+  model: null,
+  vehicleType: null,
+  yearOfManufacture: null,
+  registrationStatus: null,
+  technicalInspectionStatus: null,
+  ocInsuranceValid: null,
+  vehicleLost: null,
+  odometerRolledBack: null,
+  registrationProvince: null,
+  events: null,
 };
 
 function response(overrides: Partial<AnalysisResponse> = {}): AnalysisResponse {
@@ -45,7 +76,7 @@ function response(overrides: Partial<AnalysisResponse> = {}): AnalysisResponse {
     analysis: mockResult,
     cepikResult: null,
     marketPriceContext: null,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -61,8 +92,8 @@ describe('AnalyzerComponent', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: AnalysisService, useValue: analysisSpy }
-      ]
+        { provide: AnalysisService, useValue: analysisSpy },
+      ],
     }).compileComponents();
   });
 
@@ -104,7 +135,7 @@ describe('AnalyzerComponent', () => {
   it('URL submit → url_failed sets fetchFailedBanner', () => {
     const comp = create();
     analysisSpy.analyze.mockReturnValue(
-      of(response({ fetchStatus: 'url_failed', fetchFailureReason: 'blocked', analysis: null }))
+      of(response({ fetchStatus: 'url_failed', fetchFailureReason: 'blocked', analysis: null })),
     );
 
     comp.url.set('https://otomoto.pl/listing/1');
@@ -119,7 +150,7 @@ describe('AnalyzerComponent', () => {
     const comp = create();
     analysisSpy.analyze.mockReturnValue(of(response({ fetchStatus: 'manual' })));
 
-    comp.vehicleDraft.update(d => ({ ...d, make: 'Toyota', year: '2022' }));
+    comp.vehicleDraft.update((d) => ({ ...d, make: 'Toyota', year: '2022' }));
     comp.submit();
 
     expect(comp.error()).toBeNull();
@@ -132,7 +163,7 @@ describe('AnalyzerComponent', () => {
   it('a malformed VIN blocks submission with an explanation', () => {
     const comp = create();
 
-    comp.vehicleDraft.update(d => ({ ...d, vin: 'TOO-SHORT' }));
+    comp.vehicleDraft.update((d) => ({ ...d, vin: 'TOO-SHORT' }));
     comp.listingText.set('BMW 3 2020');
     comp.submit();
 
@@ -147,7 +178,7 @@ describe('AnalyzerComponent', () => {
     analysisSpy.analyze.mockReturnValue(of(response()));
 
     comp.url.set('https://www.otomoto.pl/x');
-    comp.vehicleDraft.update(d => ({ ...d, vin: 'NMTBZ3BE40R000000' }));
+    comp.vehicleDraft.update((d) => ({ ...d, vin: 'NMTBZ3BE40R000000' }));
     comp.submit();
 
     expect(comp.error()).toBeNull();
@@ -162,11 +193,11 @@ describe('AnalyzerComponent', () => {
     analysisSpy.analyze.mockReturnValue(of(response()));
 
     comp.listingText.set('BMW 3 2020');
-    comp.vehicleDraft.update(d => ({
+    comp.vehicleDraft.update((d) => ({
       ...d,
       vin: ' nmtbz3be40r000000 ',
       registrationPlate: 'wx00000',
-      firstRegistrationDate: '2020-05-01'
+      firstRegistrationDate: '2020-05-01',
     }));
     comp.submit();
 
@@ -215,7 +246,7 @@ describe('AnalyzerComponent', () => {
     comp.submit();
     analysisSpy.analyze.mockClear();
 
-    comp.vehicleDraft.update(d => ({ ...d, vin: 'NMTBZ3BE40R000000' }));
+    comp.vehicleDraft.update((d) => ({ ...d, vin: 'NMTBZ3BE40R000000' }));
     comp.recheckWithRegistryData();
 
     expect(comp.error()).toBeNull();
@@ -229,7 +260,7 @@ describe('AnalyzerComponent', () => {
     const comp = create();
     const err = new HttpErrorResponse({
       status: 400,
-      error: { messages: ['url: nieprawidłowy format URL'] }
+      error: { messages: ['url: nieprawidłowy format URL'] },
     });
     analysisSpy.analyze.mockReturnValue(throwError(() => err));
 
@@ -255,7 +286,7 @@ describe('AnalyzerComponent', () => {
     analysisSpy.analyze.mockReturnValue(of(response()));
 
     comp.listingText.set('BMW');
-    comp.vehicleDraft.update(d => ({ ...d, vin: 'NMTBZ3BE40R000000' }));
+    comp.vehicleDraft.update((d) => ({ ...d, vin: 'NMTBZ3BE40R000000' }));
     comp.submit();
     expect(comp.analysisResponse()).not.toBeNull();
 

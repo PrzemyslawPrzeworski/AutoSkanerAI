@@ -7,24 +7,40 @@ import { AnalysisResult } from '../../../../shared/models/analysis.models';
 function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisResult {
   return {
     extracted: {
-      make: 'BMW', model: '3', year: 2020, priceAmount: 45000, priceCurrency: 'PLN',
-      mileageKm: 120000, fuel: 'benzyna', transmission: 'manual',
-      originCountry: 'Polska', sellerType: 'prywatny',
-      serviceHistoryMentioned: true, accidentClaim: 'bezwypadkowy', vinPresent: true,
-      vin: null, registrationPlate: null, firstRegistrationDate: null
+      make: 'BMW',
+      model: '3',
+      year: 2020,
+      priceAmount: 45000,
+      priceCurrency: 'PLN',
+      mileageKm: 120000,
+      fuel: 'benzyna',
+      transmission: 'manual',
+      originCountry: 'Polska',
+      sellerType: 'prywatny',
+      serviceHistoryMentioned: true,
+      accidentClaim: 'bezwypadkowy',
+      vinPresent: true,
+      vin: null,
+      registrationPlate: null,
+      firstRegistrationDate: null,
     },
     equipment: [
       { name: 'klimatyzacja', status: 'CONFIRMED', note: null },
-      { name: 'ABS', status: 'MISSING', note: 'Nie wspomniano' }
+      { name: 'ABS', status: 'MISSING', note: 'Nie wspomniano' },
     ],
     riskFlags: [
-      { code: 'NO_ACCIDENT_DECLARATION', severity: 'HIGH', description: 'Brak deklaracji' }
+      { code: 'NO_ACCIDENT_DECLARATION', severity: 'HIGH', description: 'Brak deklaracji' },
     ],
     sellerQuestions: ['Pytanie 1', 'Pytanie 2'],
     scores: { completeness: 80, equipment: 50, risk: 75, value: 60, overall: 66 },
     verdict: { code: 'NEEDS_MORE_INFO', label: 'sprawdź po doprecyzowaniu' },
-    meta: { provider: 'mock', model: 'mock-v1', latencyMs: 10, generatedAt: '2026-06-01T12:00:00Z' },
-    ...overrides
+    meta: {
+      provider: 'mock',
+      model: 'mock-v1',
+      latencyMs: 10,
+      generatedAt: '2026-06-01T12:00:00Z',
+    },
+    ...overrides,
   };
 }
 
@@ -40,7 +56,7 @@ describe('AnalysisResultComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AnalysisResultComponent]
+      imports: [AnalysisResultComponent],
     }).compileComponents();
   });
 
@@ -66,7 +82,9 @@ describe('AnalysisResultComponent', () => {
 
   it('6 risk flags: initially shows 4, expand shows all 6', () => {
     const flags = Array.from({ length: 6 }, (_, i) => ({
-      code: `FLAG_${i}`, severity: 'MEDIUM' as const, description: `Desc ${i}`
+      code: `FLAG_${i}`,
+      severity: 'MEDIUM' as const,
+      description: `Desc ${i}`,
     }));
     const comp = create(makeResult({ riskFlags: flags }));
 
@@ -79,7 +97,9 @@ describe('AnalysisResultComponent', () => {
 
   it('3 risk flags: no expand link', () => {
     const flags = Array.from({ length: 3 }, (_, i) => ({
-      code: `F${i}`, severity: 'LOW' as const, description: `D${i}`
+      code: `F${i}`,
+      severity: 'LOW' as const,
+      description: `D${i}`,
     }));
     create(makeResult({ riskFlags: flags }));
     const link = fixture.debugElement.query(By.css('.expand-link'));

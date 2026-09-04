@@ -7,13 +7,13 @@ import { MarketPriceContext } from '../../../../shared/models/analysis.models';
   standalone: true,
   imports: [DecimalPipe],
   templateUrl: './market-price-panel.component.html',
-  styleUrl: './market-price-panel.component.scss'
+  styleUrl: './market-price-panel.component.scss',
 })
 export class MarketPricePanelComponent {
   readonly marketPriceContext = input.required<MarketPriceContext | null>();
   expanded = signal(false);
 
   toggle(): void {
-    this.expanded.update(v => !v);
+    this.expanded.update((v) => !v);
   }
 }
