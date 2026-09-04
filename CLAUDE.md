@@ -13,6 +13,7 @@ AI-powered used-car listing analyzer for the Polish market. 3-week solo MVP. Spr
 backend/    Spring Boot 4.0.6, Java 21, Maven      -> backend/CLAUDE.md
 frontend/   Angular 21.2, TypeScript, SCSS, npm    -> frontend/CLAUDE.md
 context/    10xDevs chain artifacts (PRD, tech-stack, shape-notes) — do not edit
+context/map/  measured onboarding map    -> context/map/repo-map.md
 ```
 
 This file is the **root of an additive hierarchy, not an override**: work inside
@@ -24,6 +25,7 @@ it does not duplicate.
 
 | Looking for | Read |
 |---|---|
+| **Orientation in unfamiliar code** — layers, real couplings, risk zones, first files to read | **`context/map/repo-map.md`** |
 | API error shape, endpoints, AI + enrichment services, live & mutation tests | `backend/CLAUDE.md` |
 | Angular testing (vitest, zoneless), the vehicle-data form, the E2E budget | `frontend/CLAUDE.md` |
 | Risk map, per-layer budgets, tool inventory, verification ledger | `context/foundation/test-plan.md` |
