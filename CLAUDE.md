@@ -258,6 +258,19 @@ panel rendering nothing. That already nearly happened with `sampleQuality`.
   budget is binding, and "e2e feels safer" is not a reason.
 - The Playwright `webServer` command needs `.\mvnw.cmd` on Windows and `./mvnw`
   elsewhere; `cmd.exe` rejects both `./mvnw` and a bare `mvnw.cmd`.
+- **Playwright MCP is installed (`--caps=vision`), and the CLI is still the
+  default.** Both read the same accessibility tree and emit the same role-based
+  locators, so MCP's ~4× token cost buys interactive *exploration*, not better
+  tests — reach for it when the app has to be poked at, not to run a spec that is
+  already written. Its generated code is not pre-reviewed: it produced
+  `getByText('Oceny kategoriiKompletność71%')` for an unnamed wrapper element.
+  It writes scratch output to the repo root, hence `.playwright-mcp/` in
+  `/.gitignore`. If `claude mcp list` shows it timing out, that is the cold `npx`
+  download, not the registration — warm the cache and re-check.
+- **Vision found real bugs and still justifies no spec.** See `test-plan.md` §3's
+  vision paragraph for the two defects and why one belongs in a component test
+  and the other in a deterministic differ. Screenshots under `frontend/vision/`
+  are scratch evidence, never fixtures, and are not committed.
 
 ## Deployment
 

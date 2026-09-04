@@ -36,6 +36,11 @@ build/
 ### Environment secrets ###
 .env
 
+### Playwright MCP scratch output ###
+# The MCP server writes snapshots, console logs and screenshots to the cwd it was
+# launched from, which for this project is the repo root. Per-run artifacts only.
+.playwright-mcp/
+
 ### Claude Code ###
 .claude/skills/
 .claude/.10x-cli-manifest.json
