@@ -33,6 +33,14 @@
 		     treats an empty element as unset and keeps the inherited value. -->
 		<test.excludedGroups>live-llm</test.excludedGroups>
 		<test.includedGroups/>
+		<!-- Scope of the `mutation` profile (PIT). Deliberately narrow by default:
+		     mutation testing costs time proportional to the mutant count, not to the
+		     test count, so it is a selective gate on risk-critical code, never a
+		     whole-project sweep. Override per run, e.g.
+		     -Dmutation.targetClasses=com.example.autoskaner_ai.cepik.CepikRiskAdjuster
+		     -Dmutation.targetTests=com.example.autoskaner_ai.cepik.CepikRiskAdjusterTest -->
+		<mutation.targetClasses>com.example.autoskaner_ai.market.MarketPriceStatistics</mutation.targetClasses>
+		<mutation.targetTests>com.example.autoskaner_ai.market.MarketPriceStatisticsTest</mutation.targetTests>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -103,6 +111,55 @@
 				<test.excludedGroups/>
 				<test.includedGroups>live-llm</test.includedGroups>
 			</properties>
+		</profile>
+
+		<!-- Mutation testing. Off by default and never wired into `mvn test`: a green
+		     suite answers "did the line run", PIT answers "would the test notice if the
+		     line were wrong", and only the second question needs a slow, deliberate run.
+		     Invoke as: ./mvnw -Pmutation test-compile org.pitest:pitest-maven:mutationCoverage
+		     Report lands in target/pit-reports/. See CLAUDE.md § "Mutation testing". -->
+		<profile>
+			<id>mutation</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.pitest</groupId>
+						<artifactId>pitest-maven</artifactId>
+						<!-- Must be new enough that PIT's bundled ASM reads the JDK's own class
+						     files. The dev JDK here is 26 (major version 70); 1.20.4 could not
+						     parse it and reported a green BUILD SUCCESS with 0/53 killed and 0%
+						     coverage — a mutation score of zero caused entirely by the tooling.
+						     Do not downgrade without checking the score is still non-zero. -->
+						<version>1.29.10</version>
+						<dependencies>
+							<dependency>
+								<groupId>org.pitest</groupId>
+								<artifactId>pitest-junit5-plugin</artifactId>
+								<version>1.2.3</version>
+							</dependency>
+						</dependencies>
+						<configuration>
+							<targetClasses>
+								<param>${mutation.targetClasses}</param>
+							</targetClasses>
+							<targetTests>
+								<param>${mutation.targetTests}</param>
+							</targetTests>
+							<!-- The live-tagged tests hit real providers; a mutant must never
+							     be judged by whether somebody's API key worked today. -->
+							<excludedGroups>
+								<param>live-llm</param>
+							</excludedGroups>
+							<outputFormats>
+								<param>HTML</param>
+								<param>XML</param>
+							</outputFormats>
+							<timestampedReports>false</timestampedReports>
+							<threads>4</threads>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 	</profiles>
 

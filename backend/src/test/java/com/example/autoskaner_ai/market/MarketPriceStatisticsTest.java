@@ -299,4 +299,106 @@ class MarketPriceStatisticsTest {
                 .isEqualTo(3);
         assertThat(stats.quality()).isEqualTo(MarketPriceSampleQuality.SUFFICIENT);
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // The two boundaries a mutation run found undefended. Both were reachable-but-unasserted rather
+    // than uncovered: the suite already ran these lines, it just could not tell a correct answer from
+    // an off-by-one one. See CLAUDE.md § "Mutation testing".
+    // ---------------------------------------------------------------------------------------------
+
+    // MIN_SAMPLE_FOR_IQR = 8 means "eight or more", and nothing pinned the "or". The case above
+    // proves a fence does not run on five survivors; this proves it *does* run on exactly eight, so
+    // the documented rule holds at its own edge instead of only above it.
+    //
+    // Not covered by aMonthlyInstalmentIsNotAPrice, whose eight raw prices become seven after the
+    // band, nor by aCollapsedBandIsReportedInFullRatherThanHandedToTheIqrFence, whose eight reach
+    // this line with bandCollapsed already true so the size comparison never decides anything.
+    @Test
+    void aSampleOfExactlyEightSurvivorsIsFenced() {
+        // Hand arithmetic. Eight prices, sorted as written. The median is the two middle elements
+        // rounded up: (63 000 + 64 000 + 1) / 2 = 64 000, so the band runs 64 000 / 3 = 21 333 to
+        // 64 000 x 3 = 192 000 and every price is inside it -- including 150 000, which is the point:
+        // the band cannot catch a right-order-of-magnitude wrong car. Eight survive, the band did not
+        // collapse, so the fence gets all eight.
+        //
+        // Tukey's hinges on those eight: q1 = (61 000 + 62 000 + 1) / 2 = 61 500 and
+        // q3 = (65 000 + 66 000 + 1) / 2 = 65 500, so iqr = 4 000 and the fence spans
+        // 61 500 - 6 000 = 55 500 to 65 500 + 6 000 = 71 500. Only 150 000 falls outside.
+        var stats = MarketPriceStatistics.of(List.of(
+                60_000, 61_000, 62_000, 63_000, 64_000, 65_000, 66_000, 150_000));
+
+        assertThat(stats.maxPln())
+                .as("eight survivors is enough for the fence, so the wrong car does not set the max")
+                .isEqualTo(66_000);
+        assertThat(stats.minPln()).isEqualTo(60_000);
+        assertThat(stats.sampleSize()).isEqualTo(7);
+        assertThat(stats.discardedCount()).isEqualTo(1);
+        // Seven prices left, so the median is the middle one rather than a rounded pair.
+        assertThat(stats.medianPln()).isEqualTo(63_000);
+        assertThat(stats.quality()).isEqualTo(MarketPriceSampleQuality.SUFFICIENT);
+    }
+
+    // Every other fence test above uses an even count, so the odd branch of Tukey's hinges -- where
+    // the median belongs to both halves -- had never decided an outcome. The sample here is built so
+    // that including the median in the lower half is the difference between reporting a market and
+    // reporting a market plus two financing instalments.
+    @Test
+    void anOddSamplePutsItsMedianInBothHalvesWhenComputingTheHinges() {
+        // Hand arithmetic. Nine prices, sorted as written; the median is the middle one, 72 000. The
+        // band runs 72 000 / 3 = 24 000 to 216 000, and 25 000 clears the floor by a thousand -- so
+        // both low figures survive the band and only the fence can remove them.
+        //
+        // Tukey's hinges, odd sample: the lower half is the first *five* (25 000 to 72 000), whose
+        // median is 70 000; the upper half is the last five (72 000 to 78 000), whose median is
+        // 74 000. iqr = 4 000, so the fence spans 70 000 - 6 000 = 64 000 to 74 000 + 6 000 = 80 000
+        // and drops 25 000 and 26 000.
+        //
+        // Take the median out of the lower half and q1 becomes (26 000 + 70 000 + 1) / 2 = 48 000, an
+        // iqr of 26 000 and a fence from 9 000 to 113 000 -- wide enough to keep all nine. That is
+        // the failure this test exists to catch: a fence so loose it stops being a fence.
+        var stats = MarketPriceStatistics.of(List.of(
+                25_000, 26_000, 70_000, 71_000, 72_000, 73_000, 74_000, 75_000, 78_000));
+
+        assertThat(stats.minPln())
+                .as("the hinge is computed with the median in both halves, so the fence still bites")
+                .isEqualTo(70_000);
+        assertThat(stats.maxPln()).isEqualTo(78_000);
+        assertThat(stats.sampleSize()).isEqualTo(7);
+        assertThat(stats.discardedCount()).isEqualTo(2);
+        assertThat(stats.medianPln()).isEqualTo(73_000);
+        assertThat(stats.quality()).isEqualTo(MarketPriceSampleQuality.SUFFICIENT);
+    }
+
+    // The other half of the same rule, and the one the odd-sample test above cannot reach: on an even
+    // sample each hinge gets exactly half, no shared middle. The failure it guards is the mirror image
+    // -- one element too many in the lower half drags q1 up into the upper cluster, the interquartile
+    // range shrinks, and the fence then amputates the bottom of a spread that was real all along.
+    @Test
+    void anEvenSampleTakesExactlyHalfIntoEachHinge() {
+        // Hand arithmetic. Eight prices in two clusters: two around 30 000 and six around 90 000. The
+        // median is (89 000 + 90 000 + 1) / 2 = 89 500, so the band floor is 89 500 / 3 = 29 833 --
+        // 30 000 clears it by 167 zloty, which is what keeps both clusters in play. Eight survive, so
+        // the fence runs.
+        //
+        // Tukey's hinges, even sample: the lower half is the first *four*, whose median is
+        // (31 000 + 88 000 + 1) / 2 = 59 500; the upper half is the last four, whose median is
+        // (91 000 + 92 000 + 1) / 2 = 91 500. iqr = 32 000, so the fence spans 59 500 - 48 000 =
+        // 11 500 to 91 500 + 48 000 = 139 500 and every price is inside it. A bimodal sample has a
+        // genuinely wide interquartile range, and a wide range is what the fence is built to respect.
+        //
+        // Take one element too many into the lower half and q1 becomes 88 000, an iqr of 3 500 and a
+        // fence from 82 750 to 96 750 -- which drops both 30 000 and 31 000 and reports a minimum of
+        // 88 000. That is the amputation: a range three times too narrow, and confident about it.
+        var stats = MarketPriceStatistics.of(List.of(
+                30_000, 31_000, 88_000, 89_000, 90_000, 91_000, 92_000, 93_000));
+
+        assertThat(stats.minPln())
+                .as("each hinge gets exactly half, so a wide interquartile range stays wide")
+                .isEqualTo(30_000);
+        assertThat(stats.maxPln()).isEqualTo(93_000);
+        assertThat(stats.sampleSize()).isEqualTo(8);
+        assertThat(stats.discardedCount()).isZero();
+        assertThat(stats.medianPln()).isEqualTo(89_500);
+        assertThat(stats.quality()).isEqualTo(MarketPriceSampleQuality.SUFFICIENT);
+    }
 }
