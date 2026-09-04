@@ -13,13 +13,23 @@ case ":$PATH:" in
 esac
 
 # The dev JDK. Maven needs JAVA_HOME; the wrapper does not search for one.
-if [ -z "$JAVA_HOME" ] && [ -d "D:/Software/Java/jdk-26.0.1" ]; then
-  JAVA_HOME="D:/Software/Java/jdk-26.0.1"
+#
+# The repo's pinned JDK wins over an inherited JAVA_HOME, and that precedence is the point. This
+# machine has a system-wide JAVA_HOME of "C:\Program Files (x86)\Zulu\zulu-8-jre\" -- a 32-bit
+# Java 8 *JRE*, no javac in it at all. The earlier version deferred to it, because it only filled
+# JAVA_HOME in when the variable was empty, and "set" is not "usable": nothing in this project
+# compiles under Java 8.
+DEV_JDK="D:/Software/Java/jdk-26.0.1"
+if [ -f "$DEV_JDK/bin/javac.exe" ] || [ -x "$DEV_JDK/bin/javac" ]; then
+  JAVA_HOME="$DEV_JDK"
   export JAVA_HOME
 fi
 
-# Keeps the backend suite inside a memory budget that leaves the machine usable.
-MAVEN_OPTS="${MAVEN_OPTS:--Xmx1g}"
+# Set, not defaulted. The inherited value on this machine is "-Xmx12g -XX:ReservedCodeCacheSize=256m
+# -Xss24m", which the 32-bit JRE above rejects outright with "Invalid maximum heap size ... exceeds
+# the maximum representable size" -- a message about memory for a problem about Java, which cost a
+# commit to diagnose. A budget the environment can override is not a budget.
+MAVEN_OPTS="-Xmx1g"
 export MAVEN_OPTS
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
@@ -40,8 +50,16 @@ require_node() {
   command -v node >/dev/null 2>&1 || fail "node is not on PATH, so the frontend checks cannot run (this machine: /c/nvm4w/nodejs)."
 }
 
+# Checks for a compiler, not for a variable. A JAVA_HOME pointing at a JRE satisfies every
+# non-empty test and still cannot build anything, and it fails deep inside Maven with an error that
+# names neither Java nor JAVA_HOME.
 require_java() {
-  [ -n "$JAVA_HOME" ] || fail "JAVA_HOME is unset and the dev JDK was not found, so the backend suite cannot run."
+  [ -n "$JAVA_HOME" ] || fail "JAVA_HOME is unset and the dev JDK was not found at $DEV_JDK, so the backend suite cannot run."
+  if [ ! -f "$JAVA_HOME/bin/javac.exe" ] && [ ! -x "$JAVA_HOME/bin/javac" ]; then
+    fail "JAVA_HOME has no javac, so it is a JRE or a bad path and the backend suite cannot run.
+      JAVA_HOME=$JAVA_HOME
+      This project needs a JDK 21+; the pinned one is $DEV_JDK."
+  fi
 }
 
 # Runs the backend suite, adding the one hint that explains its most confusing failure mode.
