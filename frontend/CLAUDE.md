@@ -13,10 +13,15 @@ on PATH by default in this environment — on this machine they live in
 
 ## Unit tests
 
-Tests run on **vitest through `@angular/build:unit-test`** (`test` target in `angular.json`, jsdom — no browser needed). 41 tests in 4 spec files, ~2.5 s. Two things to know:
+Tests run on **vitest through `@angular/build:unit-test`** (`test` target in `angular.json`, jsdom — no browser needed). 51 tests in 5 spec files, ~2.8 s. Two things to know:
 
 - **No `fakeAsync` / `tick`.** The app has no zone.js at all (Angular 21 is zoneless by default), so `fakeAsync` throws "zone-testing.js is needed". Adding zone.js only for tests would make tests run under different change-detection semantics than production. Every service call in the specs is a synchronous `of(...)`, so awaiting nothing is correct — if a spec ever needs real async, use `await fixture.whenStable()`.
 - **Vitest matchers, not jasmine.** `vi.fn()`, `mockReturnValue`, `toBe(true)` — `toBeTrue()` does not exist and fails to compile, which is how the stale specs were caught.
+
+**`cepik-result.component.spec.ts` is where the business rule is read back.** The backend spends five test classes keeping `null` and `[]` distinguishable onto the wire; this spec is the only thing checking the other end, where `damageState()` decides between "the registry was not read" and "the registry reported nothing". Two conventions in it are worth copying, not just keeping:
+
+- **Every arm asserts its own sentence *and* the absence of the sentence it must not be confused with.** A test that only asserts its own copy still passes after an edit merges two arms — you would simply update the expected string. The negative companion, plus the distinctness test that compares the three *rendered* texts, is what closes that. `market-price-panel.component.spec.ts` established the pattern; `analysis.models.ts`'s own doc comment explains the stakes.
+- **Both guards were mutation-checked and the result is recorded in the file's header.** Inverting `damageState()` to read `damages()` (whose `?? []` collapses the distinction) fails 2 tests; weakening the template's `mileageStamps === null` branch to a length check fails 1. **Before that spec existed, the first mutation left all 276 tests green** — which is the only reason to trust the spec at all. If you touch either guard, re-run the mutation rather than the suite.
 
 ## Vehicle data form
 

@@ -256,6 +256,12 @@ stays unevaluated. Both E2E specs submit listing text with no VIN, so they only 
 is argued and dated, not unnoticed — but the argument that deferred it was a *scheduling*
 argument. Every other deferred Phase-3 item is a degradation; **this one is an inversion.**
 
+> **Closed 2026-09-08.** The table above is the state at `faf77d1` and is kept as measured; all
+> four **NO** rows are now covered by `cepik-result.component.spec.ts` (10 tests). The inversion
+> described in this section was run as a mutation before the spec was written (all 276 green) and
+> again after (2 tests fail, reporting the wrong sentence verbatim). The scoreboard is 11½ of 12.
+> Everything else in §4 stands.
+
 ### 4.2 Five invertible tests
 
 Named behaviour could be deleted and the test stays green:
@@ -285,7 +291,10 @@ One test is honest about being weak: `CepikRiskAdjusterTest.java:300` says in it
 all); `vehicle-data.ts:114-118` (`hasManual === false`); `vehicle-data.ts:67-70` (prefill must
 not clobber a typed value); `AnalysisController.java:102-110` (of three seller-question
 injections only *plate* is tested); the theft and no-OC cap magnitudes; `verdict-orange`;
-and the whole of `cepik-result.component` — four status arms and three `damageState` arms, zero.
+and the whole of `cepik-result.component` — four status arms and three `damageState` arms, zero
+(**that last one was closed 2026-09-08**; see §4.4. `FOUND`, `MISSING_INPUTS`, `NOT_FOUND`,
+`LOOKUP_FAILED` and all three `damageState` arms are now covered. Every other branch listed here
+is still open).
 
 ### 4.4 The three highest-value missing tests
 
@@ -294,6 +303,13 @@ and the whole of `cepik-result.component` — four status arms and three `damage
 | 1 | `cepik-result.component.spec.ts` — three `damageState` arms asserting the *rendered sentence*, plus the two degraded-status disclaimers | ~6 jsdom tests, ~120 lines, no HTTP, no doubles | closes the only inversion-class gap in the repo |
 | 2 | the accident flag asserted **on the wire** through a real provider + `MockRestServiceServer` | 1 method, ~40 lines | today the flag is proved only by direct `parse(...)` calls; `AnalysisControllerTest` mocks `AiAnalysisService`, so the parser is not on the controller's tested path at all |
 | 3 | `vehicle-data.spec.ts` — I/O/Q VIN, and `integer()`'s `"26 320"` case | 3-4 pure-function tests, ~30 lines, no TestBed | the canonical VIN typo, and the documented reason `integer()` exists |
+
+**Row 1 was written on 2026-09-08**, in a separate commit — this analysis ships no code, but the gap
+it found was the cheapest item on its own list and the only inversion-class one. Delivered as 10
+tests, not 6: the three `damageState` arms and all *three* degraded statuses, plus the `mileageStamps`
+`null`/`[]` pair (the same distinction, one row down, and untested for the same reason) and a
+distinctness check over the three rendered sentences. Both guards were then inverted to confirm the
+tests fail — 2 failures and 1 respectively. Frontend suite 41 → 51. **Rows 2 and 3 remain open.**
 
 ---
 
