@@ -183,10 +183,20 @@ verifier sits outside the last gate before production.
 None is a rename; each is a latent defect no artifact had named.
 
 1. **`fetchStatus` is a raw Java `String` against a 4-member TS union.** Produced as bare
-   literals at **five** sites — `AnalysisController.java:55,66,70` and again inside the two dead
-   factories at `AnalysisResponse.java:12,16` (see §6 item 10, which compounds with this). A typo
-   or fifth value is caught on neither side; `analyzer.component.ts:111` branches on
-   `'url_failed'` only, non-exhaustively.
+   literals at **six (raport: five)** sites — `AnalysisController.java:55,66,70` and inside all
+   three factories at `AnalysisResponse.java:12,16,20`, not just the two dead ones (see §6 item
+   10, which compounds with this). A typo or fifth value is caught on neither side;
+   `analyzer.component.ts:111` branches on `'url_failed'` only, non-exhaustively.
+
+   > **Refined 2026-09-08.** `:20` was omitted here, and it is the one that matters most: it is
+   > the only one of the three factories with a live caller. There is also a **third untyped
+   > carrier of the same vocabulary that this analysis does not name at all** —
+   > `analysis/FetchResult.java`, with `"ok"` at `:6`, `"url_failed"` at `:10` and
+   > `"ok".equals(status)` at `:14`. It never reaches the wire, so it does not change this item's
+   > conclusion, but it takes the total from 5 to **9** and means an enum conversion touches two
+   > records rather than one. Note also that `AnalysisController.java:64` contains `"manual"` in a
+   > *comment*, which is not a site. See
+   > `context/changes/refactor-opportunities/research.md` § "Weryfikacja twierdzeń", claim 19.
 2. **`ManualListing.priceCurrency` is declared in TS and never populated.** `draftToRequest`
    builds 8 of 9 fields. The backend can never receive it. Dead field, silently.
 3. **`MileageStamp.date` is non-null in TS, nullable in Java.** True today only because
@@ -205,6 +215,16 @@ None is a rename; each is a latent defect no artifact had named.
    way: `CepikResult.withoutData` stamps `Instant.now()` at `:66`, so it is never null. Two
    packages, opposite answers, one TS type declaring both non-null. **`cepik` is right; `market`
    is the defect** — do not "fix" both.
+
+   > **Refined 2026-09-08.** `failed()` does **not** pass `null` — it passes `Instant.now()`, as
+   > does the `INSUFFICIENT_DATA` path at `:75-76`. The null site is **`missing()` alone: 1
+   > (raport: 2)**. Measured twice independently and confirmed a third time by argument-position
+   > read of all four `new MarketPriceContext(...)` calls; see
+   > `context/changes/refactor-opportunities/research.md` § "Weryfikacja twierdzeń", claim 20. The
+   > conclusion of this item is unaffected — `market` is still the defect and `cepik` still right
+   > — but the defect is one construction site, not two, and `MarketPriceFetchService`
+   > contradicts *itself* rather than agreeing with itself against `cepik`. `verification.md` §2
+   > item 5 repeats the same error.
 
 Plus one intra-backend triplication: the three Polish verdict labels are emitted independently
 at `CepikRiskAdjuster.java:247-253`, `MockAiAnalysisService.java:58-62` and
@@ -399,7 +419,7 @@ Ranked by what it would cost to be wrong, not by effort.
 | 1 | **`cepik-result.component` has no spec** | the only place a user sees unknown-vs-clean, and the only enforcement point of the repo's hardest rule with no test at all. ~120 lines to close | deferred in `test-plan.md` §3 — but on schedule grounds, and it is an inversion, not a degradation |
 | 2 | **`CepikRiskAdjuster` is dark end-to-end** | 254 lines, 5 caps, 5 flag codes, a negation regex, never executed by any cross-stack path because `MockCepikService` always returns `LOOKUP_FAILED` | no — not previously named anywhere |
 | 3 | **the REST contract is silent in the dangerous direction** | 19 of 21 `CepikResult` fields have no cross-stack verifier; the one that exists covers ~8% of the contract and pre-push does not run it | partly — the E2E budget is deliberate, the *direction* was not known |
-| 4 | **five non-name contract mismatches** (§3.4) | `fetchStatus` untyped on the Java side and spelled at 5 sites, `priceCurrency` unreachable, `MileageStamp.date` nullability depends on a parser `if`, `"szkoda-istotna"` triplicated, `market`'s `fetchedAt` null against a non-null TS type | no |
+| 4 | **five non-name contract mismatches** (§3.4) | `fetchStatus` untyped on the Java side and spelled at 9 (raport: 5) sites, `priceCurrency` unreachable, `MileageStamp.date` nullability depends on a parser `if`, `"szkoda-istotna"` triplicated, `market`'s `fetchedAt` null at 1 (raport: 2) site against a non-null TS type | no |
 | 5 | **five invertible tests** (§4.2) | they read as coverage and are not; one of them means `.expand-link` could be deleted with the suite green | partly — `test-plan.md` §3 flags the `toEqual([])` shape |
 | 6 | **`mock` diverges from production in kind, not degree** | it inverts the business rule (§2.2), skips the adjuster (§2.1), and does not cover the listing fetch (§2.3), while being the only profile any gate runs | no |
 | 7 | **the LLM shape exists in four hand-maintained copies** | prompt text → parser DTOs → domain records → TS, with `@JsonIgnoreProperties(ignoreUnknown=true)` on every DTO, so a prompt field the DTO lacks is silently dropped | no |

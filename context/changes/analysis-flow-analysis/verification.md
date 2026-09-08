@@ -115,6 +115,16 @@ Five claims were right in substance and wrong in a number or a line. Each is cor
    answers, one TS type declaring both non-null. The `cepik` side is right and the `market` side
    is the defect; a claim that the pattern was general would have been wrong.
 
+   > **Refined 2026-09-08 — this item's own measurement was wrong.** `failed()` passes
+   > `Instant.now()`, not `null`; so does the `INSUFFICIENT_DATA` path at `:75-76`. The null site
+   > is **`missing()` alone: 1 (raport: 2)**. The verdict above survives intact — `market` is
+   > still the defect, `cepik` still right, and "the pattern is not general" is still the finding —
+   > but `MarketPriceFetchService` contradicts **itself**, three paths to one, which is a stronger
+   > version of the same point than the one recorded here. Re-measured three ways at `eea799d`;
+   > see `context/changes/refactor-opportunities/research.md` § "Weryfikacja twierdzeń", claim 20.
+   > That a *verification* artifact carried an unverified line for four days is itself the lesson:
+   > the line reads as measured and was not.
+
 ---
 
 ## 3. Refuted
