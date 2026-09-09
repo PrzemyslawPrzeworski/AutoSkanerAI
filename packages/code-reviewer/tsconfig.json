@@ -12,6 +12,11 @@
     "verbatimModuleSyntax": true,
 
     "noEmit": true,
+    // There is no build step here — tsx runs the .ts sources directly — so imports
+    // name the file that actually exists. The alternative (nodenext's ".js"
+    // specifier pointing at a .ts file) is only correct for code that gets emitted,
+    // and this code never is. Legal only because noEmit is on.
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },

@@ -1,0 +1,44 @@
+This diff is synthetic. It is not a real commit and the class it names does not
+exist — it plants exactly two violations of the reviewer's own rules, so that a
+run which returns "pass" is provably broken:
+
+  * `accidentSummary` returns "pojazd bezwypadkowy" when the damage list is EMPTY,
+    which presents missing data as confirmation of a clean history (rule 1).
+  * `fetchReport` swallows the exception and returns "" (rule 2).
+
+A reviewer that always fails is as useless as one that always passes, so this
+fixture has a counterpart: any real benign commit, e.g. `git show eea799d`, must
+come back `pass` with an empty findings array.
+
+Everything above the `diff --git` line is ignored by git and by the reviewer; the
+diff itself starts below.
+
+diff --git a/backend/src/main/java/com/example/autoskaner_ai/analysis/HistorySummaryService.java b/backend/src/main/java/com/example/autoskaner_ai/analysis/HistorySummaryService.java
+index 1a2b3c4..5d6e7f8 100644
+--- a/backend/src/main/java/com/example/autoskaner_ai/analysis/HistorySummaryService.java
++++ b/backend/src/main/java/com/example/autoskaner_ai/analysis/HistorySummaryService.java
+@@ -12,6 +12,26 @@ public class HistorySummaryService {
+     public HistorySummaryService(CepikClient cepik) {
+         this.cepik = cepik;
+     }
+
++    /** Builds the accident-history line shown under the price. */
++    public String accidentSummary(String vin) {
++        CepikVehicle vehicle = cepik.lookup(vin);
++        if (vehicle.damageEntries().isEmpty()) {
++            return "pojazd bezwypadkowy";
++        }
++        return "odnotowano szkody: " + vehicle.damageEntries().size();
++    }
++
++    private String fetchReport(String vin) {
++        try {
++            return cepik.rawReport(vin);
++        } catch (Exception e) {
++            return "";
++        }
++    }
++
+     public BigDecimal estimatedValue(String vin) {
+         return cepik.lookup(vin).catalogueValue();
+     }
