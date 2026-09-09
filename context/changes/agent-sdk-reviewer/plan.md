@@ -331,7 +331,7 @@ registered in Phase 3; until then it exits 2 saying so. The stderr summary line 
 - `npm test` reports **80** tests passing in 6 spec files, and `npm run typecheck` passes
 - An unrecognised `CODE_REVIEW_RUNNER` exits 2 and names the valid ids
 - The four project rules appear in exactly one copy in `prompt.ts` (`grep -c` on a distinctive rule sentence returns 1)
-- `buildSystemPrompt(AI_SDK_TOOLS)` renders byte-identically to `git show HEAD:packages/code-reviewer/src/prompt.ts`'s `SYSTEM_PROMPT` — amended 2026-09-10 with the user's approval; see the note on Progress row 1.5 for why the original wording (a byte-identical `ReviewOutcome` on `fixtures/bad.diff`) was not runnable and why this is the stronger check
+- `buildSystemPrompt(AI_SDK_TOOLS)` renders byte-identically to `git show d299d4d:packages/code-reviewer/src/prompt.ts`'s `SYSTEM_PROMPT` — amended 2026-09-10 with the user's approval; see the note on Progress row 1.5 for why the original wording (a byte-identical `ReviewOutcome` on `fixtures/bad.diff`) was not runnable and why this is the stronger check
 
 #### Manual Verification
 
@@ -862,18 +862,19 @@ closes them incidentally and should be written back to that plan if it happens.
 
 #### Automated
 
-- [x] 1.1 reviewer.ts typechecks and every usage field is optional, so unreported is not zero
-- [x] 1.2 npm test reports 80 tests passing in 6 spec files and typecheck passes
-- [x] 1.3 An unrecognised CODE_REVIEW_RUNNER exits 2 and names the valid ids
-- [x] 1.4 The four project rules appear in exactly one copy in prompt.ts
-- [x] 1.5 Rendered SYSTEM_PROMPT is byte-identical to HEAD's, so no rule was reworded
+- [x] 1.1 reviewer.ts typechecks and every usage field is optional, so unreported is not zero — 80be8bc
+- [x] 1.2 npm test reports 80 tests passing in 6 spec files and typecheck passes — 80be8bc
+- [x] 1.3 An unrecognised CODE_REVIEW_RUNNER exits 2 and names the valid ids — 80be8bc
+- [x] 1.4 The four project rules appear in exactly one copy in prompt.ts — 80be8bc
+- [x] 1.5 Rendered SYSTEM_PROMPT is byte-identical to HEAD's, so no rule was reworded — 80be8bc
       <!-- Reworded 2026-09-10, with the user's approval. As first written this row asked for a
       byte-identical ReviewOutcome from the default runner on bad.diff, which is not a runnable
       check: it needs a live OpenRouter call the account-wide free-tier cap blocks, and two calls
       to a non-deterministic model are never byte-identical even with quota. The risk it guards —
       that parameterizing the prompt silently reworded a project rule — is checked offline and
       deterministically by rendering buildSystemPrompt(AI_SDK_TOOLS) and diffing it against
-      `git show HEAD:packages/code-reviewer/src/prompt.ts`'s SYSTEM_PROMPT. Result: identical,
+      `git show d299d4d:packages/code-reviewer/src/prompt.ts`'s SYSTEM_PROMPT — the commit named,
+      not HEAD, because HEAD moved when this phase committed. Result: identical,
       character for character, which is stronger than the output comparison because it takes the
       model out of the check. Verified once, by hand, in the phase's session; it is NOT in the
       suite, because adding a spec would have falsified criterion 1.2's pinned count of 80. -->
@@ -881,7 +882,7 @@ closes them incidentally and should be written back to that plan if it happens.
 
 #### Manual
 
-- [x] 1.6 reviewer.ts reads as a contract with no AI SDK vocabulary in it
+- [x] 1.6 reviewer.ts reads as a contract with no AI SDK vocabulary in it — 80be8bc
 
 ### Phase 2: Containment and the access log, offline
 
