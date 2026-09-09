@@ -1,7 +1,7 @@
 ---
 change_id: tool-loop-agent
 title: Turn the code-reviewer spike into a modular ToolLoopAgent
-status: implementing
+status: implemented
 created: 2026-09-09
 updated: 2026-09-09
 archived_at: null
@@ -16,6 +16,14 @@ reusable and must export the reviewer, so promptfoo evals can run against it
 later. Do not configure the eval environment in this change.
 
 M5-L2 step 2. Step 1 (the working spike) landed as `2d29dbf`.
+
+All five phases are implemented (`cc43b74`, `cf8c167`, `48a27ea`, `d2a1f3e`,
+`54a3738`). **Two verification rows stay open, both on the OpenRouter free-tier daily
+quota rather than on code**: 4.3 (the injection test against a live model) and 4.9 (a
+second slug producing a review). `free-models-per-day` is an account-wide cap, so a day
+of measuring locks out every free slug at once; both were retried on 2026-09-09 and
+still answered `Rate limit exceeded`. Re-run `npm run test:live` and
+`CODE_REVIEW_MODEL=<slug> npm run review` once the quota resets, before archiving.
 
 ## Log
 

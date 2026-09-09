@@ -742,19 +742,19 @@ working.
 
 #### Manual
 
-- [ ] 4.8 Step count above 1 on a diff needing cross-file context, with evidence set
+- [x] 4.8 Step count above 1 on a diff needing cross-file context, with evidence set — d2a1f3e
 - [ ] 4.9 A second model slug produces a review
 
 ### Phase 5: Wire and register the gate
 
 #### Automated
 
-- [x] 5.1 npm test collects every spec; count matches the test( declarations
-- [x] 5.2 Pre-commit arm was watched blocking on a broken test, then reverted
-- [x] 5.3 Pre-push output shows the reviewer checks
-- [x] 5.4 The three test-plan.md sections carry the new entries, and no promptfoo config exists
+- [x] 5.1 npm test collects every spec; count matches the test( declarations — 54a3738
+- [x] 5.2 Pre-commit arm was watched blocking on a broken test, then reverted — 54a3738
+- [x] 5.3 Pre-push output shows the reviewer checks — 54a3738
+- [x] 5.4 The three test-plan.md sections carry the new entries, and no promptfoo config exists — 54a3738
 
 #### Manual
 
-- [ ] 5.5 The pre-commit label's stated cost matches the measured run
-- [ ] 5.6 A docs-only commit is still instant
+- [x] 5.5 The pre-commit label's stated cost matches the measured run — 54a3738
+- [x] 5.6 A docs-only commit is still instant — 54a3738
