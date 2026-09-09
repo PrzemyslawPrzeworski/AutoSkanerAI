@@ -59,11 +59,26 @@ export type ModelReview = z.infer<typeof ModelReview>;
 
 export type Verdict = 'pass' | 'fail';
 
-/** What the reviewer returns: the model's observations plus a derived conclusion. */
+/**
+ * What the reviewer returns: the model's observations plus a derived conclusion.
+ *
+ * The three counters are not diagnostics. Each records the model producing something
+ * the rules then removed, which is the only way to tell "the reviewer found nothing"
+ * from "the reviewer's findings were all discarded" — a distinction a bare verdict
+ * hides, and the reason enforcement here is counted rather than silent.
+ */
 export interface ReviewOutcome {
   verdict: Verdict;
   summary: string;
   findings: Finding[];
   /** Findings discarded because `file` was not a path this diff changes. */
   dropped: number;
+  /**
+   * The paths those discarded findings named. Named and not merely counted: a dropped
+   * finding is either a hallucinated path or a real problem in an untouched file, and
+   * a count alone cannot tell the two apart.
+   */
+  droppedFiles: string[];
+  /** Citations removed because no tool ever returned that path. */
+  strippedEvidence: number;
 }

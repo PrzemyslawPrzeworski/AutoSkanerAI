@@ -1,0 +1,38 @@
+This diff is the only fixture whose defect is INVISIBLE inside the diff. Every
+line of it is internally consistent: a dev proxy pointed at a port, spelled
+correctly, valid JSON. It is wrong only because of three files it does not
+mention.
+
+The backend listens on 10000, not 8080 — `server.port=${PORT:10000}`. The root
+`CLAUDE.md` says so in bold, `playwright.config.ts` probes that port for
+readiness, and this proxy is the third place the number appears. Changing one of
+three is how a dev server starts fine and every request 502s.
+
+So this fixture exists to test the tool loop rather than the rules. A reviewer
+that only reads the diff cannot find this and should return `pass` with a clean
+conscience; finding it requires `findInRepo` or `readRepoFile`, which means the
+interesting output is not the verdict but the stderr line — `steps` above 1 and
+`read` above none.
+
+Two honest outcomes are worth recording separately:
+
+  * The model looks, finds 10000 elsewhere, and reports it. Tool loop working.
+  * The model looks, and reports the mismatch against a file OUTSIDE this diff.
+    `partitionByDiffScope` then drops that finding and `dropped` counts it —
+    correct by design (a review of this diff, or nothing), and a demonstration
+    that the scope filter and the tools can disagree. The dropped count is the
+    only place that disagreement is visible, which is why it is reported.
+
+diff --git a/frontend/proxy.conf.json b/frontend/proxy.conf.json
+index 7a1c2d3..9e4f5a6 100644
+--- a/frontend/proxy.conf.json
++++ b/frontend/proxy.conf.json
+@@ -1,6 +1,6 @@
+ {
+   "/api": {
+-    "target": "http://localhost:10000",
++    "target": "http://localhost:8080",
+     "secure": false,
+     "changeOrigin": true
+   }
+ }

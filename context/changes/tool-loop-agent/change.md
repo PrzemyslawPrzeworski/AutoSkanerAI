@@ -19,6 +19,93 @@ M5-L2 step 2. Step 1 (the working spike) landed as `2d29dbf`.
 
 ## Log
 
+**Phase 4, 2026-09-09.** The phase that changed the design. Five findings, in the
+order they were forced on me.
+
+**The first live run crashed, and the crash was a credential leak.** The guard in
+`agent.ts` tested `APICallError`; the error thrown was `NoObjectGeneratedError`, which
+`APICallError.isInstance` returns false for. It escaped as an unhandled rejection, and
+Node prints an error's enumerable own properties — for an AI SDK error that is the
+entire request body, every message, the whole JSON schema, the response text and the
+response headers, `set-cookie` included. Two things were wrong at once: too narrow a
+guard, and a rethrow in `index.ts` that turned a reviewer crash into exit 1, the code
+that means "this diff failed review". Fixed with an ordered chain ending in an
+`AISDKError` family backstop, and a catch-all that can only exit 2.
+
+Two follow-on leak vectors, both **measured rather than reasoned about**:
+`{ cause: error }` on the wrapper reopens it, because `util.inspect` follows
+`[cause]`; and `NoObjectGeneratedError.cause` is a `JSONParseError` whose own message
+embeds the entire text it failed to parse, so my "First 120 chars" message printed all
+1.7 KB of the answer. Hence `brief()` — walk to the deepest cause, then cap anyway.
+`failures.test.ts` replays the recorded responses against a local server with three
+sentinels (key, `set-cookie`, diff body) and asserts on `util.inspect(error, {depth:
+8})`, **not** on `error.message`. That distinction is the whole value of the helper:
+the first draft checked the message and passed with both guards deliberately disabled,
+because the message was never the vector.
+
+**A free slug held the socket open for over ten minutes** — no bytes, no error, process
+alive at 0.6 s of CPU. Nothing in the package bounded it, so the only limit was my
+patience. Phase 5 makes this a commit gate, where an unbounded wait is strictly worse
+than a failure: a developer can act on a failure and can only kill a hang. Now a
+120 s `AbortSignal.timeout` and a `timeout` error kind, reproduced offline in 424 ms.
+
+**The design change: structured output and tools cannot coexist.**
+`output: Output.object({schema})` sends `response_format: {type:"json_schema"}` in the
+same request as `tools`, and constrained decoding leaves the model no channel in which
+to emit a tool call. The tools were advertised and unreachable — so Phase 3's entire
+containment layer was dead code, and `stripUnbackedEvidence` was stripping every
+citation by construction, since nothing was ever backed. Nothing errors; the run just
+answers in one step having read nothing. Tallied over six runs, one model, one
+fixture, everything else equal: `output` unset -> 3, 3, 2 steps and 15, 14, 16 files
+read; `output` set -> 1, 1, 1 steps and 0, 0, 0 files. No overlap. One run said so in
+its own summary — *"to verify whether this is correct, I need to check what port the
+backend actually listens on"* — and then could not.
+
+Resolved by making the answer a tool: `submitReview`, whose `inputSchema` **is**
+`ModelReview`, with `stopWhen: [hasToolCall('submitReview'), isStepCount(8)]` and no
+`output` at all. The schema is still enforced, because the SDK validates tool input;
+what goes away is the `response_format` that silenced the tools. Verified live on
+`fixtures/cross-file.diff`: 4 steps and 14 files read, then 2 steps and 7 files on a
+re-run, finding the port defect that is **invisible inside that diff** and citing a
+real path in `evidence` that survived the access-log check.
+
+The trade this makes is real and is not hidden: nothing now forces the model to answer
+in the schema at all. It can write the review as prose and never call the tool, which
+is reported as `no-output` — an unsubmitted review is an unfinished one, never a pass.
+That case has a test, and the previous default slug does it reproducibly (below).
+
+**Two model findings, both measured on the fixtures.** `nex-agi/nex-n2.5-pro:free`,
+the default going in, stopped after one step without calling `submitReview` at all,
+twice — a fatal trait under this design, so the default is now
+`dots-studio/dots-3-note-preview:free`, the slug verified end to end. It is not immune
+either: one run in four sent `findings` as a *stringified* array. That failure is
+worth recording because it is the one my own error message was too vague to describe —
+`brief()` cut at the first newline, and the deepest cause of a schema violation is a
+Zod error whose message is a pretty-printed array, so the report read `ZodError: [`.
+Collapsing whitespace instead of cutting at the newline makes it name the field. Also
+learned: `free-models-per-day` is an **account-wide** cap across slugs, and a day of
+probing locks out every free model at once — which is what blocks criteria 4.3 and 4.9
+today, on quota rather than on code.
+
+**Two criteria closed against reality rather than against their wording.** 4.4 asks
+for a step count above 1 on `fixtures/bad.diff`; the run gave exit 1 and both blockers
+in **one** step, having read nothing — which is the right answer for that fixture,
+since both rules are decidable from the diff alone and the prompt says "do not use
+them to browse". The clause's intent (the tool loop is not structurally dead) belongs
+to `cross-file.diff`, and 4.8 met it there. Checked 4.4 for what it verified; the
+alternative was a fixture amended to need a tool, which would have cost the thing
+`bad.diff` is actually for. 4.3 and 4.9 stay unchecked, blocked on the daily quota
+rather than on code, and Phase 4 is committed anyway: Phase 5 does not depend on
+either, and holding a verified design change uncommitted overnight is the larger risk.
+
+One SDK behaviour worth its own line, because a `catch` block cannot see it: **invalid
+tool input is not thrown.** The SDK records the call with `invalid: true` and an
+`error`, hands the failure back to the model, and continues; `hasToolCall` still fires
+on it. So the "answered but unreadable" and "never answered" cases are distinguished
+where the result is read, not where errors are caught. Both are in `SKILL.md` as
+gotchas 8 and 9 — the two that were found by measuring a loop that looked like it
+worked.
+
 **Phase 1, 2026-09-09.** Two deviations worth recording.
 
 `tsconfig.json` gained `allowImportingTsExtensions: true`. Splitting one file into

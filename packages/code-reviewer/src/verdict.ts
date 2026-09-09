@@ -1,10 +1,15 @@
 /**
- * The two rules that used to live only in the prompt.
+ * The three rules that used to live only in the prompt.
  *
- * Both were English sentences the model was asked to obey, which means neither was
+ * All three were English sentences the model was asked to obey, which means none was
  * enforced. This repo has a name for that shape: the per-edit hook whose signal was
  * hard-wired to success and stayed dead for four months. A rule stated in a prompt
  * is a rule stated to something that may decline.
+ *
+ * The third one is not hypothetical. Phase 2's live runs asked for "leave evidence out
+ * unless a tool gave you that path", there were no tools at all, and the model attached
+ * evidence to every finding anyway — quoting the diff back at itself. That is the
+ * argument for this file arriving as a fact.
  */
 import type { Finding, Verdict } from './schema.ts';
 
@@ -47,6 +52,42 @@ export function partitionByDiffScope(
   }
 
   return { kept, dropped };
+}
+
+/**
+ * Removes `evidence` that no tool actually produced, keeping the finding.
+ *
+ * `evidence.file` is supposed to mean "a tool returned this path to me". Nothing made
+ * that true until now: the model can write any path there, and in Phase 2 it wrote the
+ * file already named in `file`, which is a citation of the diff dressed as a citation
+ * of the repo. The access log from `createTools()` is the only witness to what was
+ * really read, so it is the arbiter.
+ *
+ * The finding survives the strip. An unsupported citation makes the claim unproven,
+ * not wrong, and discarding a real blocker over a bad footnote would trade a
+ * cosmetic problem for a shipped bug.
+ *
+ * Runs after `partitionByDiffScope`, so it only ever examines findings that survived
+ * scope — no point validating a citation on a finding already dropped.
+ */
+export function stripUnbackedEvidence(
+  findings: readonly Finding[],
+  accessedPaths: ReadonlySet<string>,
+): { findings: Finding[]; stripped: number } {
+  const accessed = new Set([...accessedPaths].map(normalisePath));
+  let stripped = 0;
+
+  const checked = findings.map((finding) => {
+    const evidence = finding.evidence;
+    if (evidence === null || evidence === undefined) return finding;
+    if (accessed.has(normalisePath(evidence.file))) return finding;
+
+    stripped += 1;
+    const { evidence: _discarded, ...rest } = finding;
+    return rest;
+  });
+
+  return { findings: checked, stripped };
 }
 
 function normalisePath(path: string): string {

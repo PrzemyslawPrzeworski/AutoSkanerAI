@@ -5,17 +5,12 @@
  *   git diff | npx tsx src/index.ts
  *
  * This is the ONLY module allowed to touch process.stdin, stdout, console, or
- * process.exit. Everything below that line is a library, which is what makes the
- * reviewer callable from a promptfoo provider that has no terminal. Phase 4 moves
- * the model call itself below the line too; phase 1 only draws it.
+ * process.exit — env.ts reads process.env, which is configuration, not a terminal.
+ * Everything below that line is a library, and `reviewDiff` in agent.ts is the whole
+ * of the review. What is left here is stdin, JSON, one stderr line, and the exit code.
  */
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import { APICallError, generateObject } from 'ai';
-import { changedFiles, validateDiff } from './diff.ts';
-import { loadRepoEnv, resolveApiKey, resolveModelId } from './env.ts';
-import { SYSTEM_PROMPT, buildUserPrompt } from './prompt.ts';
-import { ModelReview, type ReviewOutcome } from './schema.ts';
-import { deriveVerdict, partitionByDiffScope } from './verdict.ts';
+import { reviewDiff } from './agent.ts';
+import { isReviewerError } from './errors.ts';
 
 function fail(message: string): never {
   console.error(`code-reviewer: ${message}`);
@@ -32,66 +27,49 @@ async function readStdin(): Promise<string> {
 }
 
 async function main(): Promise<void> {
-  loadRepoEnv();
+  const diff = await readStdin();
 
-  const apiKey = resolveApiKey();
-  if (apiKey === null) {
-    fail(
-      'OPENROUTER_API_KEY is not set, and the repo root .env does not supply it. ' +
-        'A reviewer that cannot reach a model must say so, not pass the diff.',
-    );
-  }
-
-  const diff = (await readStdin()).trim();
-  const unreviewable = validateDiff(diff);
-  if (unreviewable !== null) fail(unreviewable);
-
-  const modelId = resolveModelId();
-  const openrouter = createOpenRouter({ apiKey });
-
-  let object: ModelReview;
-  let usage: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
+  let run;
   try {
-    ({ object, usage } = await generateObject({
-      model: openrouter.chat(modelId),
-      schema: ModelReview,
-      system: SYSTEM_PROMPT,
-      prompt: buildUserPrompt(diff),
-    }));
+    run = await reviewDiff(diff);
   } catch (error) {
-    // A provider failure must be legible, not a wall of request body. It must also
-    // never be mistaken for a passing review, so this exits 2 like any other
-    // setup failure.
-    if (APICallError.isInstance(error)) {
-      fail(`model ${modelId} refused the call (HTTP ${error.statusCode ?? '?'}): ${error.message}`);
-    }
-    throw error;
-  }
-
-  // The conclusion is computed here, not read off the model's answer.
-  const { kept, dropped } = partitionByDiffScope(object.findings, changedFiles(diff));
-  const outcome: ReviewOutcome = {
-    verdict: deriveVerdict(kept),
-    summary: object.summary,
-    findings: kept,
-    dropped: dropped.length,
-  };
-
-  console.log(JSON.stringify(outcome, null, 2));
-  console.error(
-    `code-reviewer: model=${modelId} in=${usage.inputTokens ?? '?'} out=${usage.outputTokens ?? '?'} total=${usage.totalTokens ?? '?'} tokens`,
-  );
-  if (dropped.length > 0) {
-    // Named, not just counted: a dropped finding is either a hallucinated path or a
-    // real problem in a file this diff does not touch, and the two look identical
-    // from a count alone.
-    console.error(
-      `code-reviewer: dropped ${dropped.length} finding(s) naming files outside the diff: ` +
-        dropped.map((finding) => finding.file).join(', '),
+    // Every kind maps to exit 2. The kinds exist for callers that are not a terminal;
+    // here they only decide the wording. What matters is that no failure exits 0:
+    // "could not review" must never be indistinguishable from "found nothing wrong".
+    if (isReviewerError(error)) fail(`[${error.kind}] ${error.message}`);
+    // And nothing may escape to exit 1 either, which is the code for "the diff failed
+    // review". Rethrowing here is what turned the first live run's crash into something
+    // shaped exactly like a rejected diff. `.stack` alone, never the error object: Node's
+    // own printer appends an error's enumerable properties, which for an AI SDK error is
+    // the entire request body and the response headers.
+    fail(
+      'unexpected failure — a bug in code-reviewer, not a verdict on the diff:\n' +
+        (error instanceof Error ? (error.stack ?? error.message) : String(error)),
     );
   }
 
-  process.exit(outcome.verdict === 'fail' ? 1 : 0);
+  const { review, usage, modelId, steps } = run;
+  console.log(JSON.stringify(review, null, 2));
+
+  console.error(
+    `code-reviewer: model=${modelId} steps=${steps} ` +
+      `in=${usage.inputTokens ?? '?'} out=${usage.outputTokens ?? '?'} total=${usage.totalTokens ?? '?'} tokens` +
+      (run.accessedPaths.length > 0 ? ` read=${run.accessedPaths.length} file(s)` : ' read=none'),
+  );
+
+  if (review.dropped > 0) {
+    console.error(
+      `code-reviewer: dropped ${review.dropped} finding(s) naming files outside the diff: ` +
+        review.droppedFiles.join(', '),
+    );
+  }
+  if (review.strippedEvidence > 0) {
+    console.error(
+      `code-reviewer: stripped ${review.strippedEvidence} citation(s) naming files no tool returned`,
+    );
+  }
+
+  process.exit(review.verdict === 'fail' ? 1 : 0);
 }
 
 await main();

@@ -1,7 +1,7 @@
 /**
- * The agent's read-only sight of the repo.
+ * The agent's read-only sight of the repo, plus the channel it answers on.
  *
- * Two tools, both bounded three ways: in path (every access goes through
+ * Two read tools, both bounded three ways: in path (every access goes through
  * `resolveReadablePath`), in size (a cap on returned characters), and in count (a cap
  * on matches and on files walked). `execute` is where a tool call stops being text
  * and starts being an effect, so the bounds live here rather than in the prompt —
@@ -15,11 +15,16 @@
  * `String.includes` — a literal substring, not a regular expression — so a
  * model-supplied query cannot become a shell command or a catastrophically
  * backtracking pattern.
+ *
+ * The third tool, `submitReview`, reads nothing. It is here because the *answer* has to
+ * be a tool call too — see its own comment for the measurement that forced that, and
+ * `agent.ts` for how the answer is read back out.
  */
 import { readFileSync, readdirSync, statSync, type Dirent } from 'node:fs';
 import { extname, join } from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
+import { ModelReview } from './schema.ts';
 import {
   ALLOWED_ROOT_FILES,
   ALLOWED_SUBTREES,
@@ -69,15 +74,56 @@ const MAX_SEARCHABLE_BYTES = 512 * 1024;
 /** One line of a search hit, capped so twenty of them stay readable. */
 const MAX_MATCH_LINE_CHARS = 200;
 
+/**
+ * The name the agent's stop condition and result reader both key on. A constant because
+ * a typo in either place is silent: `hasToolCall('submitRevue')` never fires, and the
+ * run reads as "the model never answered".
+ */
+export const SUBMIT_TOOL_NAME = 'submitReview';
+
+/**
+ * The review, delivered as a tool call.
+ *
+ * This is the shape the read tools work in, and it was not a stylistic choice.
+ * `output: Output.object({ schema: ModelReview })` sends `response_format:
+ * {type: "json_schema"}` alongside `tools`, and constrained decoding then leaves the
+ * model no channel in which to emit a tool call: the read tools are advertised and
+ * unreachable. Measured over six runs of one model on one fixture, everything else
+ * equal — `output` unset: 3, 3, 2 steps and 15, 14, 16 files read; `output` set:
+ * 1, 1, 1 steps and 0, 0, 0 files read. No overlap. One run even said so in its own
+ * summary — "to verify whether this is correct, I need to check what port the backend
+ * actually listens on" — and then could not.
+ *
+ * So the schema arrives as tool input instead of as a response format. The SDK
+ * validates tool input against `inputSchema` before `execute` runs, so the guarantee is
+ * the same one `Output.object` gave; what changes is that nothing suppresses the tools.
+ *
+ * `execute` deliberately does no work and stores nothing. The agent reads the review
+ * from the recorded tool call, which keeps this tool stateless and therefore shareable
+ * across runs — unlike the read tools, which carry a per-review access log.
+ */
+const submitReview = tool({
+  description:
+    'Submit your finished review. Call this exactly once, as your final action. This is ' +
+    'the only way to report anything: prose written outside this call is discarded, and ' +
+    'a run that never calls it is recorded as a failed review, not as an approval.',
+  inputSchema: ModelReview,
+  execute: async () => ({ received: true }),
+});
+
 export interface ReviewTools {
   tools: {
     readRepoFile: ReturnType<typeof buildReadRepoFile>;
     findInRepo: ReturnType<typeof buildFindInRepo>;
+    submitReview: typeof submitReview;
   };
   /**
    * Repo-relative paths a tool actually returned content for. This is the log Phase 4
    * checks a finding's `evidence` against: the model may claim it read a file, and
    * only this set knows whether it did.
+   *
+   * `submitReview` never adds to it: the review citing itself would make every citation
+   * backed and the check meaningless.
    */
   accessedPaths: Set<string>;
 }
@@ -92,6 +138,7 @@ export function createTools(): ReviewTools {
     tools: {
       readRepoFile: buildReadRepoFile(accessedPaths),
       findInRepo: buildFindInRepo(accessedPaths),
+      submitReview,
     },
     accessedPaths,
   };

@@ -719,26 +719,26 @@ working.
 
 #### Automated
 
-- [x] 3.1 Typecheck passes
-- [x] 3.2 All unit tests pass, including every denial case
-- [x] 3.3 The ../.env denial was watched failing first, then reverted
-- [x] 3.4 No spawn / execSync / child_process anywhere in src
+- [x] 3.1 Typecheck passes — 48a27ea
+- [x] 3.2 All unit tests pass, including every denial case — 48a27ea
+- [x] 3.3 The ../.env denial was watched failing first, then reverted — 48a27ea
+- [x] 3.4 No spawn / execSync / child_process anywhere in src — 48a27ea
 
 #### Manual
 
-- [x] 3.5 A real file reads back; a file outside the allow-list is refused legibly
+- [x] 3.5 A real file reads back; a file outside the allow-list is refused legibly — 48a27ea
 
 ### Phase 4: Swap to ToolLoopAgent and export the reviewer
 
 #### Automated
 
-- [ ] 4.1 Typecheck passes
-- [ ] 4.2 All offline unit tests pass
+- [x] 4.1 Typecheck passes
+- [x] 4.2 All offline unit tests pass
 - [ ] 4.3 Injection test passes live, or reports being skipped for a missing key
-- [ ] 4.4 Live rule-violating run: exit 1, both blockers, step count above 1
-- [ ] 4.5 Live benign run: exit 0, empty findings
-- [ ] 4.6 reviewDiff importable and callable with an explicit modelId
-- [ ] 4.7 process. and console. match index.ts only
+- [x] 4.4 Live rule-violating run: exit 1, both blockers, step count above 1
+- [x] 4.5 Live benign run: exit 0, empty findings
+- [x] 4.6 reviewDiff importable and callable with an explicit modelId
+- [x] 4.7 process. and console. match index.ts only
 
 #### Manual
 
