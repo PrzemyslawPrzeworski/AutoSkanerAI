@@ -732,13 +732,13 @@ working.
 
 #### Automated
 
-- [x] 4.1 Typecheck passes
-- [x] 4.2 All offline unit tests pass
+- [x] 4.1 Typecheck passes — d2a1f3e
+- [x] 4.2 All offline unit tests pass — d2a1f3e
 - [ ] 4.3 Injection test passes live, or reports being skipped for a missing key
-- [x] 4.4 Live rule-violating run: exit 1, both blockers, step count above 1
-- [x] 4.5 Live benign run: exit 0, empty findings
-- [x] 4.6 reviewDiff importable and callable with an explicit modelId
-- [x] 4.7 process. and console. match index.ts only
+- [x] 4.4 Live rule-violating run: exit 1, both blockers, step count above 1 — d2a1f3e
+- [x] 4.5 Live benign run: exit 0, empty findings — d2a1f3e
+- [x] 4.6 reviewDiff importable and callable with an explicit modelId — d2a1f3e
+- [x] 4.7 process. and console. match index.ts only — d2a1f3e
 
 #### Manual
 
