@@ -1,0 +1,5 @@
+# This package has its own manifest on purpose: the root must stay free of a
+# package.json, because Cloudflare Pages builds frontend/ on every push to main
+# and a new root manifest is an unverifiable risk to a live deploy path.
+node_modules/
+dist/

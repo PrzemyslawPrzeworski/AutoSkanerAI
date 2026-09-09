@@ -1,0 +1,24 @@
+{
+  "name": "@autoskaner/code-reviewer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI code reviewer for AutoSkanerAI: reads a git diff on stdin, returns a structured verdict",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "review": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@openrouter/ai-sdk-provider": "^3.0.0",
+    "ai": "^7.0.94",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.0",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
+}
