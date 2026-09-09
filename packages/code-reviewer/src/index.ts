@@ -11,10 +11,11 @@
  */
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { APICallError, generateObject } from 'ai';
-import { validateDiff } from './diff.ts';
+import { changedFiles, validateDiff } from './diff.ts';
 import { loadRepoEnv, resolveApiKey, resolveModelId } from './env.ts';
 import { SYSTEM_PROMPT, buildUserPrompt } from './prompt.ts';
-import { Review } from './schema.ts';
+import { ModelReview, type ReviewOutcome } from './schema.ts';
+import { deriveVerdict, partitionByDiffScope } from './verdict.ts';
 
 function fail(message: string): never {
   console.error(`code-reviewer: ${message}`);
@@ -48,12 +49,12 @@ async function main(): Promise<void> {
   const modelId = resolveModelId();
   const openrouter = createOpenRouter({ apiKey });
 
-  let object: Review;
+  let object: ModelReview;
   let usage: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
   try {
     ({ object, usage } = await generateObject({
       model: openrouter.chat(modelId),
-      schema: Review,
+      schema: ModelReview,
       system: SYSTEM_PROMPT,
       prompt: buildUserPrompt(diff),
     }));
@@ -67,13 +68,30 @@ async function main(): Promise<void> {
     throw error;
   }
 
-  const review: Review = object;
-  console.log(JSON.stringify(review, null, 2));
+  // The conclusion is computed here, not read off the model's answer.
+  const { kept, dropped } = partitionByDiffScope(object.findings, changedFiles(diff));
+  const outcome: ReviewOutcome = {
+    verdict: deriveVerdict(kept),
+    summary: object.summary,
+    findings: kept,
+    dropped: dropped.length,
+  };
+
+  console.log(JSON.stringify(outcome, null, 2));
   console.error(
     `code-reviewer: model=${modelId} in=${usage.inputTokens ?? '?'} out=${usage.outputTokens ?? '?'} total=${usage.totalTokens ?? '?'} tokens`,
   );
+  if (dropped.length > 0) {
+    // Named, not just counted: a dropped finding is either a hallucinated path or a
+    // real problem in a file this diff does not touch, and the two look identical
+    // from a count alone.
+    console.error(
+      `code-reviewer: dropped ${dropped.length} finding(s) naming files outside the diff: ` +
+        dropped.map((finding) => finding.file).join(', '),
+    );
+  }
 
-  process.exit(review.verdict === 'fail' ? 1 : 0);
+  process.exit(outcome.verdict === 'fail' ? 1 : 0);
 }
 
 await main();

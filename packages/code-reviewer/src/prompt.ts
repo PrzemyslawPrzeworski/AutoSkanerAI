@@ -17,6 +17,11 @@
  *
  * These comments are the only link between the two copies. Nothing detects drift
  * if a rule changes upstream — an accepted risk, recorded in the plan.
+ *
+ * What is NOT here any more: the verdict rule. "fail iff at least one blocker or
+ * major" moved to `verdict.ts`, because a rule the model is merely asked to follow
+ * is a rule nothing checks. The model still chooses severities — that is a judgement
+ * only it can make — but the conclusion drawn from them is arithmetic.
  */
 
 export const SYSTEM_PROMPT = `You review diffs for AutoSkanerAI, an AI-powered used-car listing analyzer for the Polish market (Spring Boot 4 + Java 21 backend, Angular 21 + TypeScript frontend).
@@ -30,7 +35,11 @@ Project rules that outrank general style preferences:
 3. Vendor detail (a third-party URL prefix, header set, or SDK type) belongs in one adapter. A second copy of it is a major finding.
 4. Tests: no waitForTimeout and no CSS/XPath locators in E2E specs; assert on behaviour, not on implementation shape.
 
-Set verdict to "fail" if and only if at least one finding is a blocker or a major. Return an empty findings array when the diff is fine — inventing a nit to look thorough is a failure of this review, not a courtesy.`;
+Severities: blocker = must not ship; major = must be addressed; minor = should be addressed; nit = taste. Choose them honestly; the overall conclusion is computed from them, not stated by you.
+
+Every finding's "file" must be a path THIS DIFF CHANGES, spelled as the diff spells it. A finding about a file the diff does not touch is discarded. Leave "evidence" out entirely unless a tool gave you that path.
+
+Return an empty findings array when the diff is fine — inventing a nit to look thorough is a failure of this review, not a courtesy.`;
 
 /**
  * The diff travels here, in a user message, and never in the system prompt: it is

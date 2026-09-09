@@ -690,30 +690,30 @@ working.
 
 #### Automated
 
-- [x] 1.1 Typecheck passes
-- [x] 1.2 Rule-violating fixture still yields fail, two blockers, exit 1
-- [x] 1.3 Benign fixture (eea799d) still yields pass, empty findings, exit 0
-- [x] 1.4 Empty stdin still exits 2 with the "nothing to review" message
-- [x] 1.5 No module other than index.ts references process. or console.
+- [x] 1.1 Typecheck passes — cc43b74
+- [x] 1.2 Rule-violating fixture still yields fail, two blockers, exit 1 — cc43b74
+- [x] 1.3 Benign fixture (eea799d) still yields pass, empty findings, exit 0 — cc43b74
+- [x] 1.4 Empty stdin still exits 2 with the "nothing to review" message — cc43b74
+- [x] 1.5 No module other than index.ts references process. or console. — cc43b74
 
 #### Manual
 
-- [ ] 1.6 Each module reads as one job
+- [x] 1.6 Each module reads as one job — cc43b74
 
 ### Phase 2: Make the prose rules executable
 
 #### Automated
 
-- [ ] 2.1 Typecheck passes
-- [ ] 2.2 Unit tests pass
-- [ ] 2.3 A deliberately broken assertion was watched failing before the suite was trusted
-- [ ] 2.4 Live run on the rule-violating fixture: exit 1, derived verdict, both blockers
-- [ ] 2.5 Live run on eea799d: exit 0, dropped 0
-- [ ] 2.6 No verdict field in the model-facing schema
+- [x] 2.1 Typecheck passes
+- [x] 2.2 Unit tests pass
+- [x] 2.3 A deliberately broken assertion was watched failing before the suite was trusted
+- [x] 2.4 Live run on the rule-violating fixture: exit 1, derived verdict, both blockers
+- [x] 2.5 Live run on eea799d: exit 0, dropped 0
+- [x] 2.6 No verdict field in the model-facing schema
 
 #### Manual
 
-- [ ] 2.7 A finding naming an untouched file is visibly dropped and counted
+- [x] 2.7 A finding naming an untouched file is visibly dropped and counted
 
 ### Phase 3: Containment policy, then the tools
 

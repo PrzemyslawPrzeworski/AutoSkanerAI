@@ -37,3 +37,29 @@ a fallback order before the eval work is guessing. Note that a degraded provider
 returns HTTP **200** with the error in the body, so a status-code check alone would
 have read it as success — `APICallError` caught it because the SDK validates the
 body, not the status.
+
+**Phase 2, 2026-09-09.** Three findings, two of them about the tooling.
+
+`node --import tsx --test src` — the directory form — **hangs indefinitely with no
+output at all** on Node v22.22.1 / Windows. Killed after 180 s twice. The glob form
+`node --import tsx --test src/*.test.ts` runs 27 tests in ~300 ms. Unquoted in
+`package.json` on purpose: bash expands it, cmd.exe passes it through for Node to
+expand, and both reach the same two files.
+
+**A zero-collected run exits 0.** `node --import tsx --test src/*.nosuchpattern.ts`
+prints `# fail 0` and succeeds. So the runner cannot distinguish "nothing broken"
+from "nothing ran" — the dead-gate shape, in the very tool meant to be the gate. The
+glob does pick up newly added specs, so the realistic failure ("someone adds a spec
+and nobody runs it") is covered; the remaining hole is "every spec disappears". Left
+open here because criterion 5.1 already owns it, and closing it needs a guard that
+belongs with the gate wiring, not with the rules.
+
+**The model filled `evidence` despite being told not to.** The prompt says "Leave
+'evidence' out entirely unless a tool gave you that path". There are no tools yet, and
+the model attached evidence to both findings anyway — quoting the diff back, with
+`evidence.file` set to the file already in `file`. Output tokens went 502 -> 1352 on
+the same fixture, so it is not free either. This is the plan's own thesis arriving as
+evidence rather than argument: an instruction in a prompt is not enforcement. Phase 4
+removes these structurally via `stripUnbackedEvidence` against the tool-access log,
+which is exactly why that criterion exists. Not patched by re-wording the prompt,
+because re-wording is the thing that does not work.
