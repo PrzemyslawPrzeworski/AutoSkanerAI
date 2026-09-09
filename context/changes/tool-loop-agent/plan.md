@@ -704,29 +704,29 @@ working.
 
 #### Automated
 
-- [x] 2.1 Typecheck passes
-- [x] 2.2 Unit tests pass
-- [x] 2.3 A deliberately broken assertion was watched failing before the suite was trusted
-- [x] 2.4 Live run on the rule-violating fixture: exit 1, derived verdict, both blockers
-- [x] 2.5 Live run on eea799d: exit 0, dropped 0
-- [x] 2.6 No verdict field in the model-facing schema
+- [x] 2.1 Typecheck passes — cf8c167
+- [x] 2.2 Unit tests pass — cf8c167
+- [x] 2.3 A deliberately broken assertion was watched failing before the suite was trusted — cf8c167
+- [x] 2.4 Live run on the rule-violating fixture: exit 1, derived verdict, both blockers — cf8c167
+- [x] 2.5 Live run on eea799d: exit 0, dropped 0 — cf8c167
+- [x] 2.6 No verdict field in the model-facing schema — cf8c167
 
 #### Manual
 
-- [x] 2.7 A finding naming an untouched file is visibly dropped and counted
+- [x] 2.7 A finding naming an untouched file is visibly dropped and counted — cf8c167
 
 ### Phase 3: Containment policy, then the tools
 
 #### Automated
 
-- [ ] 3.1 Typecheck passes
-- [ ] 3.2 All unit tests pass, including every denial case
-- [ ] 3.3 The ../.env denial was watched failing first, then reverted
-- [ ] 3.4 No spawn / execSync / child_process anywhere in src
+- [x] 3.1 Typecheck passes
+- [x] 3.2 All unit tests pass, including every denial case
+- [x] 3.3 The ../.env denial was watched failing first, then reverted
+- [x] 3.4 No spawn / execSync / child_process anywhere in src
 
 #### Manual
 
-- [ ] 3.5 A real file reads back; a file outside the allow-list is refused legibly
+- [x] 3.5 A real file reads back; a file outside the allow-list is refused legibly
 
 ### Phase 4: Swap to ToolLoopAgent and export the reviewer
 

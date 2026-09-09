@@ -7,13 +7,8 @@
  * test for the suite.
  */
 import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-
-/** `src` -> `code-reviewer` -> `packages` -> the repo root. */
-export const REPO_ROOT = resolve(HERE, '../../..');
+import { resolve } from 'node:path';
+import { REPO_ROOT } from './repo.ts';
 
 /**
  * A free slug, so a review costs nothing — and one of the two the backend already
@@ -36,6 +31,10 @@ export const DEFAULT_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free';
 /**
  * The repo keeps secrets in a gitignored root `.env`. Prefer a real environment
  * variable when one is set, so CI never depends on a file that is not committed.
+ *
+ * This path deliberately bypasses `resolveReadablePath`, which refuses `.env` — the
+ * two are not in conflict. `repo.ts` governs paths a *model* chose; this one is
+ * hard-coded, and loading our own credentials is the reason the refusal matters.
  */
 export function loadRepoEnv(): void {
   if (process.env['OPENROUTER_API_KEY']) return;
