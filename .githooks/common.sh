@@ -93,3 +93,27 @@ run_frontend_tests() {
     fail "frontend suite failed."
   fi
 }
+
+# The code-reviewer package: typecheck first, then the offline suite.
+#
+# Typecheck is not optional here the way it is for the other two. Nothing compiles this package --
+# tsx strips the types and runs -- so `tsc --noEmit` is the only thing that ever reads them, and
+# skipping it would mean the types are decoration. It is also the cheaper half, so it fails first.
+#
+# `npm test` is offline by construction: the one test that calls a live model skips itself unless
+# `npm run test:live` set npm_lifecycle_event. So this arm costs no tokens and needs no API key.
+run_reviewer_checks() {
+  require_node
+  if ! (cd packages/code-reviewer && npm run typecheck > /tmp/hook-reviewer.log 2>&1); then
+    tail -40 /tmp/hook-reviewer.log
+    echo ""
+    echo "  Full log: /tmp/hook-reviewer.log"
+    fail "code-reviewer typecheck failed."
+  fi
+  if ! (cd packages/code-reviewer && npm test > /tmp/hook-reviewer.log 2>&1); then
+    tail -60 /tmp/hook-reviewer.log
+    echo ""
+    echo "  Full log: /tmp/hook-reviewer.log"
+    fail "code-reviewer suite failed."
+  fi
+}

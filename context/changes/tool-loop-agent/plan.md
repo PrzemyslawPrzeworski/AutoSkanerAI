@@ -749,10 +749,10 @@ working.
 
 #### Automated
 
-- [ ] 5.1 npm test collects every spec; count matches the test( declarations
-- [ ] 5.2 Pre-commit arm was watched blocking on a broken test, then reverted
-- [ ] 5.3 Pre-push output shows the reviewer checks
-- [ ] 5.4 The three test-plan.md sections carry the new entries, and no promptfoo config exists
+- [x] 5.1 npm test collects every spec; count matches the test( declarations
+- [x] 5.2 Pre-commit arm was watched blocking on a broken test, then reverted
+- [x] 5.3 Pre-push output shows the reviewer checks
+- [x] 5.4 The three test-plan.md sections carry the new entries, and no promptfoo config exists
 
 #### Manual
 

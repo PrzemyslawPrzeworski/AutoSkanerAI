@@ -59,8 +59,8 @@ production**, not a pre-filter in front of CI.
 | Layer | Trigger | Does |
 |---|---|---|
 | per-edit | `PostToolUse` on `Write`/`Edit` — `.claude/hooks/post-edit-check.{sh,mjs}` | `prettier --write` the edited `frontend/src` file, then the whole frontend suite for `.ts` / `.html` (6.9 s) |
-| pre-commit | `.githooks/pre-commit` | `prettier --check` staged frontend sources, frontend suite, backend suite when Java or `pom.xml` is staged |
-| pre-push | `.githooks/pre-push` | backend + frontend suites over the whole tree; for `main` also the production build |
+| pre-commit | `.githooks/pre-commit` | `prettier --check` staged frontend sources, frontend suite, backend suite when Java or `pom.xml` is staged, `packages/*` typecheck + suite when a package source or manifest is staged (8.2 s) |
+| pre-push | `.githooks/pre-push` | backend + frontend + `packages/` suites over the whole tree; for `main` also the production build (39 s) |
 
 **A fresh clone needs `git config core.hooksPath .githooks`** — the hooks are
 versioned but git does not pick them up on its own.
@@ -98,6 +98,14 @@ versioned but git does not pick them up on its own.
 - Backend edits are **not** gated per-edit; `./mvnw -o test` is ~15 s, a
   commit-time cost. It runs offline for speed, so a newly added dependency can
   fail pre-commit on its own — the hook says so when it fails.
+- **`packages/` is gated at commit and push, not per-edit.** It is dev tooling —
+  nothing deploys from it — and it is gated because the thing living there is a
+  code reviewer, whose failure mode is reporting a clean review. Its suite is
+  offline: the one test that calls a live model skips itself unless
+  `npm run test:live` runs it. One trap found while wiring this: **`node --test`
+  on a pattern matching nothing exits 0**, so the arm goes through
+  `packages/code-reviewer/scripts/run-tests.mjs`, which enumerates specs from
+  disk and fails when the reported test count is zero.
 
 See `context/foundation/test-plan.md` §5.1 for the timings and how each path was
 verified.
@@ -118,7 +126,7 @@ S-02 (manual field entry + user-supplied VIN/plate/date) is implemented; see `ba
 
 A real analysis takes ~27 s end to end (~16 s LLM + a Jina fetch for the market range), all on the request thread. Free-tier LLM slugs are the main fragility: see `application-openrouter.properties`. PRD is at `context/foundation/prd.md` (FR-001 to FR-018). Next: Stream B (F-02 data layer → F-03 auth → S-03 persistence).
 
-Suite sizes, so a drop is visible: backend **235** tests in 25 classes (~15.7 s), frontend **51** in 5 spec files (~2.8 s), plus one Playwright contract spec that no gate runs.
+Suite sizes, so a drop is visible: backend **235** tests in 25 classes (~15.7 s), frontend **51** in 5 spec files (~2.8 s), `packages/code-reviewer` **80** in 6 spec files (~5.1 s, one skipped offline), plus one Playwright contract spec that no gate runs.
 
 ## Deployment
 

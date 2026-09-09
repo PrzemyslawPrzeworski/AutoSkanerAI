@@ -16,8 +16,13 @@ STAGED=$(git diff --cached --name-only --diff-filter=ACM)
 
 FRONTEND_SOURCES=$(echo "$STAGED" | grep -E '^frontend/src/.*\.(ts|html|scss)$' || true)
 BACKEND_SOURCES=$(echo "$STAGED" | grep -E '^backend/(src/.*\.java|pom\.xml)$' || true)
+# packages/* has no deploy path -- nothing builds it -- so this arm exists purely because an untested
+# tool is worse than no tool: the code reviewer's whole job is to notice defects, and one that is
+# itself broken reports a clean review. Matches the manifests too, since a dependency bump is the
+# change most likely to break it without touching a line of src.
+PACKAGE_SOURCES=$(echo "$STAGED" | grep -E '^packages/[^/]+/(src/.*\.ts|scripts/.*\.mjs|package\.json|tsconfig\.json)$' || true)
 
-[ -n "$FRONTEND_SOURCES" ] || [ -n "$BACKEND_SOURCES" ] || exit 0
+[ -n "$FRONTEND_SOURCES" ] || [ -n "$BACKEND_SOURCES" ] || [ -n "$PACKAGE_SOURCES" ] || exit 0
 
 echo "pre-commit:"
 
@@ -37,6 +42,11 @@ fi
 if [ -n "$BACKEND_SOURCES" ]; then
   step "backend suite (235 tests, ~15 s; live-llm excluded)"
   run_backend_tests
+fi
+
+if [ -n "$PACKAGE_SOURCES" ]; then
+  step "code-reviewer typecheck + suite (80 tests, ~8 s; live model call excluded)"
+  run_reviewer_checks
 fi
 
 echo "  ok"

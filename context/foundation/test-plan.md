@@ -74,6 +74,12 @@ land, and the check arrives with slice S-03.
 | #6 | Listing-supplied claims cannot move the deterministic floor that registry facts set | "The model will obviously ignore manipulation" | Which parts of the verdict are deterministic and which are model-produced | unit | An eval asserting a specific model wording — non-deterministic and expensive for the signal |
 | #7 | No test this rollout. Protection needs a control that does not exist yet; see the note above §2's guidance table | — | — | — | — |
 
+Risk #6's anti-pattern — "an eval asserting a specific model wording" — is about the
+**product's** prompts, where the model's phrasing reaches a user and the deterministic
+floor is what actually protects them. It does not prohibit evals over the repo-tooling
+reviewer in §4, whose output is a schema (severity, file, verdict) rather than prose,
+and whose assertions are therefore about a decision, not a wording.
+
 ## 3. Phased Rollout
 
 Each row is a discrete rollout phase that will open its own change folder
@@ -329,6 +335,7 @@ The classic test base for this project. AI-native tools (if any) carry a
 | HTTP mocking (frontend) | `provideHttpClientTesting` + `vi.fn()` service doubles | Angular 21.2 | Already used by the existing specs |
 | live integration | JUnit tag `live-llm` + `live-tests` profile | — | Asserts real outcomes only. A proxy 403 on the reader host fails the market-price live test on purpose, so a blocked path stays visible instead of silently green |
 | e2e (contract only) | Playwright (`@playwright/test`) + Chromium | 1.62.1 | **One spec**, by design — `frontend/e2e/market-price-contract.spec.ts`, ~2 s, plus `seed.spec.ts` as the exemplar generated specs are modelled on. Config starts both servers itself (backend `mock` profile on 10000, dev server on 4200) and reuses either if already up. Off every local gate (§5.1): two servers plus a browser is the wrong per-edit cost. Rules and the budget that keeps this row at one spec: `frontend/e2e/E2E-RULES.md`. Scope, evidence, and break-verification: end of §3 |
+| repo tooling (code reviewer) | `node:test` + `tsx`, no build step | `ai` 7.0.94, `@openrouter/ai-sdk-provider` 3.0.0, `zod` 4.5.4, tsx 4.23.13, TypeScript 7.0.2 | `packages/code-reviewer` — **80 tests in 6 spec files, ~5.1 s**, of which 1 calls a live model and skips itself unless `npm run test:live` sets `npm_lifecycle_event`. Not a product layer: nothing deploys from `packages/`, and it is here because a review tool that is itself broken reports a clean review. `tsc --noEmit` is the only thing that ever reads the types (tsx strips them), so the gate runs typecheck first. **The runner needed a guard of its own** — `node --test <pattern-that-matches-nothing>` prints `# fail 0` and exits 0, so `scripts/run-tests.mjs` enumerates the specs from disk and fails when the reported test count is zero; checked: 2026-09-09 |
 | accessibility | none — not scheduled | — | No risk in §2 depends on it; revisit if one surfaces |
 | CI | GitHub Actions, one live workflow only | — | No unit or integration gate on PR or push; see §3 Phase 4 |
 
@@ -355,10 +362,10 @@ layers, each catching what the one below cannot:
 | Layer | Trigger | Scope | Cost | Runs |
 |---|---|---|---|---|
 | per-edit | Claude Code `PostToolUse` on `Write`/`Edit` (`.claude/hooks/post-edit-check.*`) | the edited file, if under `frontend/src` | 1.2 s (`.scss`) / 6.9 s (`.ts`, `.html`) | `prettier --write`, then the whole frontend suite for `.ts` / `.html` |
-| pre-commit | `git commit` (`.githooks/pre-commit`) | staged paths only | 0.6 s when nothing matches, 9.2 s frontend, ~22 s backend | `prettier --check` on staged frontend sources; frontend suite; backend suite when Java or `pom.xml` is staged |
-| pre-push | `git push` (`.githooks/pre-push`) | the whole tree, staged scope ignored | 32 s to `main` | backend suite, frontend suite, and — only for `main` — the production build |
+| pre-commit | `git commit` (`.githooks/pre-commit`) | staged paths only | 0.4 s when nothing matches, 9.2 s frontend, ~22 s backend, 8.2 s reviewer package | `prettier --check` on staged frontend sources; frontend suite; backend suite when Java or `pom.xml` is staged; `packages/*` typecheck + suite when a `src/*.ts`, `scripts/*.mjs`, `package.json` or `tsconfig.json` under `packages/` is staged |
+| pre-push | `git push` (`.githooks/pre-push`) | the whole tree, staged scope ignored | 39 s to `main` | backend suite, frontend suite, reviewer package (typecheck + suite), and — only for `main` — the production build |
 
-Three things about this worth keeping straight:
+Four things about this worth keeping straight:
 
 - **Fresh clones need one command**: `git config core.hooksPath .githooks`. It is
   not `lefthook.yml` deliberately — Lefthook needs a root `package.json`, and
@@ -376,12 +383,24 @@ Three things about this worth keeping straight:
   PATH — and the only symptom was `prettier --check` eventually reporting 23 of
   23 files unformatted. Every layer here therefore fails loudly when its own
   toolchain is missing, rather than skipping.
+- **A test runner that reports success on zero tests is that same failure in a
+  different tool.** `node --test src/*.test.ts` exits 0 with `# fail 0` when the
+  pattern matches nothing, so "the suite passed" and "there is no suite" are the
+  same signal. That mattered the moment `packages/` became a gated layer, and it
+  is why the reviewer arm goes through `scripts/run-tests.mjs`: the spec list is
+  read from disk rather than expanded by whichever shell invoked npm, and a run
+  that reports no tests fails regardless of its exit code. Worth checking in any
+  runner added here — the question is not "did it pass" but "can it say it
+  didn't".
 
 Each path was verified by watching it block, not by reading the code: the
 per-edit layer against a broken caveat string, the pre-commit prettier arm
 against an unformatted staged file, the backend arm and the whole
 `core.hooksPath` chain against a throwaway failing test that `git commit`
-refused.
+refused, and the `packages/` arm against an inverted assertion in
+`verdict.test.ts` (blocked, naming the assertion) plus a run with every spec
+file moved aside (blocked on the empty suite, where the bare runner would have
+passed).
 
 ### 5.2 The gates
 
@@ -558,6 +577,7 @@ contributors should respect these unless the underlying assumption changes.
 
 ## 8. Freshness Ledger
 
+- `packages/` brought under the gates: 2026-09-09 — the directory had been invisible to all three layers since it was created. The per-edit hook matches `frontend/src/` only (`post-edit-check.mjs:96`) and both git hooks matched `^frontend/src/…` and `^backend/(src/…|pom\.xml)`, so a package with 80 tests had nothing running them. Now a pre-commit arm scoped to `^packages/[^/]+/(src/.*\.ts|scripts/.*\.mjs|package\.json|tsconfig\.json)$` and an unconditional pre-push arm, both `run_reviewer_checks` in `common.sh`: typecheck then suite, 8.2 s measured. Per-edit is deliberately left alone — the package is edited in bursts and 8 s per keystroke-level edit buys nothing a commit gate does not. **The find worth carrying: the runner could not report an empty suite.** `node --test` on a pattern matching nothing exits 0, which is the `catch → exit 0` prettier failure wearing a different tool's clothes, so the arm goes through `scripts/run-tests.mjs` (specs enumerated from disk, non-zero test count required). Both arms were watched blocking — an inverted assertion, and every spec moved aside — and the deliberate break reverted before the commit
 - Local enforcement last verified: 2026-09-04 (§5.1 added — the three local layers now exist and every one of them was watched blocking a real failure, including a `git commit` that `core.hooksPath` refused. Two measurements drove the layering and are worth not re-deriving: scoping the frontend run to one spec saves 0.5 s of 6.4 s because the cost is the Angular bundle build, not the test count, and `npx vitest related` cannot run these specs at all without the Angular builder's transform — the same obstacle that blocks Stryker)
 - Strategy (§1–§5) last reviewed: 2026-09-04 (§5 split into 5.1 local enforcement and 5.2 the gates, with a formatting row added; §3's one BLOCKING carried item closed — `market-price-panel.component` now has a spec, verified by reverting the Phase 2 bug rather than by reading green; §4 backend row corrected to separate the 29 files on disk from the 25 classes that run, frontend row promoted from documentation to a verified figure, PIT row added). Previously reviewed 2026-09-03 (§2 Risk #5's Source figures replaced with the ones `roadmap.md:187` actually records — the min/median pairing previously cited there appears in no artifact and had been carried for two rollout phases; §3 Phase 2 flipped to `complete`, its carried-forward item closed, six new items carried into Phase 3; §4 counts and grounding-tool lines corrected — rollout Phase 2)
 - Gate toolchain resolution last fixed: 2026-09-04 — `.githooks/common.sh` deferred to an inherited `JAVA_HOME` (`…\Zulu\zulu-8-jre\`, 32-bit, no `javac`) and an inherited `MAVEN_OPTS` (`-Xmx12g`), so the gates died on `Invalid maximum heap size` — a message about memory for a problem about Java. The pinned JDK now wins, `require_java` looks for `javac` rather than for a non-empty variable, and the heap budget is set rather than defaulted. **A toolchain check must test for the tool, not for the variable that should name it**; this is the third time a gate on this project failed by trusting a proxy for its own prerequisite (see the `catch → exit(0)` prettier hook, and the ACL-locked Node read as absent).

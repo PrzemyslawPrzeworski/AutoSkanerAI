@@ -19,6 +19,50 @@ M5-L2 step 2. Step 1 (the working spike) landed as `2d29dbf`.
 
 ## Log
 
+**Phase 5, 2026-09-09.** The gate wiring found one thing, and it was in the runner
+rather than in the hooks.
+
+**`packages/` was invisible to all three quality gates**, and had been since the
+directory was created. `post-edit-check.mjs:96` matches `frontend/src/`; both git hooks
+matched `^frontend/src/…` and `^backend/(src/…|pom\.xml)`. So a package with 80 tests
+had nothing running them — the same shape as the dead prettier hook, one level up: not a
+gate reporting wrongly, a gate that was never pointed at the code. Now a pre-commit arm
+on `^packages/[^/]+/(src/.*\.ts|scripts/.*\.mjs|package\.json|tsconfig\.json)$` and an
+unconditional pre-push arm. Per-edit is deliberately left alone: this package is edited
+in bursts, and 8 s per keystroke-level edit buys nothing the commit gate does not.
+
+**The runner could not report an empty suite.** Phase 2 recorded that
+`node --import tsx --test src/*.nosuchpattern.ts` prints `# fail 0` and exits 0, and
+left it to this phase because a guard only matters once something depends on the signal.
+It now does. `scripts/run-tests.mjs` enumerates the specs with `readdirSync` — which
+also removes the bash-expands-it / cmd.exe-passes-it-through divergence the glob relied
+on — and requires the run's own TAP tally to be non-zero before honouring the exit code.
+Watched blocking both ways: an inverted assertion in `verdict.test.ts` (the hook failed
+naming the assertion, and the break was reverted immediately), and every spec file moved
+aside, where the bare runner would have said `ok`.
+
+The typecheck runs first and is not optional here the way it is for the other two
+stacks. Nothing compiles this package — tsx strips the types and runs — so `tsc
+--noEmit` is the only thing that ever reads them; without it the types are decoration.
+Measured: 1.5 s typecheck + 6.4 s suite = 8.2 s for the arm, 39 s for a full pre-push to
+`main`.
+
+The arm is offline by construction, and the day's quota proved why that matters rather
+than being a preference: `npm run test:live` still answers
+`Rate limit exceeded: free-models-per-day`, so a gate that made a model call would today
+refuse every commit for a reason that has nothing to do with the commit. 4.3 and 4.9
+stay blocked on the same quota as yesterday. One thing did come out of the attempt — the
+live failure surfaced as `kind: 'provider'` with a one-line message and no request dump,
+which is the Phase 4 hygiene work behaving correctly on a path that reached a real
+provider.
+
+Two adaptations beyond the plan's file list. `PACKAGE_SOURCES` also matches
+`scripts/*.mjs`, because after this phase the runner itself is load-bearing and a break
+there is invisible to a matcher that only watches `src`. And the root `CLAUDE.md` gate
+table and suite-size line were updated alongside `test-plan.md`: the plan named
+`test-plan.md` as the place layers are registered, but `CLAUDE.md` describes the same
+three layers, and a table that omits an arm reads as "not gated" to the next reader.
+
 **Phase 4, 2026-09-09.** The phase that changed the design. Five findings, in the
 order they were forced on me.
 

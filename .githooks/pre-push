@@ -31,6 +31,12 @@ run_backend_tests
 step "frontend suite (51 tests, ~6 s)"
 run_frontend_tests
 
+# Unconditional, unlike the pre-commit arm. Nothing deploys this package, so the argument is not the
+# hosts -- it is that this layer is the only one that sees a commit made while a hook was bypassed,
+# and the reviewer is a tool whose failure mode is silence.
+step "code-reviewer typecheck + suite (80 tests, ~8 s; live model call excluded)"
+run_reviewer_checks
+
 # Only for main, because the production bundle is the artefact Cloudflare actually builds. A broken
 # prod build passes both test suites -- template type errors surface in the AOT build, not in jsdom.
 if [ "$PUSHING_MAIN" = "1" ]; then
