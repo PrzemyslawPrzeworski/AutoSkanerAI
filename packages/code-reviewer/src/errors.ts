@@ -12,7 +12,21 @@
  */
 
 export type ReviewerErrorKind =
-  /** No OPENROUTER_API_KEY in the environment or the repo-root .env. */
+  /**
+   * No usable credential for the configured provider.
+   *
+   * Two concrete cases now, and the kind covers both: no `OPENROUTER_API_KEY` in the
+   * environment or the repo-root `.env`, and no live AWS session for the Bedrock runner —
+   * an SSO profile that was never signed into, or one whose short-lived session has
+   * expired. The second is the more dangerous of the two precisely because it looks like
+   * working configuration: the profile is there, the region is set, and only the session
+   * is gone.
+   *
+   * The name still says "api-key" because each runner supplies its own message and no
+   * caller branches on the spelling; renaming it would churn three files and two tests to
+   * relabel a string nothing reads. What must not vary is the consequence — a reviewer
+   * that cannot reach a model reports this, and never an empty passing review.
+   */
   | 'no-api-key'
   /** Nothing on stdin, or only whitespace. */
   | 'empty-diff'

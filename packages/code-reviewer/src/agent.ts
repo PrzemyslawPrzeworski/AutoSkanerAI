@@ -24,6 +24,7 @@ import { changedFiles, validateDiff } from './diff.ts';
 import { ReviewerError } from './errors.ts';
 import { loadRepoEnv, resolveApiKey, resolveModelId } from './env.ts';
 import { SYSTEM_PROMPT, buildUserPrompt } from './prompt.ts';
+import type { ReviewOptions, ReviewRun, ReviewUsage } from './reviewer.ts';
 import { ModelReview, type ReviewOutcome } from './schema.ts';
 import { SUBMIT_TOOL_NAME, createTools } from './tools.ts';
 import { deriveVerdict, partitionByDiffScope, stripUnbackedEvidence } from './verdict.ts';
@@ -104,8 +105,23 @@ function brief(error: unknown, limit = 160): string {
   return line.length > limit ? `${line.slice(0, limit)}…` : line;
 }
 
-export interface ReviewAgentOptions {
-  modelId?: string;
+/**
+ * This runner's own identifier in the contract's `RunnerId` union.
+ *
+ * A literal at the return site would be a string nothing checks; naming it here and
+ * letting `reviewer.ts`'s union type it means a rename in one place breaks the other.
+ */
+const RUNNER_ID = 'ai-sdk' as const;
+
+/**
+ * What this runner accepts: the shared options plus the three knobs only it understands.
+ *
+ * The provider-neutral half lives in `reviewer.ts`; `apiKey`, `baseURL` and `tools` stay
+ * here on purpose. An option a single implementation understands is not part of a shared
+ * contract, and putting them in the contract would have meant the Bedrock runner
+ * declaring an `apiKey` it has no use for.
+ */
+export interface ReviewAgentOptions extends ReviewOptions {
   apiKey?: string;
   /** Injected so a test can drive the loop without the filesystem. Defaults to the real tools. */
   tools?: Record<string, unknown>;
@@ -118,18 +134,12 @@ export interface ReviewAgentOptions {
    * none of the three.
    */
   baseURL?: string;
-  /** Wall-clock budget for the whole loop. Defaults to {@link DEFAULT_TIMEOUT_MS}. */
-  timeoutMs?: number;
 }
 
-export interface ReviewRun {
-  review: ReviewOutcome;
-  usage: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
-  modelId: string;
-  steps: number;
-  /** Repo-relative paths the tools actually returned during this run. */
-  accessedPaths: string[];
-}
+// Re-exported so an importer of the runner does not have to know the contract moved out of
+// this file. `timeoutMs` is inherited from `ReviewOptions`; its default here is
+// `DEFAULT_TIMEOUT_MS`, and `steps` here means AI SDK steps.
+export type { ReviewOptions, ReviewRun, ReviewUsage } from './reviewer.ts';
 
 /**
  * A configured agent, reusable across diffs.
@@ -261,7 +271,7 @@ export async function reviewDiff(diff: string, options: ReviewAgentOptions = {})
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
   let submission: Submission;
-  let usage: ReviewRun['usage'];
+  let usage: ReviewUsage;
   let steps: number;
   try {
     const result = await agent.generate({
@@ -271,7 +281,15 @@ export async function reviewDiff(diff: string, options: ReviewAgentOptions = {})
     // Not `result.output` — there is no structured output any more. The review is the
     // input of the `submitReview` call the model made.
     submission = classifySubmission(result.steps ?? []);
-    usage = result.usage ?? {};
+    // Field by field rather than a spread, and `costUsd` deliberately absent: OpenRouter
+    // reports no per-call price on this path, and a `0` there would read as "this review
+    // was free" in the comparison table instead of "this runner does not say". A spread
+    // would also carry whatever else the SDK's usage object grows into the contract.
+    usage = {
+      inputTokens: result.usage?.inputTokens,
+      outputTokens: result.usage?.outputTokens,
+      totalTokens: result.usage?.totalTokens,
+    };
     steps = result.steps?.length ?? 0;
   } catch (error) {
     // Every AI SDK error is narrowed to a message here, and the reason is not tidiness.
@@ -348,5 +366,5 @@ export async function reviewDiff(diff: string, options: ReviewAgentOptions = {})
     strippedEvidence: stripped,
   };
 
-  return { review, usage, modelId, steps, accessedPaths: [...accessedPaths] };
+  return { review, usage, modelId, runner: RUNNER_ID, steps, accessedPaths: [...accessedPaths] };
 }

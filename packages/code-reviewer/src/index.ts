@@ -11,10 +11,32 @@
  */
 import { reviewDiff } from './agent.ts';
 import { isReviewerError } from './errors.ts';
+import type { Reviewer } from './reviewer.ts';
 
 function fail(message: string): never {
   console.error(`code-reviewer: ${message}`);
   process.exit(2);
+}
+
+/**
+ * Which of the two reviewers this run uses, and the assignment that proves each one fits
+ * the contract — `reviewDiff` is checked against `Reviewer` here, at compile time, rather
+ * than trusted to have kept its shape.
+ *
+ * **An unrecognised value exits 2; it never falls back to the default.** That is the whole
+ * reason this is a function and not a `??`. The point of two runners is to compare them,
+ * and a comparison run driven by `CODE_REVIEW_RUNNER=agent_sdk` — an underscore for a
+ * hyphen — that quietly reviewed with the OpenRouter runner would produce a table of
+ * numbers attributed to the wrong system. Silent fallback is the one failure mode that
+ * corrupts the output of this whole change instead of stopping it.
+ */
+function selectRunner(): Reviewer {
+  const requested = process.env['CODE_REVIEW_RUNNER'] ?? 'ai-sdk';
+  if (requested === 'ai-sdk') return reviewDiff;
+  if (requested === 'agent-sdk') {
+    fail('runner "agent-sdk" is not registered yet. Valid now: ai-sdk (the default).');
+  }
+  fail(`unknown CODE_REVIEW_RUNNER "${requested}". Valid ids: ai-sdk, agent-sdk.`);
 }
 
 async function readStdin(): Promise<string> {
@@ -27,11 +49,13 @@ async function readStdin(): Promise<string> {
 }
 
 async function main(): Promise<void> {
+  // Before stdin, so a typo in CODE_REVIEW_RUNNER is reported instead of waiting on a pipe.
+  const reviewer = selectRunner();
   const diff = await readStdin();
 
   let run;
   try {
-    run = await reviewDiff(diff);
+    run = await reviewer(diff);
   } catch (error) {
     // Every kind maps to exit 2. The kinds exist for callers that are not a terminal;
     // here they only decide the wording. What matters is that no failure exits 0:
@@ -48,11 +72,14 @@ async function main(): Promise<void> {
     );
   }
 
-  const { review, usage, modelId, steps } = run;
+  const { review, usage, modelId, runner, steps } = run;
   console.log(JSON.stringify(review, null, 2));
 
+  // `runner=` leads, and it comes off the run rather than off the environment variable:
+  // this line is the only record of which reviewer produced the JSON above it, and reading
+  // the request back instead of the result would report the intent, not the fact.
   console.error(
-    `code-reviewer: model=${modelId} steps=${steps} ` +
+    `code-reviewer: runner=${runner} model=${modelId} steps=${steps} ` +
       `in=${usage.inputTokens ?? '?'} out=${usage.outputTokens ?? '?'} total=${usage.totalTokens ?? '?'} tokens` +
       (run.accessedPaths.length > 0 ? ` read=${run.accessedPaths.length} file(s)` : ' read=none'),
   );
