@@ -888,18 +888,67 @@ closes them incidentally and should be written back to that plan if it happens.
 
 #### Automated
 
-- [ ] 2.1 typecheck passes with permission.ts and stream.ts present
-- [ ] 2.2 Permission tests cover both directions and each refusal asserts which layer refused
-- [ ] 2.3 Deleting the Grep-without-path rule fails permission.test.ts naming that case, then reverted
-- [ ] 2.4 stream.test.ts asserts the non-empty direction on a stream that carried two files
-- [ ] 2.5 Making the collector record no paths fails stream.test.ts, then reverted
-- [ ] 2.6 npm test passes with AWS_PROFILE and AWS_REGION unset
-- [ ] 2.7 Working tree clean of both mutations before the phase commit
+- [x] 2.1 typecheck passes with permission.ts and stream.ts present
+- [x] 2.2 Permission tests cover both directions and each refusal asserts which layer refused
+- [x] 2.3 Deleting the Grep-without-path rule fails permission.test.ts naming that case, then reverted
+- [x] 2.4 stream.test.ts asserts the non-empty direction on a stream that carried two files
+- [x] 2.5 Making the collector record no paths fails stream.test.ts, then reverted
+- [x] 2.6 npm test passes with AWS_PROFILE and AWS_REGION unset
+- [x] 2.7 Working tree clean of both mutations before the phase commit
+
+<!--
+2.3 was run as "let an absent `path` default to `.`, exactly as the SDK does" rather than as a
+bare deletion, because a bare deletion does not typecheck (`readString` returns
+`string | undefined | null`). Result: 1 of 124 failed, and it was the intended row — `Grep with
+NO path is refused`. The mutation is instructive beyond the criterion: `resolveSearchRoot` ALSO
+refuses the repo root, so the call was still denied, by a different layer, with a reason that
+never tells the model to name a path. An assertion on refusal alone would have stayed green.
+The test was tightened to pin `/needs an explicit path/` before the mutation was re-run.
+
+2.5 was `if (false && decision.ok)` inside the collector's `record`. Result: 8 of 124 failed,
+all in stream.test.ts, led by `two Reads that returned content yield both paths`. Both
+mutations reverted; the suite is 124 tests, 123 pass, 1 skipped (the live call), and
+`grep "if (false"` over src/ is empty.
+-->
+
+<!--
+2.6 was run as `env -u AWS_PROFILE -u AWS_REGION -u AWS_DEFAULT_REGION -u CLAUDE_CODE_USE_BEDROCK
+npm test`, i.e. wider than the criterion asked, since unsetting only two of the four leaves the
+Bedrock path half-configured and would not prove the suite is credential-free.
+-->
+
+<!--
+Deviation from the Phase 2 file list, reported at the phase gate: `resolveSearchRoot` and the
+`insideRepo` root-vs-escape distinction landed in `src/repo.ts`, which Phase 2 does not name.
+The alternative was re-deriving containment inside `permission.ts` — the `path.relative` idiom
+plus the allow-list plus the denied segments — next to vendor-facing code, which is the exact
+duplication project rule 3 exists to catch. `insideRepo` now returns `''` for the root and
+`null` only for an escape, because "outside the repository: ." is a false statement about the
+one path most obviously inside it.
+-->
+
+<!--
+Known gap, asserted rather than hidden: a `Grep` whose result carries no `tool_use_result`
+contributes NO paths to the access log (`stream.test.ts`, "the documented gap"). Conservative
+direction — citations get stripped rather than fabricated evidence admitted — but it makes a
+grep-only run's citations unbackable. Text parsing was rejected, not forgotten: a content-mode
+hit is `path:line:text`, and splitting on the first colon takes `D` off a Windows absolute path.
+-->
+
+<!--
+The `.claude/skills/agent-sdk/SKILL.md` required by item 5 has NO [measured] entries, and says
+so in its own header. Phase 2 is offline by construction, so every claim in it is a claim about
+`sdk.d.ts@0.3.267`, cited line by line. Phase 3 adds the measured ones. Two entries are open
+questions rather than facts, both flagged as such: whether `allowedTools` short-circuits the
+PreToolUse hook (a containment hole if it does), and whether `outputFormat` suppresses tool
+calls the way the AI SDK's `Output.object` did.
+-->
+
 
 #### Manual
 
-- [ ] 2.8 Every refusal in permission.test.ts names the layer that refused it
-- [ ] 2.9 SKILL.md would have prevented the mistakes it lists
+- [x] 2.8 Every refusal in permission.test.ts names the layer that refused it
+- [x] 2.9 SKILL.md would have prevented the mistakes it lists
 
 ### Phase 3: The runner, and which channel the review arrives on
 

@@ -101,6 +101,9 @@ export function resolveReadablePath(input: string): PathDecision {
   if (relativePath === null) {
     return { ok: false, reason: `outside the repository: ${input}` };
   }
+  if (relativePath === '') {
+    return { ok: false, reason: 'the repository root is not a file' };
+  }
 
   if (!isAllowListed(relativePath)) {
     return {
@@ -124,12 +127,78 @@ export function resolveReadablePath(input: string): PathDecision {
   return { ok: true, absolute, relative: relativePath };
 }
 
-/** Repo-relative, `/`-separated, or null when the path escapes the repo. */
+/**
+ * Decide whether a model-supplied path may be *searched*.
+ *
+ * The same policy as `resolveReadablePath` with one difference, and the difference is the
+ * reason this function exists rather than a flag: a search root is normally a directory,
+ * and `resolveReadablePath` answers `"backend/src is a directory, not a file"` — a true
+ * statement and a useless one when the question was "may I grep here".
+ *
+ * Written here rather than in the caller on purpose. Containment is `insideRepo`'s
+ * `path.relative` idiom plus the allow-list plus the denied segments, and a second copy of
+ * that reasoning next to the SDK's permission hook would be exactly the shape project rule
+ * 3 exists to catch — vendor-adjacent code re-deciding a policy that already has one home.
+ * The two entry points differ in what they permit at the end, not in how they contain.
+ *
+ * The repo root is refused. That is the whole point: the built-in `Grep` defaults its
+ * `path` to the working directory, so an unscoped search reads `.env`, and the caller
+ * refuses an absent `path` for the same reason this refuses an explicit `.`.
+ */
+export function resolveSearchRoot(input: string): PathDecision {
+  if (typeof input !== 'string' || input.trim() === '') {
+    return { ok: false, reason: 'no search path given' };
+  }
+  if (input.includes('\0')) {
+    return { ok: false, reason: 'path contains a NUL byte' };
+  }
+
+  const absolute = realpathDeepest(resolve(REPO_ROOT_REAL, input.trim()));
+
+  const relativePath = insideRepo(absolute);
+  if (relativePath === null) {
+    return { ok: false, reason: `outside the repository: ${input}` };
+  }
+  if (relativePath === '') {
+    return {
+      ok: false,
+      reason:
+        'the repository root is too broad to search — it contains .env. ' +
+        `Search one of: ${ALLOWED_SUBTREES.join(', ')}`,
+    };
+  }
+
+  if (!isAllowListed(relativePath)) {
+    return {
+      ok: false,
+      reason:
+        `not in the reviewer's allow-list: ${relativePath}. ` +
+        `Searchable: ${ALLOWED_SUBTREES.join(', ')}, plus ${ALLOWED_ROOT_FILES.join(', ')}`,
+    };
+  }
+
+  const denied = firstDeniedSegment(relativePath);
+  if (denied !== null) {
+    return { ok: false, reason: `refused: "${denied}" is not readable (${relativePath})` };
+  }
+
+  return { ok: true, absolute, relative: relativePath };
+}
+
+/**
+ * Repo-relative, `/`-separated. `null` when the path escapes the repo, and `''` — a
+ * distinct answer, not a synonym for `null` — when it *is* the repo root.
+ *
+ * The two are kept apart because both callers must refuse the root and neither may call
+ * it an escape. "Outside the repository: ." is a false statement about the one path that
+ * is most obviously inside it, and a model reading that reason would try a different
+ * spelling of the same request instead of narrowing its scope.
+ */
 function insideRepo(absolute: string): string | null {
   // path.relative is the containment idiom: a naive `startsWith(root)` also accepts
   // a sibling directory whose name merely begins with the root's name.
   const rel = relative(REPO_ROOT_REAL, absolute);
-  if (rel === '') return null; // the root itself is not a file
+  if (rel === '') return '';
   // `..` catches a traversal within one drive; `isAbsolute` catches a different
   // drive, where win32's `relative` returns the target unchanged rather than a
   // sequence of `..`. Removing either one was watched passing 47 of 50 tests.
