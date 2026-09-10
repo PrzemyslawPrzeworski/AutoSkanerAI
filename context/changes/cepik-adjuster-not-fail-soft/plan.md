@@ -169,10 +169,10 @@ The suite count is printed in three places, and the ledger has a gap to close.
 
 #### Automated
 
-- [x] 2.1 Backend suite count in root `CLAUDE.md`, `.githooks/pre-commit`, `.githooks/pre-push` — 249 → 255, still 28 classes (no new spec file)
-- [x] 2.2 `backend/CLAUDE.md` — all three post-analysis steps fail-soft, and the degraded value reports itself, in § "Folding registry findings into the score" next to the defect it descends from
-- [x] 2.3 `test-plan.md` §8 — dated entry; the 2026-09-10 carried-forward list annotated in place down to the `CepikStatus` gap alone
+- [x] 2.1 Backend suite count in root `CLAUDE.md`, `.githooks/pre-commit`, `.githooks/pre-push` — 249 → 255, still 28 classes (no new spec file) — b7431ae
+- [x] 2.2 `backend/CLAUDE.md` — all three post-analysis steps fail-soft, and the degraded value reports itself, in § "Folding registry findings into the score" next to the defect it descends from — b7431ae
+- [x] 2.3 `test-plan.md` §8 — dated entry; the 2026-09-10 carried-forward list annotated in place down to the `CepikStatus` gap alone — b7431ae
 
 #### Manual
 
-- [x] 2.4 The three printed counts match a real run
+- [x] 2.4 The three printed counts match a real run — `pre-push` printed "255 tests" and the run reported 255 — b7431ae
