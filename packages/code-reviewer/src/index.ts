@@ -101,6 +101,17 @@ async function main(): Promise<void> {
       `code-reviewer: stripped ${review.strippedEvidence} citation(s) naming files no tool returned`,
     );
   }
+  // Printed only when the runner has a record to print, and only when it is not empty — so
+  // silence here means "nothing was refused" for a runner that would have said, and says
+  // nothing at all for one that cannot. `deniedTools` documents why those must not look
+  // alike. This is the operator-visible half of the containment claim: a reviewer that was
+  // told to read `.env` and refused should say so in the same breath as its verdict.
+  if (run.deniedTools !== undefined && run.deniedTools.length > 0) {
+    console.error(
+      `code-reviewer: the permission policy refused ${run.deniedTools.length} tool call(s): ` +
+        run.deniedTools.join(', '),
+    );
+  }
 
   process.exit(review.verdict === 'fail' ? 1 : 0);
 }

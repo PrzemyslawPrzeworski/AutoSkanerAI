@@ -60,10 +60,43 @@ export interface StreamResult {
   denials: { toolName: string; toolUseId: string }[];
 }
 
+/**
+ * One `system` / `api_retry` notice whose failure the provider classified as authentication.
+ *
+ * **Measured, and the reason this type exists is that ignoring it cost 127 seconds and the
+ * wrong diagnosis.** With static AWS keys the provider rejects, the subprocess reports
+ * `{ type: 'system', subtype: 'api_retry', attempt: 1, max_retries: 10, error_status: 403,
+ * error: 'authentication_failed' }` at 1.9 s and then backs off — 0.6 s, 1.2 s, 2.2 s,
+ * 4.8 s, 9.5 s, 18.2 s — a schedule whose ten attempts add up past any wall clock a
+ * reviewer would set. So the run does not fail; it *hangs*, and the only thing that ends it
+ * is the runner's own `AbortController`, which reports a slow model.
+ *
+ * That is the expired-SSO-session case, and it is the one `errors.ts` calls the dangerous
+ * one: the profile resolves, the credentials load, and the provider refuses the signature.
+ * An absent profile fails cleanly in 2.7 s with "could not load credentials"; a *rejected*
+ * credential is indistinguishable from slowness unless this notice is read.
+ */
+export interface AuthRetryNotice {
+  /** Which attempt failed — 1-based, as the SDK numbers them. */
+  attempt: number;
+  /** The provider's HTTP status, where the notice carries one. */
+  status: number | null;
+  /** The SDK's own classification string, e.g. `authentication_failed`. */
+  error: string | null;
+}
+
 export interface StreamCollector {
   observe(message: unknown): void;
   /** Repo-relative, `/`-separated paths whose tool result carried content back. */
   readonly accessedPaths: Set<string>;
+  /**
+   * Every retry the provider refused on authentication, in order.
+   *
+   * Recorded rather than acted on: how many of these is enough to call the credential
+   * unusable is a policy, and it belongs to the runner that has to decide whether to keep
+   * waiting. This module's job is to stop the fact being thrown away.
+   */
+  readonly authRetries: AuthRetryNotice[];
   /** The terminal result, or `null` if the stream ended without one. */
   readonly result: StreamResult | null;
 }
@@ -76,6 +109,7 @@ interface PendingCall {
 
 export function createStreamCollector(): StreamCollector {
   const accessedPaths = new Set<string>();
+  const authRetries: AuthRetryNotice[] = [];
   const pending = new Map<string, PendingCall>();
   let result: StreamResult | null = null;
 
@@ -149,11 +183,36 @@ export function createStreamCollector(): StreamCollector {
     }
   }
 
+  /**
+   * A `system` message, of which exactly one subtype is read.
+   *
+   * Only the authentication classification is recorded. A 429 or a 5xx is the provider
+   * being busy, and a retry is the correct answer to it — treating those as terminal would
+   * turn a throttle into a failed review, which is the opposite mistake and the one this
+   * package already decided against for OpenRouter quota.
+   */
+  function observeSystem(envelope: Record<string, unknown>): void {
+    if (envelope['subtype'] !== 'api_retry') return;
+    const status = numberOrUndefined(envelope['error_status']) ?? null;
+    const error = typeof envelope['error'] === 'string' ? envelope['error'] : null;
+    if (error !== 'authentication_failed' && status !== 401 && status !== 403) return;
+    authRetries.push({
+      attempt: numberOrUndefined(envelope['attempt']) ?? authRetries.length + 1,
+      status,
+      error,
+    });
+  }
+
   return {
     observe(message: unknown): void {
       if (typeof message !== 'object' || message === null) return;
       const envelope = message as Record<string, unknown>;
       switch (envelope['type']) {
+        case 'system':
+          // The one message type outside the tool loop that carries a fact this reviewer
+          // cannot afford to discard. See `AuthRetryNotice`.
+          observeSystem(envelope);
+          return;
         case 'assistant':
           // `SDKAssistantMessage.message` is a Messages API message; tool calls are
           // `tool_use` blocks in its `content` (sdk.d.ts:SDKAssistantMessage).
@@ -169,13 +228,14 @@ export function createStreamCollector(): StreamCollector {
           result = readResult(envelope);
           return;
         default:
-          // Every other member of `SDKMessage`: system, partial assistant, status, retry,
-          // notifications. Ignored by name-of-what-we-want rather than by a deny-list, so a
-          // new message type in a later SDK cannot accidentally contribute a path.
+          // Every other member of `SDKMessage`: partial assistant, status, notifications.
+          // Ignored by name-of-what-we-want rather than by a deny-list, so a new message
+          // type in a later SDK cannot accidentally contribute a path.
           return;
       }
     },
     accessedPaths,
+    authRetries,
     get result() {
       return result;
     },

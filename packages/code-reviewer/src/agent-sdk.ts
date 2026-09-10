@@ -327,20 +327,64 @@ export async function reviewDiffWithAgentSdk(
   const timer = setTimeout(() => abortController.abort(), timeoutMs);
 
   const collector = createStreamCollector();
+  // Set only by the branch below, and read in the `catch` before the abort is examined:
+  // once this runner aborts a run on purpose, `signal.aborted` no longer means "too slow".
+  let credentialRejected = false;
   try {
     for await (const message of query({
       prompt: buildUserPrompt(trimmed),
       options: buildReviewSession({ modelId, abortController }),
     })) {
       collector.observe(message);
+
+      // THE REJECTED CREDENTIAL, stopped rather than waited out. Measured: static AWS keys
+      // the provider refuses produce `403 authentication_failed` at 1.9 s and then a
+      // ten-attempt backoff — 0.6 s, 1.2 s, 2.2 s, 4.8 s, 9.5 s, 18.2 s, … — which outlasts
+      // any wall clock a reviewer would set. Without this branch the run took 127 s and
+      // reported `timeout`: the right refusal for a slow model and the wrong diagnosis for a
+      // credential the provider will never accept. `errors.ts` calls the expired SSO session
+      // the dangerous case precisely because it looks like working configuration; this is
+      // where it stops looking like slowness too.
+      //
+      // The threshold is the SECOND notice, and it is not an arbitrary number. The first says
+      // one request failed; the second says the SDK's own recovery mechanism ran and did not
+      // recover — so anything a retry could have fixed, including a credential refresh
+      // between attempts, has already had its chance. Cost of waiting for it: ~0.7 s.
+      if (collector.authRetries.length >= 2 && !credentialRejected) {
+        credentialRejected = true;
+        abortController.abort();
+      }
     }
   } catch (error) {
-    // The subprocess boundary changes what failure looks like. There is no error class
-    // carrying a request body here — the AI SDK's leak, which `agent.ts:294` exists to
-    // contain, has no analogue — so these messages are built from `.message` and nothing
-    // is deliberately withheld. What replaces that hazard is a vaguer one: a spawn
-    // failure, a missing `claude` binary and an expired SSO session all arrive as plain
-    // errors, and only the text tells them apart.
+    // The subprocess boundary changes what failure looks like, and **measured, it changes it
+    // in this package's favour.** There is no error class carrying a request body here: the
+    // SDK throws a plain `Error` whose only enumerable own properties are `telemetryMessage`
+    // and `errorClass` — two short classification strings — so the AI SDK's leak, which
+    // `agent.ts:294` exists to contain, has no analogue. A forced 400 printed 514 characters
+    // in total, with no headers, no schema and no prompt: the diff cannot be in the error
+    // because the error crossed a process boundary as text. These messages are therefore
+    // built from `.message` and nothing is deliberately withheld.
+    //
+    // What replaces that hazard is a vaguer one: a spawn failure, a missing `claude` binary,
+    // an unloadable profile and a rejected signature all arrive as prose, and only the text
+    // tells them apart — except for the last, which does not arrive as a throw at all. The
+    // three branches below are ordered by how much each one actually knows.
+    if (credentialRejected) {
+      const [first] = collector.authRetries;
+      throw new ReviewerError(
+        'no-api-key',
+        `the provider refused this run's credential for model ${modelId}: ` +
+          `${first?.error ?? 'authentication failed'}` +
+          `${first?.status === null || first?.status === undefined ? '' : ` (HTTP ${first.status})`}` +
+          `, on ${collector.authRetries.length} attempts. The credential loaded and was ` +
+          'rejected, which is what an expired SSO session looks like — re-authenticate ' +
+          'rather than editing the profile. Waiting longer would not have helped: a refused ' +
+          'signature is retried on a backoff that outlasts the review budget, so this would ' +
+          'otherwise have been reported as a slow model.',
+      );
+    }
+    // Second, because a deliberate abort is no longer proof of slowness: the branch above
+    // aborts too, and it knows why.
     if (abortController.signal.aborted) {
       throw new ReviewerError(
         'timeout',
@@ -349,12 +393,17 @@ export async function reviewDiffWithAgentSdk(
       );
     }
     if (looksLikeCredentialFailure(error)) {
-      // The dangerous case, and the reason this branch exists at all: an expired SSO
-      // session leaves `AWS_PROFILE` set, `~/.aws/config` intact, and every check that
-      // tests for a non-empty variable passing. There is no variable to look at that would
-      // have caught it — the capability is what failed, so the attempt is the check. Same
-      // shape as this repo's `require_java`, which had to start looking for `javac`
-      // instead of for `JAVA_HOME`.
+      // The credential that never loaded — a profile that is not in `~/.aws/config`, an SSO
+      // cache that cannot be refreshed. Measured at 2.7 s with `AWS_PROFILE` pointed at a
+      // nonexistent profile: *"API Error: Could not load AWS credentials · Could not load
+      // credentials from any providers"*, thrown, and matched by the text below.
+      //
+      // Distinguished from the branch above because the two failures are genuinely
+      // different, and the difference is the whole of `errors.ts`'s warning. This one is
+      // absence, and it announces itself. The other is a credential that loads, looks
+      // complete and is refused — which is why no variable check catches it and why the
+      // attempt has to be the check. Same shape as this repo's `require_java`, which had to
+      // start looking for `javac` instead of for `JAVA_HOME`.
       throw new ReviewerError(
         'no-api-key',
         `no usable AWS credential for Bedrock (model ${modelId}): ${brief(error)}. ` +
@@ -393,6 +442,15 @@ export async function reviewDiffWithAgentSdk(
     runner: RUNNER_ID,
     steps: result.turns,
     accessedPaths: [...accessedPaths],
+    // `permission_denials` is what sdk.d.ts:4879 calls the authoritative record of refusals,
+    // and it is reported here because the alternative is unfalsifiable. `accessedPaths` cannot
+    // stand in for it: `stream.ts` re-checks every path against the allow-list before adding
+    // it, so a disarmed hook still yields a clean-looking access log. The refusals are the
+    // only direct evidence that something was asked for and denied — which is what makes the
+    // containment claim checkable against the subprocess's own account rather than against a
+    // log line this code chose to write. The AI SDK runner leaves this field absent, and that
+    // asymmetry is the point: see `ReviewRun.deniedTools`.
+    deniedTools: result.denials.map((denial) => denial.toolName),
   };
 }
 
@@ -431,19 +489,34 @@ export function requireResult(result: StreamResult | null, modelId: string): Str
  *   - output that is absent from the structured channel, or present and not `ModelReview`.
  */
 export function readReview(result: StreamResult, modelId: string): ModelReview {
+  if (result.subtype === 'error_max_turns') {
+    // Turn exhaustion is `no-output`, not `provider`, and the reason is that the other
+    // runner already calls it that. `agent.ts` reports a step budget spent without a
+    // `submitReview` as `no-output`, and `errors.ts` names that case in the kind's own doc
+    // comment. Nothing failed at the provider here: the model was cut off mid-loop, which is
+    // the same event under a different unit. Reporting it as `provider` would have made an
+    // eval counting failure classes see two different faults for one behaviour — and this
+    // package exists to compare the two runners.
+    //
+    // The subtype and the budget stay in the message, so the diagnosis the previous spelling
+    // carried is not lost: this asks for a shorter prompt or a looser budget, and says so.
+    throw new ReviewerError(
+      'no-output',
+      `model ${modelId} ran out of turns after ${result.turns} of ${TURN_BUDGET} ` +
+        `("${result.subtype}") without delivering a review. A reviewer cut off mid-loop has ` +
+        'not approved the diff — shorten the review or raise the turn budget.',
+    );
+  }
+
   if (!result.ok) {
-    // Reported by the SDK's own name for it. `error_max_budget_usd` and `error_max_turns`
-    // are the two expected members and they mean different things to whoever reads this —
-    // one asks for a bigger ceiling, the other for a shorter prompt — so the subtype is
-    // carried verbatim instead of being flattened into "the provider failed".
+    // Reported by the SDK's own name for it. `error_max_budget_usd` is the expected member
+    // here now that turn exhaustion is handled above, and the subtype is carried verbatim
+    // rather than flattened into "the provider failed" — a budget kill asks for a bigger
+    // ceiling, and `error_max_structured_output_retries` asks for a different model.
     throw new ReviewerError(
       'provider',
       `model ${modelId} ended on "${result.subtype}" after ${result.turns} turn(s). ` +
-        (result.subtype === 'error_max_budget_usd'
-          ? `The budget is $${MAX_BUDGET_USD}. `
-          : result.subtype === 'error_max_turns'
-            ? `The turn budget is ${TURN_BUDGET}. `
-            : '') +
+        (result.subtype === 'error_max_budget_usd' ? `The budget is $${MAX_BUDGET_USD}. ` : '') +
         'An unfinished review is not a passing one.',
     );
   }

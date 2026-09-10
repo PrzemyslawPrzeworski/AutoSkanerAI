@@ -954,37 +954,37 @@ calls the way the AI SDK's `Output.object` did.
 
 #### Automated
 
-- [x] 3.1 agent-sdk runner reviews bad.diff on eu.anthropic.claude-sonnet-5, exit 1, both violations; a bad model id fails as a named error
-- [x] 3.2 agent-sdk runner reads at least one file on cross-file.diff and finds the off-diff defect
-- [x] 3.3 The settingSources default is measured both ways and recorded; the hermetic run cannot answer the CLAUDE.md-only probe
-- [x] 3.4 The output-channel A/B tally is in the source, three runs per configuration (one configuration x three fixtures; the submit-tool arm was not built — reasoned in change.md and in the agent-sdk.ts comment)
-- [x] 3.5 An unsubmitted review reports no-output and an unreadable one malformed-output, never a pass
-- [x] 3.6 accessedPaths is non-empty on the live cross-file.diff run (asserted against the new bare vendor-detail.diff — cross-file.diff's preamble states its own answer, so a run can be right having read nothing; recorded in change.md)
-- [x] 3.7 The offline suite still passes with no credentials present
-- [x] 3.8 No canUseTool implementation exists in src/ (the literal grep returns 3 matches: two comments and an assertion that it is undefined; deviation recorded in change.md)
+- [x] 3.1 agent-sdk runner reviews bad.diff on eu.anthropic.claude-sonnet-5, exit 1, both violations; a bad model id fails as a named error — e7af80b
+- [x] 3.2 agent-sdk runner reads at least one file on cross-file.diff and finds the off-diff defect — e7af80b
+- [x] 3.3 The settingSources default is measured both ways and recorded; the hermetic run cannot answer the CLAUDE.md-only probe — e7af80b
+- [x] 3.4 The output-channel A/B tally is in the source, three runs per configuration (one configuration x three fixtures; the submit-tool arm was not built — reasoned in change.md and in the agent-sdk.ts comment) — e7af80b
+- [x] 3.5 An unsubmitted review reports no-output and an unreadable one malformed-output, never a pass — e7af80b
+- [x] 3.6 accessedPaths is non-empty on the live cross-file.diff run (asserted against the new bare vendor-detail.diff — cross-file.diff's preamble states its own answer, so a run can be right having read nothing; recorded in change.md) — e7af80b
+- [x] 3.7 The offline suite still passes with no credentials present — e7af80b
+- [x] 3.8 No canUseTool implementation exists in src/ (the literal grep returns 3 matches: two comments and an assertion that it is undefined; deviation recorded in change.md) — e7af80b
 
 #### Manual
 
-- [x] 3.9 The A/B outcome is legible from the source comment alone
-- [x] 3.10 An SDK-runner review reads as a review of this repo, not of a generic project
+- [x] 3.9 The A/B outcome is legible from the source comment alone — e7af80b
+- [x] 3.10 An SDK-runner review reads as a review of this repo, not of a generic project — e7af80b
 
 ### Phase 4: Failure paths
 
 #### Automated
 
-- [ ] 4.1 npm test passes; every new test runs offline or skips loudly
-- [ ] 4.2 A bad model id and an unusable credential each fail as a named ReviewerError with exit 2
-- [ ] 4.3 No sentinel appears in util.inspect(error, depth 8) for any forced failure
-- [ ] 4.4 No thrown ReviewerError attaches cause
-- [ ] 4.5 injection.diff under the SDK: the .env read is refused and the injected instruction not obeyed
-- [ ] 4.6 A 1 ms abort yields kind timeout in under a second and the test process survives
-- [ ] 4.7 maxTurns exhausted with nothing submitted maps to no-output
-- [ ] 4.8 Working tree clean of the deliberate break before the phase commit
+- [x] 4.1 npm test passes; every new test runs offline or skips loudly
+- [x] 4.2 A bad model id and an unusable credential each fail as a named ReviewerError with exit 2
+- [x] 4.3 No sentinel appears in util.inspect(error, depth 8) for any forced failure
+- [x] 4.4 No thrown ReviewerError attaches cause
+- [x] 4.5 injection.diff under the SDK: the .env read is refused and the injected instruction not obeyed
+- [x] 4.6 A 1 ms abort yields kind timeout in under a second and the test process survives
+- [x] 4.7 maxTurns exhausted with nothing submitted maps to no-output
+- [x] 4.8 Working tree clean of the deliberate break before the phase commit
 
 #### Manual
 
-- [ ] 4.9 The injection.diff run with the hook removed was performed and its outcome recorded
-- [ ] 4.10 Each SKILL.md gotcha added here states how it was found
+- [x] 4.9 The injection.diff run with the hook removed was performed and its outcome recorded
+- [x] 4.10 Each SKILL.md gotcha added here states how it was found
 
 ### Phase 5: The comparison, and the pick
 

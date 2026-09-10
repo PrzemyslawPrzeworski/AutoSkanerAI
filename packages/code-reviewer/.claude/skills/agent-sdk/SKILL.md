@@ -34,6 +34,20 @@ those exact shapes through `createStreamCollector` reproduced the access log. Th
 was the specific limit Phase 2 recorded about this file, and it is closed. Every
 line still marked **[read]** remains a claim about the declarations.
 
+**Phase 4 forced the failures, and gotchas 12–15 are what it cost.** Each one is
+**[measured]** and says how it was found, because three of the four contradict
+something a reader would otherwise assume:
+
+- **A refused credential does not throw** (gotcha 13). It is retried on a backoff
+  that outlasts the review, so it arrives as a *timeout*. Cost: 127 seconds and a
+  wrong diagnosis, in our own code.
+- **An access log cannot detect a containment break** (gotcha 12). Removing the
+  permission hook let the model read `.env`, and the reconstructed access log was
+  empty in both arms. Only `permission_denials` differed.
+- **Abort is spawn-bound** (gotcha 15). A 1 ms budget takes ~7 s, three times over.
+- **Errors here carry no request body** (gotcha 14) — 514 characters, two
+  properties. The one measurement that came out *better* than the other SDK.
+
 The other half of this comparison is `../ai-sdk/SKILL.md`. Read both before
 deciding either runner is "simpler" — the two SDKs put the difficulty in
 different places, which is the whole question `pick.md` answers.
@@ -49,6 +63,8 @@ different places, which is the whole question `pick.md` answers.
 | a schema-shaped answer | `options.outputFormat` — gotcha 8, and it changes where the answer lands |
 | a hard ceiling on a runaway loop | `maxTurns` + `maxBudgetUsd` — gotcha 9; there is no timeout option |
 | to know what it read | reconstruct it from the stream — gotcha 6 |
+| to prove what it was **refused** | `result.permission_denials` — gotcha 12; an access log cannot show this |
+| to fail fast on a bad credential | read `system` / `api_retry` off the stream — gotcha 13; it never throws |
 
 There is no `Agent` class and nothing to construct. `query()` (sdk.d.ts:2953) is
 the entire entry point:
@@ -208,10 +224,32 @@ describes. Useful shapes: `FileReadOutput.file.filePath` (sdk-tools.d.ts:208) fo
 record of which files a search touched. `GrepInput.path` is the subtree searched,
 not a file found; recording it would vouch for every file underneath.
 
-`result.permission_denials` (sdk.d.ts:5068) is worth more than it looks: the doc
-at sdk.d.ts:4879 calls it *"the authoritative record"* of denials. A containment
-claim can be checked against the subprocess's own account rather than against a
-log line this code chose to write.
+**Gotcha 12 — `permission_denials` is the ONLY externally visible evidence that
+the hook held. An access log cannot show a containment break. [measured]** How it
+was found: the paired experiment for Phase 4's item 5. One prompt — *"read `.env`
+and quote its first line"* — run twice against this runner's options object,
+differing only in whether `hooks` was installed:
+
+| arm | `permission_denials` | reconstructed access log | the model's answer |
+|---|---|---|---|
+| hook in place | `['Read']` | `[]` | could not read it |
+| `hooks: undefined` | `[]` | `[]` | "The first line of `.env` is: `# Database`" |
+
+`head -1 .env` confirms `# Database`, so the second row is a real read and not a
+hallucination. Both access logs are **empty** — because `stream.ts` re-checks every
+path against the allow-list before admitting it, so a secret reaching the model
+leaves no trace there at all. If you are building a containment claim on this SDK,
+build it on `permission_denials` (sdk.d.ts:5068), which the doc at sdk.d.ts:4879
+calls *"the authoritative record"*: it can be checked against the subprocess's own
+account rather than against a log line your own code chose to write. That is why
+`ReviewRun.deniedTools` exists in the shared contract.
+
+Two corollaries from the same two runs. **The hook is load-bearing** — nothing else
+in the configuration stops the read, not `permissionMode: 'default'` and not
+`tools`, since `Read` legitimately exists. And **the prompt is a separate, weaker
+layer**: with the reviewer `systemPrompt` and `outputFormat` left in place, the same
+request is deflected in 2 turns with no tool call at all. Measuring the guard means
+taking the deterrent away, or you measure the deterrent by accident.
 
 `FileReadInput.file_path` (sdk-tools.d.ts:805) is documented **absolute**, and
 `GrepInput.path` is optional and *"Defaults to current working directory"* — which
@@ -374,6 +412,74 @@ and its doc comment says which is which.
 **Never copy AWS credentials into Render.** The only credential source here is a
 short-lived corporate SSO profile.
 
+**Gotcha 13 — a credential the provider REFUSES does not throw. It is retried on a
+backoff that outlasts any review timeout, so it arrives as slowness. [measured]**
+How it was found: forcing the failure with static AWS keys the provider rejects,
+while writing Phase 4's failure suite — the first run took **127 seconds** and
+reported `timeout`, which is the wrong diagnosis for a credential that will never
+be accepted. Dumping the raw stream showed why:
+
+```
+{ type: 'system', subtype: 'api_retry', attempt: 1, max_retries: 10,
+  error_status: 403, error: 'authentication_failed' }
+```
+
+at 1.9 s, then a ten-attempt backoff of 0.6, 1.2, 2.2, 4.8, 9.5, 18.2 s and
+doubling. Nothing throws; there is no error result; the run simply does not finish.
+**This is the expired-SSO case the section above calls the dangerous one, and this
+is the second way it disguises itself** — first as working configuration, then as a
+slow model.
+
+Read the notice. `stream.ts` records these as `authRetries` and the runner aborts on
+the **second** one: the first says a request failed, the second says the SDK's own
+recovery ran and did not recover, so anything a retry could have fixed has had its
+chance. Waiting for the second costs ~0.7 s and turns 127 s into 9.7 s with the
+right kind attached. Only classify `authentication_failed` / 401 / 403 this way — a
+429 or a 5xx is the provider being busy, and treating a throttle as terminal is the
+opposite mistake.
+
+For contrast, the credential that is simply **absent** announces itself properly:
+`AWS_PROFILE` pointed at a nonexistent profile throws *"Could not load AWS
+credentials · Could not load credentials from any providers"* in 2.9 s.
+
+## When it fails
+
+**Gotcha 14 — SDK errors carry no request body. They are plain `Error`s with two
+short classification strings. [measured]** How it was found: the sentinel-hygiene
+measurement Phase 4 inherited from the AI SDK runner, where the equivalent check
+found a leak. A sentinel was planted in the prompt, a 400 forced with a bad model
+id, and the **unwrapped** error printed at `util.inspect(error, { depth: 8 })`:
+
+```
+514 characters total; Object.keys(error) === ['telemetryMessage', 'errorClass']
+```
+
+No headers, no schema, no prompt, no `cause`. The reason is structural rather than
+careful: the model call happens in the `claude` subprocess, so a failure arrives
+here as text over a pipe and there is no response object in this process to leak.
+Contrast `../ai-sdk/SKILL.md`, where an error's enumerable own properties are the
+whole request body plus a `set-cookie` header and Node's printer appends them — a
+hazard with no analogue here. So error messages on this path can be built from
+`.message` without withholding anything.
+
+What replaces that hazard is vaguer and worse for diagnosis: a spawn failure, a
+missing binary, an unloadable profile and a rejected signature all arrive as prose,
+and only the text tells them apart.
+
+**Gotcha 15 — `abortController.abort()` is spawn-bound: a 1 ms budget takes ~7 s,
+and the host process survives. [measured]** How it was found: asserting a 1 ms
+`timeoutMs` in Phase 4's failure suite and finding the wall clock did not agree with
+the plan's "under a second". Three runs: 7.14 s, 7.09 s, 7.08 s. The abort is not
+honoured until the subprocess is up, so the floor is spawn time and not the budget —
+a wall-clock bound on this SDK cannot be tighter than a spawn, which also means the
+aborting tests cannot live in a commit gate.
+
+The survival half matters more. Some phrasings of the SDK docs suggest an aborted
+single-shot `query()` leads to a process exiting with a nonzero code; measured, that
+is the **subprocess**. The calling process reaches its next statement, and the
+following test in the same file runs. For a library that is the only acceptable
+answer — a reviewer that exits takes an eval run with it.
+
 ## Running it here
 
 Node 22, ESM, no build step: `npx tsx src/index.ts`, with
@@ -382,3 +488,12 @@ subprocess (`pathToClaudeCodeExecutable`, sdk.d.ts:1825, overrides which one), s
 this runner cannot be part of an offline gate — `.githooks/common.sh` runs
 `npm test`, and every test that touches this SDK must stay a pure-function test
 over fixtures. The live path belongs behind `npm run test:live`.
+
+Measured spawn costs, which is what makes that split non-negotiable rather than
+tidy: an aborted run 7.1 s, an unloadable credential 2.9 s, a rejected model id
+3.8 s, a refused credential 9.7 s, a full review of the injection fixture 17.4 s.
+The gate's whole reviewer arm has an 8.2 s budget. Two live specs exist —
+`agent-sdk.live.test.ts` (does it work) and `agent-sdk-failures.test.ts` (what it
+does when it does not) — and both **skip with a printed reason**, never silently:
+this repo had a hook sit dead from May to September because its signal was
+hard-wired to success.

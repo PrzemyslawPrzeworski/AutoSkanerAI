@@ -337,12 +337,16 @@ test('an unreadable submission is malformed-output, and the two are not the same
 });
 
 test('an error result is reported by the SDK subtype, because it arrives as a result', () => {
-  // The trap this pins: `error_max_turns` and `error_max_budget_usd` are *result subtypes*
+  // The trap this pins: `error_max_budget_usd` and its siblings are *result subtypes*
   // (sdk.d.ts:4985), not thrown errors. A runner that only read `structured_output` would see
   // a budget kill as a review with nothing in it. The subtype is carried into the message so
-  // the two say different things — one asks for a bigger ceiling, the other a shorter prompt.
+  // the failures say different things — one asks for a bigger ceiling, another for a
+  // different model.
+  //
+  // `error_max_turns` is deliberately NOT in this list. It maps to `no-output` rather than to
+  // `provider`, matching what the other runner calls the same event, and it is pinned in
+  // `agent-sdk-failures.test.ts` with the reasoning attached.
   for (const subtype of [
-    'error_max_turns',
     'error_max_budget_usd',
     'error_during_execution',
     'error_max_structured_output_retries',
