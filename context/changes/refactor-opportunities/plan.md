@@ -482,7 +482,7 @@ were wrong") is the question the contract test itself is.
 
 #### Automated
 
-- [x] 4.1 Read the final backend suite count off a run; update root `CLAUDE.md`, `.githooks/pre-commit:38`, `.githooks/pre-push:28`
+- [x] 4.1 Read the final backend suite count off a run; update root `CLAUDE.md`, `.githooks/pre-commit:38`, `.githooks/pre-push:28` — 469845e
 
 #### Manual
 
