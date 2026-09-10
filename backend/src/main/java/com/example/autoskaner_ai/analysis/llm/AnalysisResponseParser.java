@@ -162,9 +162,13 @@ public class AnalysisResponseParser {
      * before collapsing the rest — a duplicate would push a real finding out of sight.
      *
      * <p>Oracle for the shape below is {@code AnalysisPrompt.java:16} verbatim, not this class.
-     * ({@code MockAiAnalysisService.java:149} emits the same code at {@code HIGH} with different
-     * wording; the mock never goes through this parser, so the two do not have to agree, and the
-     * prompt is the one that states the contract.)
+     * {@code MockAiAnalysisService} emits the same code at the same severity, and that is now
+     * enforced rather than coincidental: {@code AiAnalysisServiceContractTest} asserts the rule
+     * against every implementation of {@link com.example.autoskaner_ai.analysis.AiAnalysisService},
+     * this one included. This paragraph used to say the two did not have to agree, since the mock
+     * never goes through this parser — true of the mechanism, but it let the mock drift to
+     * {@code HIGH} and suppress the flag on the substring {@code "historia"}, which under the
+     * {@code mock} profile is the only path the git hooks and the E2E specs ever exercise.
      */
     private List<RiskFlag> withAccidentDeclarationFlag(List<RiskFlag> flags, ExtractedData extracted) {
         if (extracted.accidentClaim() != null) {

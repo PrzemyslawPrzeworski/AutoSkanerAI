@@ -39,7 +39,9 @@ public class MockAiAnalysisService implements AiAnalysisService {
         String lower = listingText.toLowerCase();
 
         ExtractedData extracted = extractData(lower, listingText);
-        List<RiskFlag> riskFlags = buildRiskFlags(lower);
+        // Extraction first, deliberately: the accident flag is decided from the accidentClaim this
+        // call produces, not from a second reading of the text.
+        List<RiskFlag> riskFlags = buildRiskFlags(lower, extracted.accidentClaim());
         List<EquipmentItem> equipment = buildEquipment(lower);
 
         int highCount = (int) riskFlags.stream().filter(f -> f.severity() == RiskSeverity.HIGH).count();
@@ -141,13 +143,20 @@ public class MockAiAnalysisService implements AiAnalysisService {
         );
     }
 
-    private List<RiskFlag> buildRiskFlags(String lower) {
+    private List<RiskFlag> buildRiskFlags(String lower, String accidentClaim) {
         List<RiskFlag> flags = new ArrayList<>();
 
-        if (!lower.contains("wypadek") && !lower.contains("bezwypadkowy") && !lower.contains("historia")) {
+        // Decided from the extracted claim, not from a keyword scan of its own. The scan this
+        // replaced also suppressed the flag on "historia" — ordinary service-history boilerplate
+        // ("Pełna historia serwisowa") silenced it while accidentClaim stayed null, which presents
+        // absent accident data as a clean history. Absence means unknown; do not reintroduce a
+        // keyword here. Severity is MEDIUM to agree with the locked output schema in
+        // AnalysisPrompt.java:16 and with AnalysisResponseParser, which enforces the same rule for
+        // the model-backed beans.
+        if (accidentClaim == null) {
             flags.add(new RiskFlag(
                     "NO_ACCIDENT_DECLARATION",
-                    RiskSeverity.HIGH,
+                    RiskSeverity.MEDIUM,
                     "Brak deklaracji dotyczącej historii wypadków. Dane nieznane — nie można potwierdzić stanu pojazdu."
             ));
         }

@@ -451,10 +451,10 @@ were wrong") is the question the contract test itself is.
 
 #### Automated
 
-- [x] 1.1 Write `CepikEnrichmentServiceContractTest` with the real bean as the only parameter; suite green
-- [x] 1.2 Add `MockCepikService` as the second parameter; record the failure count and which properties broke
-- [x] 1.3 Rewrite `MockCepikService` — validate three inputs, return a realistic `FOUND`; suite green
-- [x] 1.4 Confirm `RealCepikEnrichmentServiceTest` and every existing backend test still pass unchanged
+- [x] 1.1 Write `CepikEnrichmentServiceContractTest` with the real bean as the only parameter; suite green — 3734465
+- [x] 1.2 Add `MockCepikService` as the second parameter; record the failure count and which properties broke — 3734465
+- [x] 1.3 Rewrite `MockCepikService` — validate three inputs, return a realistic `FOUND`; suite green — 3734465
+- [x] 1.4 Confirm `RealCepikEnrichmentServiceTest` and every existing backend test still pass unchanged — 3734465
 
 #### Manual
 
@@ -465,10 +465,10 @@ were wrong") is the question the contract test itself is.
 
 #### Automated
 
-- [ ] 2.1 Write `AiAnalysisServiceContractTest` with the parser-backed adapter as the only parameter; suite green
-- [ ] 2.2 Add `MockAiAnalysisService` as the second parameter; record both failures (missing flag on `"historia"`, `HIGH` vs `MEDIUM`)
-- [ ] 2.3 Fix `MockAiAnalysisService` — derive the flag from `accidentClaim`, emit `MEDIUM`; suite green
-- [ ] 2.4 Invert `AnalysisResponseParser:170` once, confirm the real parameter fails, revert; record the count
+- [x] 2.1 Write `AiAnalysisServiceContractTest` with the parser-backed adapter as the only parameter; suite green
+- [x] 2.2 Add `MockAiAnalysisService` as the second parameter; record both failures (missing flag on `"historia"`, `HIGH` vs `MEDIUM`)
+- [x] 2.3 Fix `MockAiAnalysisService` — derive the flag from `accidentClaim`, emit `MEDIUM`; suite green
+- [x] 2.4 Invert `AnalysisResponseParser:170` once, confirm the real parameter fails, revert; record the count
 
 ### Phase 3: Prove the adjuster is reachable, and that null still moves nothing
 
