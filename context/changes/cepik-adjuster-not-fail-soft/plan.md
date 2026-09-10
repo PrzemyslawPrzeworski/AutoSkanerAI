@@ -155,24 +155,24 @@ The suite count is printed in three places, and the ledger has a gap to close.
 
 #### Automated
 
-- [x] 1.1 Add `CepikRiskAdjuster.unscored` with the flag, the verdict floor and no cap
-- [x] 1.2 Route `AnalysisController:95` through `degradeOnThrow` with `unscored` as the degraded supplier; extend the guard's Javadoc scope paragraph
-- [x] 1.3 `CepikRiskAdjusterTest` cases for `unscored` — 5 cases, including one asserting the degraded path itself cannot throw on a null flag list or a null verdict
-- [x] 1.4 `AnalysisSurvivesEnrichmentFailureTest` third throw site, end to end; suite green — 255 tests in 28 classes, up from 249
-- [x] 1.5 Both deliberate breaks fire, then restore — degrading to the un-adjusted analysis: `riskFlags[0].code` came back `HIGH_MILEAGE` (the fixture's own first flag), so the silent degrade is caught; removing the guard: `Status expected:<200> but was:<500>`, the production failure itself. **The first restore was run before staging and reverted the whole controller edit** — the procedure stages before breaking for exactly this reason
+- [x] 1.1 Add `CepikRiskAdjuster.unscored` with the flag, the verdict floor and no cap — 74df4bf
+- [x] 1.2 Route `AnalysisController:95` through `degradeOnThrow` with `unscored` as the degraded supplier; extend the guard's Javadoc scope paragraph — 74df4bf
+- [x] 1.3 `CepikRiskAdjusterTest` cases for `unscored` — 5 cases, including one asserting the degraded path itself cannot throw on a null flag list or a null verdict — 74df4bf
+- [x] 1.4 `AnalysisSurvivesEnrichmentFailureTest` third throw site, end to end; suite green — 255 tests in 28 classes, up from 249 — 74df4bf
+- [x] 1.5 Both deliberate breaks fire, then restore — degrading to the un-adjusted analysis: `riskFlags[0].code` came back `HIGH_MILEAGE` (the fixture's own first flag), so the silent degrade is caught; removing the guard: `Status expected:<200> but was:<500>`, the production failure itself. **The first restore was run before staging and reverted the whole controller edit** — the procedure stages before breaking for exactly this reason — 74df4bf
 
 #### Manual
 
-- [x] 1.6 Local `POST /api/analyses` under `mock`: happy path unchanged, no `CEPIK_NOT_SCORED` — `FOUND`, damage record intact, risk capped 65 → 25, verdict `HIGH_RISK_SKIP`, flags `CEPIK_SIGNIFICANT_DAMAGE, CEPIK_CONTRADICTS_LISTING, NO_SERVICE_HISTORY`. The guard is invisible when nothing fails
+- [x] 1.6 Local `POST /api/analyses` under `mock`: happy path unchanged, no `CEPIK_NOT_SCORED` — `FOUND`, damage record intact, risk capped 65 → 25, verdict `HIGH_RISK_SKIP`, flags `CEPIK_SIGNIFICANT_DAMAGE, CEPIK_CONTRADICTS_LISTING, NO_SERVICE_HISTORY`. The guard is invisible when nothing fails — 74df4bf
 
 ### Phase 2: Write down the rule and the counts
 
 #### Automated
 
-- [ ] 2.1 Backend suite count in root `CLAUDE.md`, `.githooks/pre-commit`, `.githooks/pre-push`
-- [ ] 2.2 `backend/CLAUDE.md` — all three post-analysis steps fail-soft, and the degraded value reports itself
-- [ ] 2.3 `test-plan.md` §8 — dated entry; annotate the carried-forward list down to the one remaining gap
+- [x] 2.1 Backend suite count in root `CLAUDE.md`, `.githooks/pre-commit`, `.githooks/pre-push` — 249 → 255, still 28 classes (no new spec file)
+- [x] 2.2 `backend/CLAUDE.md` — all three post-analysis steps fail-soft, and the degraded value reports itself, in § "Folding registry findings into the score" next to the defect it descends from
+- [x] 2.3 `test-plan.md` §8 — dated entry; the 2026-09-10 carried-forward list annotated in place down to the `CepikStatus` gap alone
 
 #### Manual
 
-- [ ] 2.4 The three printed counts match a real run
+- [x] 2.4 The three printed counts match a real run

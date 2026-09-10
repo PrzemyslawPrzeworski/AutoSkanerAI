@@ -1,7 +1,7 @@
 ---
 change_id: cepik-adjuster-not-fail-soft
 title: The one enrichment step that is not fail-soft, and why wrapping it naively would be worse
-status: preparing
+status: implemented
 created: 2026-09-10
 updated: 2026-09-10
 archived_at: null
