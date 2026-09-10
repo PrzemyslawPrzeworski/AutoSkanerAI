@@ -536,4 +536,105 @@ class CepikRiskAdjusterTest {
         assertThat(result.riskFlags()).extracting(RiskFlag::code)
                 .contains("CEPIK_CONTRADICTS_LISTING");
     }
+
+    // ---------------------------------------------------------------------------------------
+    // unscored: what the caller answers when apply() threw
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * The failure path may not be quiet, and that is the whole reason {@code unscored} exists rather
+     * than the caller degrading to the analysis it failed to adjust. That value is what production
+     * returned on 2026-08-26 — {@code risk: 88, WORTH_CHECKING} beside a visible szkoda istotna —
+     * and it is the state {@link #theCorollaThatScored88} was written to make impossible.
+     */
+    @Test
+    void aSkippedAdjustmentSaysSoFirstAndFloorsTheVerdict() {
+        var original = analysis(88, VerdictCode.WORTH_CHECKING, "bezwypadkowy");
+
+        var result = CepikRiskAdjuster.unscored(original, withDamage());
+
+        assertThat(result.riskFlags()).first()
+                .as("prepended, so it survives the frontend's collapse after the fourth flag")
+                .satisfies(flag -> {
+                    assertThat(flag.code()).isEqualTo("CEPIK_NOT_SCORED");
+                    assertThat(flag.severity()).isEqualTo(RiskSeverity.HIGH);
+                    assertThat(flag.description()).contains("nie zawiera");
+                });
+        assertThat(result.verdict().code()).isEqualTo(VerdictCode.NEEDS_MORE_INFO);
+        assertThat(result.verdict().label()).isEqualTo("sprawdź po doprecyzowaniu");
+    }
+
+    /**
+     * The model's own findings are still its findings, and its score is still its score.
+     *
+     * <p>The risk assertion is the load-bearing one. Capping here would be inventing a number for a
+     * finding nobody identified — which registry fact fired is exactly what the throw destroyed — so
+     * the honest answer is the model's score plus the flag above saying it is incomplete. A future
+     * author reaching for {@code CAP_SIGNIFICANT_DAMAGE} on this path fails here.
+     */
+    @Test
+    void aSkippedAdjustmentKeepsTheModelsFlagsAndInventsNoScore() {
+        var original = analysis(88, VerdictCode.WORTH_CHECKING, "bezwypadkowy");
+
+        var result = CepikRiskAdjuster.unscored(original, withDamage());
+
+        assertThat(result.riskFlags()).extracting(RiskFlag::code)
+                .containsExactly("CEPIK_NOT_SCORED", "MISSING_TRANSMISSION");
+        assertThat(result.scores()).isSameAs(original.scores());
+        assertThat(result.extracted()).isSameAs(original.extracted());
+        assertThat(result.sellerQuestions()).isSameAs(original.sellerQuestions());
+        assertThat(result.meta()).isSameAs(original.meta());
+    }
+
+    /** A floor, not an assignment: a verdict already worse than the floor is left where it is. */
+    @Test
+    void aSkippedAdjustmentNeverSoftensAVerdictTheModelAlreadyHardened() {
+        var original = analysis(10, VerdictCode.HIGH_RISK_SKIP, "bezwypadkowy");
+
+        var result = CepikRiskAdjuster.unscored(original, withDamage());
+
+        assertThat(result.verdict()).isSameAs(original.verdict());
+    }
+
+    /**
+     * Nothing was skipped, so nothing is claimed. {@code apply} returns its argument untouched for
+     * every non-FOUND status, so a throw on one of those paths has no registry finding to have lost —
+     * and a flag saying otherwise would be a warning about an event that did not happen.
+     */
+    @Test
+    void nothingIsClaimedWhenTheLookupItselfFoundNothing() {
+        var original = analysis(88, VerdictCode.WORTH_CHECKING, "bezwypadkowy");
+
+        for (CepikStatus status : List.of(CepikStatus.LOOKUP_FAILED, CepikStatus.NOT_FOUND,
+                CepikStatus.MISSING_INPUTS)) {
+            var withoutData = CepikResult.withoutData(status, VIN, "https://historiapojazdu.gov.pl");
+            assertThat(CepikRiskAdjuster.unscored(original, withoutData))
+                    .as("status %s", status).isSameAs(original);
+        }
+        assertThat(CepikRiskAdjuster.unscored(original, null)).isSameAs(original);
+        assertThat(CepikRiskAdjuster.unscored(null, withDamage())).isNull();
+    }
+
+    /**
+     * {@code unscored} is a {@code degradeOnThrow} degraded supplier, so a throw inside it propagates
+     * as the 500 the guard was added to remove. Two inputs the fold at the top of this class would
+     * NPE on go through it instead: a null flag list, and a null verdict.
+     *
+     * <p>Neither is reachable through {@code AnalysisResponseParser} today — {@code validateRequired}
+     * rejects both containers — but nothing states it as a port contract, and this method is the one
+     * place in the class where "unreachable" is not a good enough reason.
+     */
+    @Test
+    void theDegradedPathItselfCannotThrow() {
+        var extracted = new ExtractedData("Toyota", "Corolla", 2022, null, null, null,
+                null, null, null, null, null, null, null, VIN, null, null);
+        var hollow = new AnalysisResult(extracted, List.of(), null, List.of(),
+                new CategoryScores(90, 75, 88, 60, 78), null,
+                new AnalysisMeta("openrouter", "some-model", 1L, Instant.now()));
+
+        var result = CepikRiskAdjuster.unscored(hollow, withDamage());
+
+        assertThat(result.riskFlags()).extracting(RiskFlag::code).containsExactly("CEPIK_NOT_SCORED");
+        assertThat(result.verdict().code()).isEqualTo(VerdictCode.NEEDS_MORE_INFO);
+    }
 }

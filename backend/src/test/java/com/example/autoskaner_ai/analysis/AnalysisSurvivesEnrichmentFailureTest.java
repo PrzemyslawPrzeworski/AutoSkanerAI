@@ -61,9 +61,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <h2>What is real here and what is stubbed</h2>
  *
  * <p>{@code AnalysisController}, {@code GlobalExceptionHandler}, {@code AnalysisPrompt}, the real
- * {@code AnalysisResponseParser}, {@code OpenRouterAnalysisService}, {@code CepikRiskAdjuster} and
- * — where the subject allows — the real {@code MarketPriceFetchService} are production classes. Two
- * sockets are stubbed independently: the OpenRouter one always serves the committed
+ * {@code AnalysisResponseParser}, {@code OpenRouterAnalysisService} and — where the subject allows —
+ * the real {@code MarketPriceFetchService} and the real {@code CepikRiskAdjuster} are production
+ * classes. The adjuster is a double in exactly one test, the one whose subject is a throw out of it.
+ * Two sockets are stubbed independently: the OpenRouter one always serves the committed
  * {@code valid-full-response.json}, so every test below starts from an analysis that succeeded.
  *
  * <p>The two throw sites the guard exists for are {@code slugMapper.makeSlug}
@@ -178,6 +179,52 @@ class AnalysisSurvivesEnrichmentFailureTest {
         llmServer.verify();
     }
 
+    /**
+     * The third guarded step, and the one whose degraded value had to be designed rather than reused.
+     *
+     * <p>{@code CepikRiskAdjuster.apply} sat outside the guard until this test existed, so a throw
+     * inside 254 lines of registry scoring discarded a finished analysis. Fixing it by degrading to
+     * the un-adjusted analysis would have been worse than the 500: that value is exactly what
+     * production returned on 2026-08-26 — a risk score and a verdict that ignore a szkoda istotna
+     * shown in the panel above them — and on this path it would arrive silently, because unlike
+     * {@code LOOKUP_FAILED} and {@code FETCH_FAILED} a skipped adjustment has no status the UI reads.
+     * So the degraded value is {@code CepikRiskAdjuster.unscored}, and what this test pins is that
+     * the skip is <em>reported</em>: the analysis survives, the registry panel survives with its
+     * damage record intact, and {@code CEPIK_NOT_SCORED} leads the flag list.
+     *
+     * <p>The adjuster is mocked because the throw cannot be injected through the payload. A hostile
+     * {@code List<DamageRecord>} would throw inside {@code apply} — and then again inside Jackson,
+     * which serialises {@code damageRecords} on the way out, producing a 500 from the serialiser
+     * after the controller had already succeeded. That would test the writer, not the guard.
+     *
+     * <p>The verdict floor's strength is not asserted here: the committed fixture already reads
+     * {@code NEEDS_MORE_INFO}, so flooring it is a no-op. {@code CepikRiskAdjusterTest} pins the floor
+     * against a {@code WORTH_CHECKING} input, which is where it can fail.
+     */
+    @Test
+    void aThrowWhileScoringRegistryFindingsIsReportedRatherThanSwallowed() throws Exception {
+        var throwingAdjuster = mock(CepikRiskAdjuster.class);
+        when(throwingAdjuster.apply(any(), any()))
+                .thenThrow(new IllegalStateException("damage category table unavailable"));
+        buildWith(foundRegistryResult(), stubbedMarketPrice(), throwingAdjuster);
+        stubValidAnalysis();
+
+        String body = perform()
+                .andExpect(status().isOk())
+                // The lookup succeeded — its findings are what could not be scored, so the panel the
+                // user is entitled to see stays exactly as the registry returned it.
+                .andExpect(jsonPath("$.cepikResult.status").value("FOUND"))
+                .andExpect(jsonPath("$.cepikResult.damageRecords[0].insurer").value("PZU"))
+                .andExpect(jsonPath("$.analysis.riskFlags[0].code").value("CEPIK_NOT_SCORED"))
+                .andExpect(jsonPath("$.analysis.riskFlags[0].severity").value("HIGH"))
+                .andExpect(jsonPath("$.analysis.verdict.code").value("NEEDS_MORE_INFO"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        assertAnalysisSurvived(body);
+        assertMarketPriceContextIsPresentAndNotNull(body);
+        llmServer.verify();
+    }
+
     // ---------------------------------------------------------------------------------------
     // The invariant, end to end through the real service
     // ---------------------------------------------------------------------------------------
@@ -282,12 +329,40 @@ class AnalysisSurvivesEnrichmentFailureTest {
      */
     private void buildWith(CepikEnrichmentService cepikEnrichmentService,
                            MarketPriceEnrichmentService marketPriceEnrichmentService) {
+        buildWith(cepikEnrichmentService, marketPriceEnrichmentService, new CepikRiskAdjuster());
+    }
+
+    private void buildWith(CepikEnrichmentService cepikEnrichmentService,
+                           MarketPriceEnrichmentService marketPriceEnrichmentService,
+                           CepikRiskAdjuster cepikRiskAdjuster) {
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new AnalysisController(aiAnalysisService(),
                         mock(ListingFetchService.class), cepikEnrichmentService,
-                        marketPriceEnrichmentService, new CepikRiskAdjuster()))
+                        marketPriceEnrichmentService, cepikRiskAdjuster))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
+    }
+
+    /**
+     * A registry lookup that worked, carrying one szkoda istotna — the payload whose scoring is the
+     * subject of {@link #aThrowWhileScoringRegistryFindingsIsReportedRatherThanSwallowed}.
+     *
+     * <p>Synthetic VIN: this repository is public. It differs from the fixture's extracted VIN on
+     * purpose — nothing on this path compares them, and a matching pair would imply a check that does
+     * not exist.
+     */
+    private static CepikEnrichmentService foundRegistryResult() {
+        var found = new CepikResult(CepikStatus.FOUND, "NMTBZ3BE40R000000", "2018-05-14", null, null,
+                2, List.of(new MileageStamp("2025-04-14", 118_400)),
+                List.of(new DamageRecord("2023-02-07", "Powstanie szkody istotnej", "PZU",
+                        List.of("Uszkodzenie elementów układu nośnego"))),
+                CepikResult.LOOKUP_URL, Instant.now(),
+                "BMW", "BMW 320I", "SAMOCHÓD OSOBOWY", 2018,
+                "Zarejestrowany", "aktualne", Boolean.TRUE, Boolean.FALSE, Boolean.FALSE,
+                "mazowieckie", List.of());
+        var stub = mock(CepikEnrichmentService.class);
+        when(stub.enrich(any())).thenReturn(found);
+        return stub;
     }
 
     /** The real OpenRouter service over a stubbed socket; {@link #llmServer} is bound here. */

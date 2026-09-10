@@ -67,6 +67,13 @@ public class CepikRiskAdjuster {
     /** {@code accidentClaim} is unbounded free text; a log line is not. */
     private static final int LOGGED_CLAIM_LIMIT = 160;
 
+    /**
+     * What {@link #unscored} reports. A code of its own rather than a reused one, because "the
+     * registry found something we could not weigh" is a different fact from any finding it might
+     * have been.
+     */
+    private static final String NOT_SCORED_FLAG = "CEPIK_NOT_SCORED";
+
     public AnalysisResult apply(AnalysisResult result, CepikResult cepik) {
         // Only a FOUND result carries registry facts. For every other status the lists are null by
         // construction, and "we did not check" must never move the score in either direction.
@@ -133,6 +140,50 @@ public class CepikRiskAdjuster {
 
         return new AnalysisResult(result.extracted(), result.equipment(), flags,
                 result.sellerQuestions(), scores, verdict, result.meta());
+    }
+
+    /**
+     * What to answer when {@link #apply} threw: the analysis, plus the admission that it is unscored.
+     *
+     * <p>This exists because the obvious degraded value is the wrong one. {@code apply}'s caller
+     * guards it with {@code degradeOnThrow}, and degrading to the un-adjusted {@code result} would
+     * reproduce exactly the state this class was written to prevent — {@code risk: 88,
+     * verdict: WORTH_CHECKING} beside a panel showing a szkoda istotna — except silently, because
+     * unlike the two enrichments a skipped adjustment has no status the UI can read. So the skip
+     * reports itself: one {@code HIGH} flag, prepended so it survives the frontend's
+     * collapse-after-four, and a verdict floored to {@code NEEDS_MORE_INFO} the same way the damage
+     * branch floors it.
+     *
+     * <p><b>The risk score is deliberately left alone.</b> Which registry finding fired is precisely
+     * what the throw destroyed, so every cap in this class would be a number nobody computed. Saying
+     * "this score does not include the registry" is honest; inventing a score for an unknown finding
+     * is not.
+     *
+     * <p>Returns {@code result} untouched for a non-{@code FOUND} lookup: {@code apply} does nothing
+     * on those statuses, so nothing was skipped and there is nothing to admit.
+     *
+     * <p><b>Throw-free by construction, and it has to be</b> — this is a {@code degradeOnThrow}
+     * degraded supplier, so a throw in here propagates as the 500 the guard was added to remove.
+     * Every step is total: the list is built locally, {@code result.riskFlags()} is null-tolerant
+     * here (unlike the fold at the top of this class), and {@link #applyFloor} handles a null
+     * {@code Verdict} and a null {@code VerdictCode} without reaching {@link #rank}.
+     */
+    public static AnalysisResult unscored(AnalysisResult result, CepikResult cepik) {
+        if (result == null || cepik == null || cepik.status() != CepikStatus.FOUND) {
+            return result;
+        }
+
+        List<RiskFlag> flags = new ArrayList<>();
+        flags.add(new RiskFlag(NOT_SCORED_FLAG, RiskSeverity.HIGH,
+                "Rejestr zwrócił dane pojazdu, ale nie udało się ich uwzględnić w ocenie ryzyka. "
+                        + "Ocena poniżej ich nie zawiera — przejrzyj dane z rejestru samodzielnie."));
+        if (result.riskFlags() != null) {
+            flags.addAll(result.riskFlags());
+        }
+
+        return new AnalysisResult(result.extracted(), result.equipment(), flags,
+                result.sellerQuestions(), result.scores(),
+                applyFloor(result.verdict(), VerdictCode.NEEDS_MORE_INFO), result.meta());
     }
 
     private static String describeDamage(List<DamageRecord> damages) {

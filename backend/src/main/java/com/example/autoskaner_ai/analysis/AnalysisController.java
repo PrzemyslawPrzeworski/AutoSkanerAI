@@ -92,7 +92,14 @@ public class AnalysisController {
 
         // The LLM scored the listing before the registry was queried, so it never saw these
         // findings. Fold them in before anything else reads scores or verdict.
-        result = cepikRiskAdjuster.apply(result, cepikResult);
+        //
+        // Guarded like the two above, but the degraded value is built by the adjuster rather than
+        // here: degrading to the un-adjusted `analysed` would be the defect CepikRiskAdjuster exists
+        // to prevent, and only that class owns the vocabulary for saying so.
+        AnalysisResult analysed = result;
+        result = degradeOnThrow("cepik-risk-adjustment",
+                () -> cepikRiskAdjuster.apply(analysed, cepikResult),
+                () -> CepikRiskAdjuster.unscored(analysed, cepikResult));
 
         List<String> augmentedQuestions = new ArrayList<>(result.sellerQuestions());
         var vin = result.extracted().vin();
@@ -124,7 +131,7 @@ public class AnalysisController {
     }
 
     /**
-     * Runs one enrichment, degrading it to its own failure status if it throws.
+     * Runs one post-analysis step, degrading it to a stated failure value if it throws.
      *
      * <p>Enrichment is the last ~11 s of a ~27 s request, and it runs <em>after</em> the analysis is
      * already in hand. An uncaught throw here therefore discards a finished analysis and answers 500
@@ -139,9 +146,17 @@ public class AnalysisController {
      * enforced — the endpoint always returns a {@code marketPriceContext}, never absent and never an
      * uncaught exception.
      *
-     * <p>Scoped to the enrichment calls on purpose. An LLM failure must still reach the client as
-     * the 502 that names its cause, never as a 200 carrying an empty analysis — which is why
-     * {@code aiAnalysisService.analyze} is called outside this guard, in {@link #analyze}.
+     * <p>Scoped to the three post-analysis steps on purpose. An LLM failure must still reach the
+     * client as the 502 that names its cause, never as a 200 carrying an empty analysis — which is
+     * why {@code aiAnalysisService.analyze} is called outside this guard, in {@link #analyze}.
+     *
+     * <p>The third member is the risk adjustment, and it is the reason this Javadoc says "a stated
+     * failure value" rather than "its own failure status". The two enrichments degrade to a status
+     * the UI already renders; the adjuster has no status, and the value that looks obvious for it —
+     * the analysis it failed to adjust — is the exact defect {@link CepikRiskAdjuster} was written to
+     * remove. Its degraded value is therefore {@link CepikRiskAdjuster#unscored}, which keeps the
+     * registry panel and says on the record that the score does not include it. A step whose
+     * degraded value cannot say "this did not work" does not belong in this guard.
      *
      * <p>The degraded value is built by a supplier rather than passed in, so the {@code Instant.now()}
      * on it is the moment the failure was handled and the happy path does not pay for it.
