@@ -175,10 +175,10 @@ The suite count is printed in three places and the rule belongs next to the two 
 
 #### Automated
 
-- [x] 2.1 Update the backend suite count in root `CLAUDE.md`, `.githooks/pre-commit`, `.githooks/pre-push` — 245 → 249, 27 → 28 classes
-- [x] 2.2 `backend/CLAUDE.md` § "Manual entry and user overrides" — the rule and the two predicates
-- [x] 2.3 `test-plan.md` §8 — dated entry; narrow the 2026-09-10 carried-forward list to the two that stay open — annotated in place rather than rewritten: a freshness ledger records what was true when written
+- [x] 2.1 Update the backend suite count in root `CLAUDE.md`, `.githooks/pre-commit`, `.githooks/pre-push` — 245 → 249, 27 → 28 classes — c238860
+- [x] 2.2 `backend/CLAUDE.md` § "Manual entry and user overrides" — the rule and the two predicates — c238860
+- [x] 2.3 `test-plan.md` §8 — dated entry; narrow the 2026-09-10 carried-forward list to the two that stay open — annotated in place rather than rewritten: a freshness ledger records what was true when written — c238860
 
 #### Manual
 
-- [ ] 2.4 The three printed counts match a real run
+- [x] 2.4 The three printed counts match a real run — `./.githooks/pre-push` printed "backend suite (249 tests…)" and the run reported 249; frontend 51, code-reviewer and ai-toolkit unchanged
