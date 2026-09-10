@@ -1,0 +1,36 @@
+{
+  "name": "@przemyslawprzeworski/ai-toolkit",
+  "version": "0.1.0",
+  "description": "Team AI artifacts — a code-review skill and always-on engineering rules — distributed through GitHub Packages",
+  "license": "UNLICENSED",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PrzemyslawPrzeworski/AutoSkanerAI.git",
+    "directory": "packages/ai-toolkit"
+  },
+  "files": [
+    "skills/",
+    "rules/",
+    "bin/",
+    "lib/",
+    "install.js",
+    "uninstall.js",
+    "pack.yaml",
+    "README.md"
+  ],
+  "bin": {
+    "ai-toolkit": "bin/cli.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js",
+    "validate": "node bin/cli.js validate",
+    "test": "node scripts/run-tests.mjs"
+  }
+}

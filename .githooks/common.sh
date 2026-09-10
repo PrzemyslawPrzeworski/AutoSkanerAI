@@ -117,3 +117,71 @@ run_reviewer_checks() {
     fail "code-reviewer suite failed."
   fi
 }
+
+# The ai-toolkit package: structural validation, then the suite.
+#
+# `validate` runs first and is the cheaper half, same argument as the typecheck above -- and it is
+# the check the two publish workflows also call, so a package that would be rejected in CI is
+# rejected here first. `npm test` needs no network and no credential; it installs into temp
+# directories it creates and removes.
+#
+# This package writes into *other* repositories and edits their CLAUDE.md, so its failure mode is
+# damage in a tree that has nothing to do with this one. That is the whole reason it is gated.
+run_toolkit_checks() {
+  require_node
+  if ! (cd packages/ai-toolkit && node bin/cli.js validate > /tmp/hook-toolkit.log 2>&1); then
+    cat /tmp/hook-toolkit.log
+    echo ""
+    fail "ai-toolkit package validation failed -- the publish workflows would reject it too."
+  fi
+  if ! (cd packages/ai-toolkit && npm test > /tmp/hook-toolkit.log 2>&1); then
+    tail -60 /tmp/hook-toolkit.log
+    echo ""
+    echo "  Full log: /tmp/hook-toolkit.log"
+    fail "ai-toolkit suite failed."
+  fi
+}
+
+# Dispatch to the right package's checks.
+#
+# This exists because the arm it replaced was a false gate: pre-commit matched any
+# `packages/<anything>/...` path and then unconditionally ran the *code-reviewer* checks. So staging
+# a file in a second package reported green over a package nothing had looked at -- the exact shape
+# root CLAUDE.md spends a paragraph on, one step short of `catch -> exit(0)`.
+#
+# The `*)` arm FAILS rather than skipping. A new package under packages/ is a package this gate does
+# not know how to check, and "I do not know how to check this" must not print "ok".
+run_package_checks() {
+  case "$1" in
+    code-reviewer)
+      step "code-reviewer typecheck + suite (~8 s; live model calls excluded)"
+      run_reviewer_checks
+      ;;
+    ai-toolkit)
+      step "ai-toolkit validate + suite (~2 s; no network, no credentials)"
+      run_toolkit_checks
+      ;;
+    *)
+      fail "packages/$1 has changes but .githooks/common.sh has no check arm for it.
+      Add one to run_package_checks() -- or, if it genuinely needs no gate, say so there
+      explicitly. Passing silently is not an option: this hook is the last layer before a
+      production deploy."
+      ;;
+  esac
+}
+
+# The Terraform appendix, statically.
+#
+# `terraform validate` cannot run here -- Terraform is not installed (see terraform/README.md) -- so
+# the checker is a node script that does what can be done without the provider schema: cross-file
+# variable and resource references, no committed credentials, no hardcoded account id, the values the
+# spec fixes, and fmt-adjacent formatting. Under a second, and it is the only thing standing between
+# these files and slow rot, since nothing else ever reads them.
+run_terraform_checks() {
+  require_node
+  if ! node terraform/check-static.mjs > /tmp/hook-terraform.log 2>&1; then
+    cat /tmp/hook-terraform.log
+    echo ""
+    fail "terraform static checks failed."
+  fi
+}

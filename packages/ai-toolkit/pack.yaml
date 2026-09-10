@@ -1,0 +1,28 @@
+# Toolkit manifest, read by the lesson's validation jobs and by `ai-toolkit validate`.
+#
+# It restates four fields that also live in package.json. That duplication is the point:
+# `pack.yaml` is the delivery-agnostic description of the toolkit, and package.json is one
+# registry's packaging of it. The CodeArtifact pipeline validates pack.yaml; the GitHub Packages
+# pipeline validates both, and `ai-toolkit validate` fails when they disagree — a drift check
+# rather than a second source of truth.
+
+name: "@przemyslawprzeworski/ai-toolkit"
+version: "0.1.0"
+description: "Team AI artifacts — a code-review skill and always-on engineering rules"
+namespace: przemyslawprzeworski
+
+# The npm scope, without the `@`. Not the CodeArtifact domain — those are different concepts and
+# `aws codeartifact login --namespace` wants this value, not the domain name.
+
+artifacts:
+  skills:
+    - code-review
+  rules:
+    - rules/CLAUDE.md
+
+install:
+  skills_target: ".claude/skills/<name>/"
+  rules_target: "CLAUDE.md"
+  manifest: ".claude/.ai-toolkit-manifest.json"
+  sentinel_begin: "<!-- BEGIN @przemyslawprzeworski/ai-toolkit -->"
+  sentinel_end: "<!-- END @przemyslawprzeworski/ai-toolkit -->"

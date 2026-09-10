@@ -1,0 +1,122 @@
+# The Model 2 (AWS CodeArtifact) publish pipeline for packages/ai-toolkit.
+#
+# THIS WORKFLOW HAS NEVER RUN, and it will fail on its first run until the infrastructure in
+# terraform/ is applied and two secrets exist. That is the honest state of the AWS appendix, and it
+# is written here rather than discovered in a red run.
+#
+# Three deviations from setup-cicd/SKILL.md, each with its reason:
+#
+#   1. The file is `publish-ai-toolkit-codeartifact.yml`, not the spec's `ci.yml`. This repo has
+#      three workflows with three unrelated jobs; one of them being called "ci" would imply it is
+#      the CI, and the actual gates here are git hooks (see root CLAUDE.md), not Actions.
+#
+#   2. The spec says "publish only on push to the default branch". This is workflow_dispatch-only.
+#      Two reasons: the user's decision for this lesson was that no version lands on any registry
+#      without a manual trigger, and — decisively — `main` in this repo auto-deploys to Render and
+#      Cloudflare Pages, so a publish attached to push would fire on every production deploy, and
+#      would fire today against an account with no CodeArtifact domain. A workflow that is
+#      permanently red about infrastructure that does not exist teaches everyone to ignore it.
+#
+#   3. There is no validation job. Validation already runs on every push and PR in
+#      publish-ai-toolkit.yml, calling `node bin/cli.js validate` — the same checks the spec lists,
+#      in one implementation. A second copy here would be a second thing to keep correct, and the
+#      copy that drifts is always the one nobody runs.
+#
+# Auth is OIDC only. No AWS_ACCESS_KEY_ID, no AWS_SECRET_ACCESS_KEY, no long-lived key anywhere:
+# `id-token: write` lets the runner mint a token GitHub signs, and the role's trust policy decides
+# whether to accept it. That role and its trust policy are owned outside this repo — terraform/iam.tf
+# references it as a data source rather than creating it.
+name: publish-ai-toolkit-codeartifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish, exactly as it appears in packages/ai-toolkit/package.json'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+defaults:
+  run:
+    working-directory: packages/ai-toolkit
+
+env:
+  AWS_REGION: eu-central-1
+  CODEARTIFACT_DOMAIN: devs10x
+  CODEARTIFACT_REPOSITORY: npm
+  # The npm scope without the @. NOT the domain above — passing the domain here scopes nothing you
+  # own, every install still resolves from public npm, and the failure reads as "no such package".
+  NPM_NAMESPACE: przemyslawprzeworski
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Fail on the missing prerequisite with a sentence, not with an AWS error from three steps
+      # later. `secrets` cannot be used in a job-level `if`, so the check is a step.
+      - name: Require the OIDC role secret
+        run: |
+          if [ -z "${{ secrets.AWS_ROLE_ARN }}" ]; then
+            echo "::error::AWS_ROLE_ARN is not set. This workflow is the AWS appendix and its"
+            echo "::error::infrastructure has never been applied — see terraform/README.md."
+            echo "::error::Set it with: gh secret set AWS_ROLE_ARN --body '<role-arn>'"
+            exit 1
+          fi
+          echo "ok: AWS_ROLE_ARN is present"
+
+      - name: Confirm the dispatched version matches package.json
+        run: |
+          ACTUAL=$(node -p "require('./package.json').version")
+          if [ "$ACTUAL" != '${{ inputs.version }}' ]; then
+            echo "::error::Dispatched version '${{ inputs.version }}' does not match package.json version '$ACTUAL'. Nothing published."
+            exit 1
+          fi
+          echo "ok: publishing $ACTUAL"
+
+      # Re-run the structural checks before touching a registry. Cheap, and it means a publish is
+      # never the first thing to notice a broken package.
+      - name: Validate package structure
+        run: node bin/cli.js validate
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: publish-ai-toolkit-${{ github.run_id }}
+
+      # Writes a scoped registry mapping and a bearer token into the runner's npm config. Scoped, so
+      # every dependency outside this scope keeps resolving from public npm. The token is never
+      # echoed — `login` prints only the endpoint it configured.
+      - name: Log npm in to CodeArtifact
+        run: |
+          aws codeartifact login \
+            --tool npm \
+            --domain "$CODEARTIFACT_DOMAIN" \
+            --repository "$CODEARTIFACT_REPOSITORY" \
+            --namespace "$NPM_NAMESPACE" \
+            --region "$AWS_REGION"
+
+      # --registry is passed explicitly: package.json's publishConfig points at GitHub Packages,
+      # which is the path that actually works here, and it would otherwise win over the login above
+      # and publish this to the wrong registry.
+      - name: Publish to CodeArtifact
+        run: |
+          REGISTRY=$(aws codeartifact get-repository-endpoint \
+            --domain "$CODEARTIFACT_DOMAIN" \
+            --repository "$CODEARTIFACT_REPOSITORY" \
+            --format npm \
+            --region "$AWS_REGION" \
+            --output text)
+          echo "publishing to $REGISTRY"
+          npm publish --registry "$REGISTRY"

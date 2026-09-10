@@ -1,0 +1,18 @@
+# Copy to terraform.tfvars and fill in aws_account_id. Everything else already defaults to the
+# value in this file, so a copy with only the account id filled in is a complete configuration.
+#
+# terraform.tfvars is gitignored. An account id is not a secret, but it is not mine to publish
+# either, and a file whose whole purpose is "the values for my account" is the wrong thing to have
+# in version control at all.
+#
+# aws_account_id is asserted against the active credentials (see the check block in main.tf). A
+# wrong value there does not fail loudly on its own: every ARN in iam.tf would name an account you
+# are not authenticated to, and the policy would attach and grant nothing.
+
+aws_region     = "eu-central-1"
+domain_name    = "devs10x"
+aws_account_id = "<your-account-id>"
+project_name   = "webinar-demo"
+
+# The npm scope, without the @. Not the domain above — see terraform/README.md.
+package_namespace = "przemyslawprzeworski"

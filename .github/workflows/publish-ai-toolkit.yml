@@ -1,0 +1,138 @@
+# Validate packages/ai-toolkit on every push and PR; publish it to GitHub Packages only when a
+# human dispatches this workflow.
+#
+# The split is the point. Validation is cheap and always right to run, so it has no trigger
+# conditions and no path filter — a filtered workflow that skips a PR produces *no* check, which
+# looks identical to a workflow that is broken. The package has zero dependencies and its suite
+# takes under a second, so there is nothing to save by being clever about when it runs.
+#
+# Publishing is the opposite: it puts an immutable version on an account, and npm will not let the
+# same version be republished. So it never happens on push, never on a PR, and never as a side
+# effect of a merge. Somebody has to open Actions, pick this workflow, and type the version they
+# expect to publish — which is also the confirmation that the version in package.json was bumped on
+# purpose.
+#
+# Auth: GitHub Packages requires the npm scope to equal the owning account, which is why the scope
+# is @przemyslawprzeworski and not the lesson's @twoj-zespol placeholder. The token is the
+# per-run GITHUB_TOKEN with `packages: write` — no PAT is stored anywhere, and no token is ever
+# committed. The `assert no token` step below checks that claim rather than asserting it in prose.
+name: publish-ai-toolkit
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish, exactly as it appears in packages/ai-toolkit/package.json (e.g. 0.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: packages/ai-toolkit
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # No `npm ci`: the package has no dependencies and no lockfile, so there is nothing to
+      # install. Skipping it is not a shortcut — running it would fail on the missing lockfile.
+
+      # The registry mapping is allowed in a committed .npmrc; a token never is. This greps the
+      # whole tree rather than the one file we wrote, because the rule is about the repository.
+      - name: Assert no auth token is committed anywhere
+        working-directory: .
+        run: |
+          if git grep -n -I -e '_authToken' -e '_auth=' -- '*.npmrc' '.npmrc'; then
+            echo "::error::A committed file contains an npm auth token. Remove it and rotate the token."
+            exit 1
+          fi
+          echo "ok: no _authToken in any committed .npmrc"
+
+      # The four structural checks (package.json fields, pack.yaml fields, SKILL.md frontmatter,
+      # frontmatter name == directory name) live in lib/validate.js and run through the CLI, so this
+      # workflow and the CodeArtifact one check the same things and cannot drift apart. A chain of
+      # `grep -q` here would report the same green whether it matched or the file was absent.
+      - name: Validate package structure
+        run: node bin/cli.js validate
+
+      - name: Run the suite
+        run: npm test
+
+      # The published surface. `files` in package.json is easy to get wrong, and a typo there ships
+      # an empty package that installs cleanly and does nothing.
+      - name: Show what would be published
+        run: npm pack --dry-run
+
+      # An installed copy must actually install. This runs the real postinstall path against a
+      # throwaway repo, so a break in INIT_CWD resolution or in the CLAUDE.md splice fails here
+      # rather than in a consumer's tree.
+      - name: Install the packed tarball into a scratch repo
+        run: |
+          TGZ="$PWD/$(npm pack --silent | tail -1)"
+          SCRATCH="$(mktemp -d)/consumer"
+          mkdir -p "$SCRATCH" && cd "$SCRATCH"
+          git init -q .
+          printf '# Consumer\n\nProse that must survive.\n' > CLAUDE.md
+          printf '{"name":"consumer","version":"1.0.0","private":true}\n' > package.json
+          npm install --no-audit --no-fund --foreground-scripts "$TGZ"
+
+          test -f .claude/skills/code-review/SKILL.md
+          test -f .claude/.ai-toolkit-manifest.json
+          grep -q '"status": "ok"' .claude/.ai-toolkit-manifest.json
+          grep -q 'BEGIN @przemyslawprzeworski/ai-toolkit' CLAUDE.md
+          grep -q 'Prose that must survive.' CLAUDE.md
+          echo "ok: install landed"
+
+          # Idempotency, then removal back to byte-identical.
+          node node_modules/@przemyslawprzeworski/ai-toolkit/bin/cli.js install
+          test "$(grep -c 'BEGIN @przemyslawprzeworski/ai-toolkit' CLAUDE.md)" = "1"
+          node node_modules/@przemyslawprzeworski/ai-toolkit/bin/cli.js uninstall
+          test ! -d .claude
+          printf '# Consumer\n\nProse that must survive.\n' > /tmp/expected.md
+          diff /tmp/expected.md CLAUDE.md
+          echo "ok: uninstall restored CLAUDE.md byte-for-byte"
+
+  publish:
+    if: github.event_name == 'workflow_dispatch'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@przemyslawprzeworski'
+
+      # The dispatch input is a confirmation, not a parameter: nothing is rewritten from it. If it
+      # disagrees with package.json, the operator meant a different commit or forgot the bump, and
+      # publishing the wrong immutable version is not recoverable.
+      - name: Confirm the dispatched version matches package.json
+        run: |
+          ACTUAL=$(node -p "require('./package.json').version")
+          REQUESTED='${{ inputs.version }}'
+          if [ "$ACTUAL" != "$REQUESTED" ]; then
+            echo "::error::Dispatched version '$REQUESTED' does not match package.json version '$ACTUAL'. Nothing published."
+            exit 1
+          fi
+          echo "ok: publishing $ACTUAL"
+
+      - name: Publish to GitHub Packages
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

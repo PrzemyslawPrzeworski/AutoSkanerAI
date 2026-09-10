@@ -14,6 +14,10 @@ backend/    Spring Boot 4.0.6, Java 21, Maven      -> backend/CLAUDE.md
 frontend/   Angular 21.2, TypeScript, SCSS, npm    -> frontend/CLAUDE.md
 context/    10xDevs chain artifacts (PRD, tech-stack, shape-notes) — do not edit
 context/map/  measured onboarding map    -> context/map/repo-map.md
+packages/   dev tooling, nothing deploys from here (npm, no root manifest)
+  code-reviewer/   the AI code reviewer, two runners behind one contract
+  ai-toolkit/      the code-review Agent Skill as a private npm package
+terraform/  the AWS CodeArtifact registry: authored, never applied
 ```
 
 This file is the **root of an additive hierarchy, not an override**: work inside
@@ -30,6 +34,7 @@ it does not duplicate.
 | Angular testing (vitest, zoneless), the vehicle-data form, the E2E budget | `frontend/CLAUDE.md` |
 | Risk map, per-layer budgets, tool inventory, verification ledger | `context/foundation/test-plan.md` |
 | Requirements FR-001 … FR-018 | `context/foundation/prd.md` |
+| Publishing the skill as a private npm package, the two registries | `packages/ai-toolkit/README.md`, `terraform/README.md` |
 | Why a shipped thing is shaped the way it is | `context/changes/<slug>/` |
 
 ## Build and run
@@ -44,6 +49,11 @@ cd frontend && npm start                 # dev server on :4200
 cd frontend && npm run build             # production build → dist/
 cd frontend && npm test -- --watch=false # unit tests (vitest via @angular/build:unit-test)
 cd frontend && npm run test:e2e          # e2e (starts both servers itself)
+
+# Dev tooling (nothing deploys from packages/)
+cd packages/ai-toolkit && npm test                # 42 tests, ~0.4 s, no network
+cd packages/ai-toolkit && node bin/cli.js validate # what both publish workflows check
+node terraform/check-static.mjs                   # terraform/ without terraform
 ```
 
 The backend port is **10000**, not 8080 — `proxy.conf.json` targets 10000, and so
@@ -59,8 +69,8 @@ production**, not a pre-filter in front of CI.
 | Layer | Trigger | Does |
 |---|---|---|
 | per-edit | `PostToolUse` on `Write`/`Edit` — `.claude/hooks/post-edit-check.{sh,mjs}` | `prettier --write` the edited `frontend/src` file, then the whole frontend suite for `.ts` / `.html` (6.9 s) |
-| pre-commit | `.githooks/pre-commit` | `prettier --check` staged frontend sources, frontend suite, backend suite when Java or `pom.xml` is staged, `packages/*` typecheck + suite when a package source or manifest is staged (8.4 s) |
-| pre-push | `.githooks/pre-push` | backend + frontend + `packages/` suites over the whole tree; for `main` also the production build (39 s) |
+| pre-commit | `.githooks/pre-commit` | `prettier --check` staged frontend sources, frontend suite, backend suite when Java or `pom.xml` is staged, per-package checks for **each** `packages/*` with a staged source or manifest, `terraform/` static checks when a `.tf` is staged (8.4 s) |
+| pre-push | `.githooks/pre-push` | backend + frontend + both `packages/` suites + `terraform/` static checks over the whole tree; for `main` also the production build (41 s) |
 
 **A fresh clone needs `git config core.hooksPath .githooks`** — the hooks are
 versioned but git does not pick them up on its own.
@@ -99,18 +109,47 @@ versioned but git does not pick them up on its own.
   commit-time cost. It runs offline for speed, so a newly added dependency can
   fail pre-commit on its own — the hook says so when it fails.
 - **`packages/` is gated at commit and push, not per-edit.** It is dev tooling —
-  nothing deploys from it — and it is gated because the thing living there is a
-  code reviewer, whose failure mode is reporting a clean review. Its suite is
-  offline: every test that needs a model or a credential skips itself — printing
-  why — unless `npm run test:live` runs it. One trap found while wiring this: **`node --test`
-  on a pattern matching nothing exits 0**, so the arm goes through
-  `packages/code-reviewer/scripts/run-tests.mjs`, which enumerates specs from
-  disk and fails when the reported test count is zero.
+  nothing deploys from it — and it is gated because of what lives there: a code
+  reviewer whose failure mode is reporting a clean review, and an installer whose
+  job is writing into *other* repositories and editing their `CLAUDE.md`. Both
+  suites are offline: every test that needs a model or a credential skips itself —
+  printing why — unless `npm run test:live` runs it. One trap found while wiring
+  this: **`node --test` on a pattern matching nothing exits 0**, so both arms go
+  through a `scripts/run-tests.mjs` that enumerates specs from disk and fails when
+  the reported test count is zero.
+- **The commit gate dispatches per package, and an unknown package fails.**
+  `run_package_checks <name>` in `.githooks/common.sh` is the only entry point;
+  its `*)` arm calls `fail`. This replaced a false arm that matched any
+  `packages/<anything>/…` path and then unconditionally ran the *code-reviewer*
+  checks — so staging a file in a second package printed `ok` over a package
+  nothing had looked at. The same fix widened the staged-path pattern, which had
+  matched only `src/*.ts`, `scripts/*.mjs`, `package.json` and `tsconfig.json`:
+  `install.js`, `bin/*.js`, `lib/*.js`, `pack.yaml` and every `skills/**` file
+  matched nothing at all. **Adding a package under `packages/` therefore requires a
+  matching arm** — that is deliberate, since "I do not know how to check this" must
+  not print `ok`.
+- **`terraform/` is gated by `node terraform/check-static.mjs`, not by Terraform.**
+  Terraform is not installed on this machine, so `validate` (which needs `init` and
+  a provider download) cannot run. The script checks what is decidable without the
+  provider schema — cross-file `var.`/`local.`/resource references, no committed
+  credential, no hardcoded account id, the values the spec fixes, fmt-adjacent
+  formatting — and it was mutation-tested against six planted defects. It is not a
+  substitute for `terraform validate`, and `terraform/README.md` says so in the
+  same words.
 - **That reviewer exists twice, behind one contract**, and `CODE_REVIEW_RUNNER`
   picks: `ai-sdk` (a hand-assembled Vercel AI SDK loop against OpenRouter, the
   default) or `agent-sdk` (`@anthropic-ai/claude-agent-sdk`, a `claude`
   subprocess against Bedrock). Both stay tested; the evals wrap `agent-sdk`, and
   the reasoning is in `context/changes/agent-sdk-reviewer/pick.md`.
+- **`packages/ai-toolkit` is a *third* reviewer, and the distinction matters.** It
+  ships a `code-review` Agent Skill — markdown, loaded into a Claude Code session,
+  answering a human in prose — whereas `packages/code-reviewer` is a CLI that
+  answers CI in JSON and an exit code. Same subject, different consumer. Its
+  `postinstall` **always exits 0** (breaking a consumer's `npm install` is not the
+  installer's call) but prints a framed stderr block and records `status: "failed"`
+  in `.claude/.ai-toolkit-manifest.json`; the human-invoked `npx ai-toolkit
+  install` exits non-zero on the same failure. Both paths call the same `lib/`, so
+  only the reporting differs. See `context/changes/ai-toolkit-distribution/`.
 
 See `context/foundation/test-plan.md` §5.1 for the timings and how each path was
 verified.
@@ -131,7 +170,7 @@ S-02 (manual field entry + user-supplied VIN/plate/date) is implemented; see `ba
 
 A real analysis takes ~27 s end to end (~16 s LLM + a Jina fetch for the market range), all on the request thread. Free-tier LLM slugs are the main fragility: see `application-openrouter.properties`. PRD is at `context/foundation/prd.md` (FR-001 to FR-018). Next: Stream B (F-02 data layer → F-03 auth → S-03 persistence).
 
-Suite sizes, so a drop is visible: backend **235** tests in 25 classes (~15.7 s), frontend **51** in 5 spec files (~2.8 s), `packages/code-reviewer` **168** in 11 spec files (~6.9 s, **ten** skipped offline — every test that needs a model or a credential, each printing the reason it skipped), plus one Playwright contract spec that no gate runs.
+Suite sizes, so a drop is visible: backend **235** tests in 25 classes (~15.7 s), frontend **51** in 5 spec files (~2.8 s), `packages/code-reviewer` **168** in 11 spec files (~6.9 s, **ten** skipped offline — every test that needs a model or a credential, each printing the reason it skipped), `packages/ai-toolkit` **42** in 4 spec files (~0.4 s, none skipped — it needs no network and no credential), plus one Playwright contract spec that no gate runs.
 
 ## Deployment
 

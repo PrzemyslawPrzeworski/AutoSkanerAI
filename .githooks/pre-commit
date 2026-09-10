@@ -18,11 +18,25 @@ FRONTEND_SOURCES=$(echo "$STAGED" | grep -E '^frontend/src/.*\.(ts|html|scss)$' 
 BACKEND_SOURCES=$(echo "$STAGED" | grep -E '^backend/(src/.*\.java|pom\.xml)$' || true)
 # packages/* has no deploy path -- nothing builds it -- so this arm exists purely because an untested
 # tool is worse than no tool: the code reviewer's whole job is to notice defects, and one that is
-# itself broken reports a clean review. Matches the manifests too, since a dependency bump is the
-# change most likely to break it without touching a line of src.
-PACKAGE_SOURCES=$(echo "$STAGED" | grep -E '^packages/[^/]+/(src/.*\.ts|scripts/.*\.mjs|package\.json|tsconfig\.json)$' || true)
+# itself broken reports a clean review; the ai-toolkit installer's job is to write into *other*
+# people's repositories. Matches the manifests too, since a dependency bump is the change most
+# likely to break either without touching a line of src.
+#
+# The pattern was widened when ai-toolkit landed, and the old one is worth naming: it matched only
+# `src/*.ts`, `scripts/*.mjs`, `package.json` and `tsconfig.json`, so `install.js`, `bin/*.js`,
+# `lib/*.js`, `pack.yaml` and every `skills/**` file matched nothing at all -- the file that edits
+# other repositories' CLAUDE.md was the least gated thing in the tree. Keep this list in step with
+# what the packages actually ship.
+PACKAGE_SOURCES=$(echo "$STAGED" | grep -E '^packages/[^/]+/(src/.*\.(ts|js)|lib/.*\.js|bin/.*\.js|test/.*\.(ts|js)|scripts/.*\.mjs|skills/.*|rules/.*|install\.js|uninstall\.js|package\.json|tsconfig\.json|pack\.yaml|\.npmrc)$' || true)
 
-[ -n "$FRONTEND_SOURCES" ] || [ -n "$BACKEND_SOURCES" ] || [ -n "$PACKAGE_SOURCES" ] || exit 0
+# Which packages, not just "some package". The arm this replaces ran the code-reviewer checks for
+# any match, so staging a file in a different package printed ok over a package nothing had checked.
+CHANGED_PACKAGES=$(echo "$PACKAGE_SOURCES" | sed -n 's|^packages/\([^/]*\)/.*|\1|p' | sort -u)
+
+TERRAFORM_SOURCES=$(echo "$STAGED" | grep -E '^terraform/.*\.(tf|mjs)$' || true)
+
+[ -n "$FRONTEND_SOURCES" ] || [ -n "$BACKEND_SOURCES" ] || [ -n "$PACKAGE_SOURCES" ] ||
+  [ -n "$TERRAFORM_SOURCES" ] || exit 0
 
 echo "pre-commit:"
 
@@ -44,9 +58,13 @@ if [ -n "$BACKEND_SOURCES" ]; then
   run_backend_tests
 fi
 
-if [ -n "$PACKAGE_SOURCES" ]; then
-  step "code-reviewer typecheck + suite (~8 s; live model calls excluded)"
-  run_reviewer_checks
+for pkg in $CHANGED_PACKAGES; do
+  run_package_checks "$pkg"
+done
+
+if [ -n "$TERRAFORM_SOURCES" ]; then
+  step "terraform static checks (<1 s; terraform itself is not installed)"
+  run_terraform_checks
 fi
 
 echo "  ok"

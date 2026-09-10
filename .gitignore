@@ -45,3 +45,25 @@ build/
 .claude/skills/
 .claude/.10x-cli-manifest.json
 .claude/settings.local.json
+# Written by @przemyslawprzeworski/ai-toolkit's installer, alongside the skills it
+# installs into the already-ignored .claude/skills/. A managed install is not source.
+.claude/.ai-toolkit-manifest.json
+
+### Terraform ###
+# terraform/ is authored but never applied — see terraform/README.md. These would be
+# created by the first `terraform init`, and none of them belong in git: the state
+# holds resource attributes verbatim, and tfvars is "the values for my account".
+terraform/.terraform/
+terraform/terraform.tfvars
+# .terraform.lock.hcl is deliberately NOT ignored: it pins provider hashes, which is
+# the difference between ">= 5.30, < 5.40" meaning one provider build and meaning
+# whichever one the runner happened to download. It does not exist yet because
+# `terraform init` has never run here.
+*.tfstate
+*.tfstate.*
+tfplan
+
+### npm pack output ###
+# `npm pack` drops the tarball in the package directory; the registry is where a
+# published artifact lives, not the repo.
+packages/*/*.tgz
