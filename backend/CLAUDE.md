@@ -63,6 +63,15 @@ One rule binds the port, not just the parser: a null `accidentClaim` must yield 
 
 A malformed VIN is not a 400 — it must not throw away an otherwise useful analysis. `RealCepikEnrichmentService` reports `MISSING_INPUTS` and the controller asks for it again. The frontend also checks the VIN shape before submitting; see `frontend/CLAUDE.md` § "Vehicle data form" for why the UI asks for the VIN and nothing else.
 
+**A derived finding must not outlive the input it describes, and `buildResponse` is where that is enforced.** The analysis — flags included — is produced from the advert, before the user's values exist; `UserOverrides` runs after it. So `AnalysisController` re-derives, late, whatever the model could not have known:
+
+- **`NO_VIN` is dropped once the VIN in hand validates.** Otherwise a request carrying a good VIN came back with `cepikResult.status: FOUND` next to `NO_VIN` at `HIGH` reading *"nie można zweryfikować pojazdu"* — one response contradicting itself, since its own `extracted.vinPresent` said `true`. It was never a mock artefact: `AnalysisPrompt` asks the model for the same code, and the model only ever sees the advert.
+- **One predicate decides the flag and the seller question**, `vinIsVerifiable` → `VinValidator.normalise(...).isPresent()`. They used to run in parallel, and only the question was override-aware — which is how a single method came to disagree with itself. Adding a third consequence of "the VIN is unusable" goes through the same predicate.
+- **Validity, not presence, and the two are not interchangeable.** `UserOverrides` sets `vinPresent` to `TRUE` for any non-blank typed value, so a typed `ABC` yields `vinPresent: true` *and* a `MISSING_INPUTS` lookup — and for that request `NO_VIN`'s text is true, so the flag stays. `SuppliedVinClearsTheNoVinFlagTest` pins that case specifically; a future simplification to non-blankness fails there rather than in production.
+- **Matching on `RiskFlag.code` is a mitigation, not a guarantee.** The code is a free-form `String`, so a model may report the same finding under a code the rule does not know. It covers the documented vocabulary — the prompt's schema and what `MockAiAnalysisService` emits.
+
+Scope is that one flag, deliberately: there is no `NO_PLATE` or `NO_DATE` flag to generalise over, and `NO_ACCIDENT_DECLARATION` is structurally excluded because `AnalysisRequest` has no accident field to override with. See `context/changes/no-vin-flag-survives-override/`.
+
 The frontend's "Sprawdź historię pojazdu" follow-up re-runs the whole analysis rather than calling a lookup-only endpoint. That is intentional: CEPiK findings only reach `scores` / `verdict` through `CepikRiskAdjuster` on the analysis path.
 
 ## URL fetching

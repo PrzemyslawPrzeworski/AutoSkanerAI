@@ -1,7 +1,7 @@
 ---
 change_id: no-vin-flag-survives-override
 title: A user-supplied VIN clears the seller question but not the NO_VIN risk flag
-status: preparing
+status: implemented
 created: 2026-09-10
 updated: 2026-09-10
 archived_at: null

@@ -163,21 +163,21 @@ The suite count is printed in three places and the rule belongs next to the two 
 
 #### Automated
 
-- [x] 1.1 Add `vinIsVerifiable`, route the seller question through it, drop `NO_VIN` when it answers true
-- [x] 1.2 Write `SuppliedVinClearsTheNoVinFlagTest` with all four cases; suite green — 249 tests in 28 classes, up from 245 in 27
-- [x] 1.3 Invert `vinIsVerifiable` once, confirm cases 1, 2 and 4 fail, restore; record the count — **all four failed, not three.** The plan under-predicted: inverting also flips case 3, because a `null` VIN becomes "verifiable" and the flag it correctly carries is dropped. Both directions of the guard are pinned, which is what the gate is for
+- [x] 1.1 Add `vinIsVerifiable`, route the seller question through it, drop `NO_VIN` when it answers true — 669df3f
+- [x] 1.2 Write `SuppliedVinClearsTheNoVinFlagTest` with all four cases; suite green — 249 tests in 28 classes, up from 245 in 27 (669df3f)
+- [x] 1.3 Invert `vinIsVerifiable` once, confirm cases 1, 2 and 4 fail, restore; record the count — **all four failed, not three.** The plan under-predicted: inverting also flips case 3, because a `null` VIN becomes "verifiable" and the flag it correctly carries is dropped. Both directions of the guard are pinned, which is what the gate is for (669df3f)
 
 #### Manual
 
-- [x] 1.4 Local `POST /api/analyses` under `mock`: well-formed VIN → `FOUND` and no `NO_VIN` — verified on a live local server, all three cases: well-formed → `FOUND`, `vinPresent: true`, flags `CEPIK_SIGNIFICANT_DAMAGE, NO_ACCIDENT_DECLARATION, NO_SERVICE_HISTORY`, no VIN question; `ABC` → `MISSING_INPUTS`, `vinPresent: true`, `NO_VIN` **kept**; no VIN → `MISSING_INPUTS`, `NO_VIN` kept
+- [x] 1.4 Local `POST /api/analyses` under `mock`: well-formed VIN → `FOUND` and no `NO_VIN` — verified on a live local server, all three cases: well-formed → `FOUND`, `vinPresent: true`, flags `CEPIK_SIGNIFICANT_DAMAGE, NO_ACCIDENT_DECLARATION, NO_SERVICE_HISTORY`, no VIN question; `ABC` → `MISSING_INPUTS`, `vinPresent: true`, `NO_VIN` **kept**; no VIN → `MISSING_INPUTS`, `NO_VIN` kept (669df3f)
 
 ### Phase 2: Write down the rule and the counts
 
 #### Automated
 
-- [ ] 2.1 Update the backend suite count in root `CLAUDE.md`, `.githooks/pre-commit`, `.githooks/pre-push`
-- [ ] 2.2 `backend/CLAUDE.md` § "Manual entry and user overrides" — the rule and the two predicates
-- [ ] 2.3 `test-plan.md` §8 — dated entry; narrow the 2026-09-10 carried-forward list to the two that stay open
+- [x] 2.1 Update the backend suite count in root `CLAUDE.md`, `.githooks/pre-commit`, `.githooks/pre-push` — 245 → 249, 27 → 28 classes
+- [x] 2.2 `backend/CLAUDE.md` § "Manual entry and user overrides" — the rule and the two predicates
+- [x] 2.3 `test-plan.md` §8 — dated entry; narrow the 2026-09-10 carried-forward list to the two that stay open — annotated in place rather than rewritten: a freshness ledger records what was true when written
 
 #### Manual
 
