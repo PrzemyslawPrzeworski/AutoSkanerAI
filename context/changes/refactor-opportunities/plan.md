@@ -474,15 +474,15 @@ were wrong") is the question the contract test itself is.
 
 #### Automated
 
-- [x] 3.1 Add the `FOUND`-with-null-`damageRecords` case to `CepikDamageReachesTheResponseTest`
-- [x] 3.2 Add the case driving `MockCepikService`'s own `FOUND` result through `CepikRiskAdjuster`
-- [x] 3.3 Invert `CepikRiskAdjuster:73` once, confirm both new tests fail, revert; record the count
+- [x] 3.1 Add the `FOUND`-with-null-`damageRecords` case to `CepikDamageReachesTheResponseTest` — c9fba2c
+- [x] 3.2 Add the case driving `MockCepikService`'s own `FOUND` result through `CepikRiskAdjuster` — c9fba2c
+- [x] 3.3 Invert `CepikRiskAdjuster:73` once, confirm both new tests fail, revert; record the count — c9fba2c
 
 ### Phase 4: Documentation, and the counts the hooks print
 
 #### Automated
 
-- [ ] 4.1 Read the final backend suite count off a run; update root `CLAUDE.md`, `.githooks/pre-commit:38`, `.githooks/pre-push:28`
+- [x] 4.1 Read the final backend suite count off a run; update root `CLAUDE.md`, `.githooks/pre-commit:38`, `.githooks/pre-push:28`
 
 #### Manual
 

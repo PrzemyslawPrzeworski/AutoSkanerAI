@@ -184,7 +184,7 @@ S-02 (manual field entry + user-supplied VIN/plate/date) is implemented; see `ba
 
 A real analysis takes ~27 s end to end (~16 s LLM + a Jina fetch for the market range), all on the request thread. Free-tier LLM slugs are the main fragility: see `application-openrouter.properties`. PRD is at `context/foundation/prd.md` (FR-001 to FR-018). Next: Stream B (F-02 data layer → F-03 auth → S-03 persistence).
 
-Suite sizes, so a drop is visible: backend **235** tests in 25 classes (~15.7 s), frontend **51** in 5 spec files (~2.8 s), `packages/code-reviewer` **168** in 11 spec files (~6.9 s, **ten** skipped offline — every test that needs a model or a credential, each printing the reason it skipped), `packages/ai-toolkit` **42** in 4 spec files (~0.4 s, none skipped — it needs no network and no credential), plus one Playwright contract spec that no gate runs.
+Suite sizes, so a drop is visible: backend **245** tests in 27 classes (~15.5 s), frontend **51** in 5 spec files (~2.8 s), `packages/code-reviewer` **168** in 11 spec files (~6.9 s, **ten** skipped offline — every test that needs a model or a credential, each printing the reason it skipped), `packages/ai-toolkit` **42** in 4 spec files (~0.4 s, none skipped — it needs no network and no credential), plus one Playwright contract spec that no gate runs.
 
 ## Deployment
 
