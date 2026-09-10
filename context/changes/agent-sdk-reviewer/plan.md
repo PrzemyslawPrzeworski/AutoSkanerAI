@@ -888,13 +888,13 @@ closes them incidentally and should be written back to that plan if it happens.
 
 #### Automated
 
-- [x] 2.1 typecheck passes with permission.ts and stream.ts present
-- [x] 2.2 Permission tests cover both directions and each refusal asserts which layer refused
-- [x] 2.3 Deleting the Grep-without-path rule fails permission.test.ts naming that case, then reverted
-- [x] 2.4 stream.test.ts asserts the non-empty direction on a stream that carried two files
-- [x] 2.5 Making the collector record no paths fails stream.test.ts, then reverted
-- [x] 2.6 npm test passes with AWS_PROFILE and AWS_REGION unset
-- [x] 2.7 Working tree clean of both mutations before the phase commit
+- [x] 2.1 typecheck passes with permission.ts and stream.ts present — b9b5ce1
+- [x] 2.2 Permission tests cover both directions and each refusal asserts which layer refused — b9b5ce1
+- [x] 2.3 Deleting the Grep-without-path rule fails permission.test.ts naming that case, then reverted — b9b5ce1
+- [x] 2.4 stream.test.ts asserts the non-empty direction on a stream that carried two files — b9b5ce1
+- [x] 2.5 Making the collector record no paths fails stream.test.ts, then reverted — b9b5ce1
+- [x] 2.6 npm test passes with AWS_PROFILE and AWS_REGION unset — b9b5ce1
+- [x] 2.7 Working tree clean of both mutations before the phase commit — b9b5ce1
 
 <!--
 2.3 was run as "let an absent `path` default to `.`, exactly as the SDK does" rather than as a
@@ -947,26 +947,26 @@ calls the way the AI SDK's `Output.object` did.
 
 #### Manual
 
-- [x] 2.8 Every refusal in permission.test.ts names the layer that refused it
-- [x] 2.9 SKILL.md would have prevented the mistakes it lists
+- [x] 2.8 Every refusal in permission.test.ts names the layer that refused it — b9b5ce1
+- [x] 2.9 SKILL.md would have prevented the mistakes it lists — b9b5ce1
 
 ### Phase 3: The runner, and which channel the review arrives on
 
 #### Automated
 
-- [ ] 3.1 agent-sdk runner reviews bad.diff on eu.anthropic.claude-sonnet-5, exit 1, both violations; a bad model id fails as a named error
-- [ ] 3.2 agent-sdk runner reads at least one file on cross-file.diff and finds the off-diff defect
-- [ ] 3.3 The settingSources default is measured both ways and recorded; the hermetic run cannot answer the CLAUDE.md-only probe
-- [ ] 3.4 The output-channel A/B tally is in the source, three runs per configuration
-- [ ] 3.5 An unsubmitted review reports no-output and an unreadable one malformed-output, never a pass
-- [ ] 3.6 accessedPaths is non-empty on the live cross-file.diff run
-- [ ] 3.7 The offline suite still passes with no credentials present
-- [ ] 3.8 No canUseTool implementation exists in src/
+- [x] 3.1 agent-sdk runner reviews bad.diff on eu.anthropic.claude-sonnet-5, exit 1, both violations; a bad model id fails as a named error
+- [x] 3.2 agent-sdk runner reads at least one file on cross-file.diff and finds the off-diff defect
+- [x] 3.3 The settingSources default is measured both ways and recorded; the hermetic run cannot answer the CLAUDE.md-only probe
+- [x] 3.4 The output-channel A/B tally is in the source, three runs per configuration (one configuration x three fixtures; the submit-tool arm was not built — reasoned in change.md and in the agent-sdk.ts comment)
+- [x] 3.5 An unsubmitted review reports no-output and an unreadable one malformed-output, never a pass
+- [x] 3.6 accessedPaths is non-empty on the live cross-file.diff run (asserted against the new bare vendor-detail.diff — cross-file.diff's preamble states its own answer, so a run can be right having read nothing; recorded in change.md)
+- [x] 3.7 The offline suite still passes with no credentials present
+- [x] 3.8 No canUseTool implementation exists in src/ (the literal grep returns 3 matches: two comments and an assertion that it is undefined; deviation recorded in change.md)
 
 #### Manual
 
-- [ ] 3.9 The A/B outcome is legible from the source comment alone
-- [ ] 3.10 An SDK-runner review reads as a review of this repo, not of a generic project
+- [x] 3.9 The A/B outcome is legible from the source comment alone
+- [x] 3.10 An SDK-runner review reads as a review of this repo, not of a generic project
 
 ### Phase 4: Failure paths
 

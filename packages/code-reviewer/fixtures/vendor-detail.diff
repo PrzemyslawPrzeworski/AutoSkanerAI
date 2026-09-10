@@ -1,0 +1,38 @@
+diff --git a/backend/src/main/java/com/example/autoskaner_ai/analysis/llm/OpenRouterHealthProbe.java b/backend/src/main/java/com/example/autoskaner_ai/analysis/llm/OpenRouterHealthProbe.java
+new file mode 100644
+index 0000000..3c1f8ab
+--- /dev/null
++++ b/backend/src/main/java/com/example/autoskaner_ai/analysis/llm/OpenRouterHealthProbe.java
+@@ -0,0 +1,34 @@
++package com.example.autoskaner_ai.analysis.llm;
++
++import org.springframework.stereotype.Component;
++import org.springframework.web.client.RestClient;
++
++/**
++ * Reports whether the configured LLM endpoint is answering, for the health endpoint.
++ */
++@Component
++public class OpenRouterHealthProbe {
++
++    private static final String BASE_URL = "https://openrouter.ai/api/v1";
++
++    private final RestClient client;
++
++    public OpenRouterHealthProbe() {
++        this.client = RestClient.builder()
++                .baseUrl(BASE_URL)
++                .defaultHeader("HTTP-Referer", "https://autoskaner-ai.pages.dev")
++                .defaultHeader("X-Title", "AutoSkanerAI")
++                .build();
++    }
++
++    public boolean reachable() {
++        try {
++            client.get().uri("/models").retrieve().toBodilessEntity();
++            return true;
++        } catch (Exception e) {
++            return true;
++        }
++    }
++}

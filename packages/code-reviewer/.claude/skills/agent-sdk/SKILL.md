@@ -17,13 +17,22 @@ below is marked **[read]**, **[tsc]** or **[measured]**:
 - **[tsc]** — the compiler caught it while writing this package.
 - **[measured]** — a run proved it.
 
-**As of Phase 2 there are no [measured] entries.** Phase 2 is offline by
-construction: `permission.ts` and `stream.ts` are pure functions tested against
-hand-written fixtures, and nothing has spawned a subprocess yet. That is a real
-limit on this file — the fixtures in `stream.test.ts` could disagree with what
-the SDK actually emits and no test would say so. Phase 3 runs the loop for the
-first time and is where the [measured] lines get added. **Until then, treat every
-claim about runtime behaviour as a claim about the declarations.**
+**Phase 3 ran the loop, so the [measured] entries now exist — and one of them
+contradicted nothing in the declarations while still breaking the runner.** Two
+facts came out of it:
+
+- **The answer channel has a name, and the declarations never say it** (gotcha 8a).
+  `outputFormat` is delivered as an injected tool call named `StructuredOutput`,
+  which a deny-by-default permission hook refuses. Cost: one 65-second failed run.
+- **Tool use survives `outputFormat`** (gotcha 8, point 3). The AI SDK's
+  suppression does not reproduce here — a live run read 9 files while answering
+  through the schema.
+
+`stream.ts` was also checked against the real stream rather than only against its
+own fixtures: a throwaway probe dumped the actual message shapes, and feeding
+those exact shapes through `createStreamCollector` reproduced the access log. That
+was the specific limit Phase 2 recorded about this file, and it is closed. Every
+line still marked **[read]** remains a claim about the declarations.
 
 The other half of this comparison is `../ai-sdk/SKILL.md`. Read both before
 deciding either runner is "simpler" — the two SDKs put the difficulty in
@@ -76,13 +85,30 @@ pattern; omit it to see every call. `HookCallback` (sdk.d.ts:859) is
 `input` is a 33-way union (`HookInput`, sdk.d.ts:875) that must be narrowed on
 `hook_event_name` before `tool_name` exists.
 
-**Gotcha 1 — returning `{}` ALLOWS the call. [read]** Deny is the explicit case
-(`HookPermissionDecision`, sdk.d.ts:879, is `'allow' | 'deny' | 'ask' | 'defer'`).
-A hook written as "recognise the dangerous tools, deny those, fall through
-otherwise" is therefore permissive by construction, and every tool a later SDK
-version adds walks straight through it. `decideToolUse` denies on its **default**
-branch and allows exactly two names for this reason, and
-`permission.test.ts` pins it with a tool name that does not exist.
+**Gotcha 1 — returning `{}` is *no opinion*, and no opinion is not an approval.
+[read]** `HookPermissionDecision` (sdk.d.ts:879) is
+`'allow' | 'deny' | 'ask' | 'defer'`, and `permissionDecision` is **optional** on
+`PreToolUseHookSpecificOutput` (sdk.d.ts:2577) — so `{}` is a hook that declined
+to decide, and the call falls back to the normal permission flow. The contract for
+each value is spelled out on the sibling hook, sdk.d.ts:2565, verbatim: *"Same
+contract as PreToolUse: allow proceeds (skipping the interactive cache-miss
+confirm), deny cancels the switch, ask asks the user to confirm (a headless
+session refuses instead)"*.
+
+Both halves of that bite, in opposite directions:
+
+- A hook written as "deny the dangerous tools, fall through otherwise" is not a
+  policy — every tool a later SDK version adds walks past its judgement.
+  `decideToolUse` denies on its **default** branch and allows exactly two names
+  for this reason, and `permission.test.ts` pins it with a tool name that does not
+  exist.
+- A hook that falls through on the tools it *means* to permit gets them refused,
+  because a headless run has no one to ask. **This is the failure that does not
+  look like a permission failure**: the review comes back correctly shaped, having
+  read nothing, and every citation is stripped for want of an access log. So
+  `toPreToolUseOutput` returns an explicit `'allow'`, not `{}` — it was `{}` for
+  one commit, and `permission.test.ts` now carries the corrected assertion with
+  the reason attached.
 
 **Gotcha 2 — `hookEventName` is required inside `hookSpecificOutput`, and
 omitting it is a deny that does not deny. [tsc]**
@@ -119,14 +145,23 @@ hook denies, and deny-rule overrides of hook allow/ask decisions — are not
 covered"* by that event. So a hook deny resolves **before** `canUseTool`. What is
 **not** documented anywhere in `sdk.d.ts` is whether listing a tool in
 `allowedTools` short-circuits the hook. If it does, `allowedTools` would be a
-containment hole. **Open question for Phase 3 to measure.** Until it is measured,
-this package lists nothing in `allowedTools` that the hook is relied on to bound.
+containment hole.
+
+**This package sidesteps the question rather than answering it.** `allowedTools` is
+left empty and the hook decides both directions explicitly (gotcha 1), so there is
+no configuration whose meaning depends on the undocumented ordering — nothing is
+pre-approved to be bypassed, and nothing needs to be. That is worth more than a
+measurement would be: a measured ordering is one version's behaviour, and this one
+cannot be wrong across a version bump.
 
 `permissionMode` (sdk.d.ts:1834, values at 2317) is
 `'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk' | 'auto'`.
-For a headless reviewer, `'dontAsk'` is documented as *"Don't prompt for
-permissions, deny if not pre-approved"* — deny-by-default with no interactive
-prompt, which is the only mode whose failure is a refusal rather than a hang.
+`'default'` is safe headless, which is not obvious and is worth citing: the
+`PermissionDeniedHookInput` doc (sdk.d.ts:4879) says that without a `canUseTool`
+handler — *"bare `-p` / SDK `query()` with no canUseTool"* — *"'ask' decisions are
+terminal"*. So the mode's failure here is a refusal, not a hang. `'dontAsk'`
+(*"Don't prompt for permissions, deny if not pre-approved"*) reaches the same place
+by a different route; either works once the hook answers explicitly.
 `'bypassPermissions'` additionally requires `allowDangerouslySkipPermissions: true`;
 never set either here.
 
@@ -197,17 +232,48 @@ turn's actual output (the carrier's data is a placeholder)."*
 Three consequences:
 
 1. Read the answer from `result.structured_output` (sdk.d.ts:5073), not from
-   `result.result`. `stream.ts` carries both and privileges neither, because
-   which channel to use is the Phase 3 measurement.
+   `result.result`. `stream.ts` carries both and privileges neither; the runner
+   reads the structured channel and reports `no-output` when it is empty, because
+   a review that went to the wrong channel is not an approval.
 2. `schema` is **raw JSON Schema**, not a Zod schema. The shared `ModelReview`
    Zod schema has to be converted (`z.toJSONSchema`) rather than passed.
-3. Unlike the AI SDK — where `output: Output.object(...)` suppressed tool calls
-   entirely and left the read tools unreachable (`../ai-sdk/SKILL.md` gotcha 8) —
-   nothing in these declarations says `outputFormat` blocks tool use, and the
-   end-turn-tool implementation suggests it should not. **Not measured. Do not
-   assume it; Phase 3 checks whether files are still read with `outputFormat` set,
-   because that specific regression is invisible: the run answers correctly
-   shaped, having read nothing.**
+3. **Tool use survives it. [measured]** The AI SDK's `output: Output.object(...)`
+   suppressed tool calls entirely and left the read tools unreachable
+   (`../ai-sdk/SKILL.md` gotcha 8); that does **not** reproduce here, which is
+   what the end-turn-tool implementation predicts. A live run against
+   `fixtures/vendor-detail.diff` read 9 files — including
+   `application-openrouter.properties`, which is the file that settles the
+   finding — and answered through the schema in 7 turns. Worth having measured
+   rather than assumed: the regression is invisible in the output, because a run
+   that read nothing answers in perfect shape and `stripUnbackedEvidence` reports
+   "0 stripped" from an empty access log. `agent-sdk.live.test.ts` exists for
+   that one assertion.
+
+**Gotcha 8a — the injected end-turn tool is named `StructuredOutput`, and a
+deny-by-default hook refuses it. [measured]** Nothing in `sdk.d.ts` names it. It
+is not a built-in the runner opts into either, so `tools: ['Read', 'Grep']` does
+**not** remove it — it is the answer channel, and it arrives as an ordinary
+`tool_use` block through the same `PreToolUse` hook as everything else. The first
+live run of this package therefore died after 65 seconds and five attempts:
+
+```
+Failed to provide valid structured output after 5 attempts — last StructuredOutput
+error: StructuredOutput is not available to the reviewer. A review reads; it do…
+```
+
+That is `decideToolUse`'s own default-branch refusal, quoted back by the SDK: the
+reviewer denying its own mouth. The result subtype is
+`error_max_structured_output_retries` (sdk.d.ts:4985) — a *result*, not a throw.
+
+Two things to take from it. First, `permission.ts` needs an explicit allow for
+`ANSWER_TOOL`, kept out of `REVIEWER_TOOLS` because that list is interpolated into
+the prompt as the tools for *reading the repo*. Second, and more usefully: this is
+the good version of the failure. Deny-by-default caught a tool nobody had
+anticipated, named it in the error, and stopped the run. The permissive shape —
+deny what you recognise, allow the rest — would have worked on the first try and
+would still be a hole. **A submit-tool built with `createSdkMcpServer` would have
+hit the same wall** (as `mcp__<server>__submitReview`), so this is a property of
+the containment design, not of `outputFormat`.
 
 ## Bounds, and the one that does not exist
 
@@ -232,10 +298,22 @@ The budget bounds that do exist:
 ## Settings, environment, and the subprocess
 
 **Gotcha 10 — omitting `settingSources` loads every filesystem setting, including
-this repo's own hooks and CLAUDE.md. [read]** sdk.d.ts:2086, verbatim: *"When
-omitted, all sources are loaded (matches CLI defaults). Pass `[]` to disable
+this repo's own hooks and CLAUDE.md. [read] [measured]** sdk.d.ts:2086, verbatim:
+*"When omitted, all sources are loaded (matches CLI defaults). Pass `[]` to disable
 filesystem settings (SDK isolation mode). Must include `'project'` to load
 CLAUDE.md files."*
+
+Measured, because a default that matters should not be taken on trust. The probe
+was a question whose answer is in this repo's CLAUDE.md and nowhere a model could
+guess — the backend listens on **10000**, not the 8080 of every Spring Boot
+tutorial — asked with `tools: []` so no read tool could supply it:
+
+| `settingSources` | answer |
+|---|---|
+| omitted | `10000` |
+| `[]` | `UNKNOWN` |
+
+So the injection is real, it is silent, and it is on by default.
 
 Both directions are hazards, and this repo makes both concrete:
 
@@ -247,9 +325,14 @@ Both directions are hazards, and this repo makes both concrete:
   That is a genuine loss for this reviewer specifically: `repo.ts`'s allow-list
   includes the three `CLAUDE.md` files precisely so the rules are readable.
 
-Decide deliberately and write down which was chosen. This is the option most
-likely to make the two runners incomparable without anyone noticing, since one of
-them cannot load a CLAUDE.md at all.
+**This runner passes `[]`, and the reason is the comparison, not isolation.** The
+second bullet turns out not to be a real loss: `repo.ts`'s allow-list names all
+three CLAUDE.md files, so `Read` fetches them on demand — the live run does exactly
+that. What `[]` buys is that the injection cannot be mistaken for the SDK being
+better. Auto-injected project rules are an advantage the AI SDK runner cannot have
+at all, and leaving them on would mean `pick.md` was measuring the harness rather
+than the two SDKs. This is the option most likely to make the two runners
+incomparable without anyone noticing.
 
 **Gotcha 11 — `options.env` REPLACES the subprocess environment; it does not
 merge. [read]** sdk.d.ts:1512, verbatim: *"When set, this value REPLACES the

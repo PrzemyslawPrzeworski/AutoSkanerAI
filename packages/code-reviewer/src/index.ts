@@ -9,6 +9,7 @@
  * Everything below that line is a library, and `reviewDiff` in agent.ts is the whole
  * of the review. What is left here is stdin, JSON, one stderr line, and the exit code.
  */
+import { reviewDiffWithAgentSdk } from './agent-sdk.ts';
 import { reviewDiff } from './agent.ts';
 import { isReviewerError } from './errors.ts';
 import type { Reviewer } from './reviewer.ts';
@@ -20,8 +21,10 @@ function fail(message: string): never {
 
 /**
  * Which of the two reviewers this run uses, and the assignment that proves each one fits
- * the contract — `reviewDiff` is checked against `Reviewer` here, at compile time, rather
- * than trusted to have kept its shape.
+ * the contract — both are checked against `Reviewer` here, at compile time, rather than
+ * trusted to have kept its shape. That check is the reason this function returns a typed
+ * value instead of dispatching inline: the two runners share no code path after this line,
+ * so this is the only place a drift in either signature is caught.
  *
  * **An unrecognised value exits 2; it never falls back to the default.** That is the whole
  * reason this is a function and not a `??`. The point of two runners is to compare them,
@@ -33,9 +36,7 @@ function fail(message: string): never {
 function selectRunner(): Reviewer {
   const requested = process.env['CODE_REVIEW_RUNNER'] ?? 'ai-sdk';
   if (requested === 'ai-sdk') return reviewDiff;
-  if (requested === 'agent-sdk') {
-    fail('runner "agent-sdk" is not registered yet. Valid now: ai-sdk (the default).');
-  }
+  if (requested === 'agent-sdk') return reviewDiffWithAgentSdk;
   fail(`unknown CODE_REVIEW_RUNNER "${requested}". Valid ids: ai-sdk, agent-sdk.`);
 }
 
@@ -78,9 +79,14 @@ async function main(): Promise<void> {
   // `runner=` leads, and it comes off the run rather than off the environment variable:
   // this line is the only record of which reviewer produced the JSON above it, and reading
   // the request back instead of the result would report the intent, not the fact.
+  // `cost=` prints `n/a` rather than `0` when the runner does not report a price, which is
+  // the same distinction `ReviewUsage` is built around: the AI SDK path gets no per-call
+  // figure from OpenRouter, and `$0.00` in a comparison table reads as "this review was
+  // free" instead of "this runner does not say".
   console.error(
     `code-reviewer: runner=${runner} model=${modelId} steps=${steps} ` +
-      `in=${usage.inputTokens ?? '?'} out=${usage.outputTokens ?? '?'} total=${usage.totalTokens ?? '?'} tokens` +
+      `in=${usage.inputTokens ?? '?'} out=${usage.outputTokens ?? '?'} total=${usage.totalTokens ?? '?'} tokens ` +
+      `cost=${usage.costUsd === undefined ? 'n/a' : `$${usage.costUsd.toFixed(4)}`}` +
       (run.accessedPaths.length > 0 ? ` read=${run.accessedPaths.length} file(s)` : ' read=none'),
   );
 

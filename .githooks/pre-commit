@@ -45,7 +45,7 @@ if [ -n "$BACKEND_SOURCES" ]; then
 fi
 
 if [ -n "$PACKAGE_SOURCES" ]; then
-  step "code-reviewer typecheck + suite (80 tests, ~8 s; live model call excluded)"
+  step "code-reviewer typecheck + suite (~8 s; live model calls excluded)"
   run_reviewer_checks
 fi
 

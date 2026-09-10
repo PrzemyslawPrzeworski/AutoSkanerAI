@@ -12,7 +12,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { resolve } from 'node:path';
-import { REVIEWER_TOOLS, decideToolUse, toPreToolUseOutput } from './permission.ts';
+import { ANSWER_TOOL, REVIEWER_TOOLS, decideToolUse, toPreToolUseOutput } from './permission.ts';
 import { REPO_ROOT } from './repo.ts';
 
 function refusal(toolName: string, toolInput: unknown): string {
@@ -162,21 +162,58 @@ test('a non-object tool input is refused rather than throwing', () => {
   }
 });
 
-test('REVIEWER_TOOLS lists exactly the two names that can be allowed', () => {
+test('REVIEWER_TOOLS lists exactly the two names offered for reading the repo', () => {
   // Pins the pair the reason strings advertise against the pair actually implemented, so a
   // tool added to one and not the other is a failure rather than a lie in a refusal.
   assert.deepEqual([...REVIEWER_TOOLS], ['Read', 'Grep']);
   for (const toolName of REVIEWER_TOOLS) {
     assert.doesNotMatch(refusal(toolName, {}), /not available/);
   }
+  // The answer channel is NOT in that list, and this asserts the separation rather than
+  // merely tolerating it: `REVIEWER_TOOLS` is interpolated into the prompt as the tools
+  // available for checking the repo, so a name added here would offer the model a third
+  // research tool that reads nothing.
+  assert.equal((REVIEWER_TOOLS as readonly string[]).includes(ANSWER_TOOL), false);
+});
+
+test('the answer channel is allowed — the SDK delivers outputFormat as a tool call', () => {
+  // Measured, and the measurement cost a 65-second failed run. `outputFormat` is an
+  // "end-turn tool" (sdk.d.ts:1957) in the literal sense: the SDK injects a tool named
+  // `StructuredOutput` and the model answers by calling it. It is not a built-in the runner
+  // opts into, so `options.tools: ['Read', 'Grep']` does not remove it, and the default
+  // branch below refused it five times until the SDK gave up — the reviewer denying its own
+  // mouth. Asserted by the constant AND by the literal name, because the SDK owns the
+  // spelling and a rename there is a total outage of this runner that no offline test would
+  // otherwise catch.
+  allowed(ANSWER_TOOL, { summary: 'anything', findings: [] });
+  allowed('StructuredOutput', {});
+});
+
+test('allowing the answer channel did not widen anything else', () => {
+  // The narrow-exception guard. `StructuredOutput` is permitted with no path check because
+  // it carries no path; the risk of a rule like that is that it gets generalised into "tools
+  // whose input we do not understand are fine".
+  assert.match(refusal('StructuredOutputWriter', {}), /not available/);
+  assert.match(refusal('structuredoutput', {}), /not available/);
+  assert.match(refusal('Bash', { command: 'cat .env' }), /not available/);
 });
 
 // --- The SDK adapter --------------------------------------------------------------------
 
-test('an allow decision becomes an empty object, because {} is how PreToolUse says yes', () => {
-  const output = toPreToolUseOutput({ allow: true });
-  assert.deepEqual(output, {});
-  assert.equal('hookSpecificOutput' in output, false);
+test('an allow decision says allow explicitly — {} would be no opinion, which is a refusal', () => {
+  // This assertion was inverted for one commit: it required `{}`, on the belief that an
+  // empty return is how a `PreToolUse` hook says yes. It is how the hook says *nothing*,
+  // and the call then falls through to the normal permission flow — a prompt when there is
+  // a human, and a refusal in a headless run with nothing pre-approved. The failure that
+  // would have caused is the quiet kind: a review that arrives correctly shaped having read
+  // no files, with every citation stripped because the access log is empty.
+  assert.deepEqual(toPreToolUseOutput({ allow: true }), {
+    hookSpecificOutput: {
+      hookEventName: 'PreToolUse',
+      permissionDecision: 'allow',
+      permissionDecisionReason: 'allow-listed: read-only, inside the repository',
+    },
+  });
 });
 
 test('a deny decision carries hookEventName, which is what makes the deny apply', () => {
