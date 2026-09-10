@@ -486,6 +486,6 @@ were wrong") is the question the contract test itself is.
 
 #### Manual
 
-- [ ] 4.2 `test-plan.md` — rewrite §7 bullet 1, add the two narrowings, add the §6 contract-test convention, date §8, mark risk rows 2–4
-- [ ] 4.3 `context/map/repo-map.md` — update the mock-profile risk-zone note, keep the residual `market` warning
-- [ ] 4.4 `backend/CLAUDE.md` § "Enrichment services" — the cepik mock's new behaviour and both contract tests
+- [x] 4.2 `test-plan.md` — rewrite §7 bullet 1, add the two narrowings, add the §6 contract-test convention, date §8, mark risk rows 2–4
+- [x] 4.3 `context/map/repo-map.md` — update the mock-profile risk-zone note, keep the residual `market` warning
+- [x] 4.4 `backend/CLAUDE.md` § "Enrichment services" — the cepik mock's new behaviour and both contract tests

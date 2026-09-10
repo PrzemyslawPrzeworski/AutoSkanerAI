@@ -62,6 +62,34 @@ and ownership abuse (IDOR) is deliberately absent from the map for the same
 reason — there is no persistence and no account model until F-02 and F-03
 land, and the check arrives with slice S-03.
 
+**Risks #2, #3 and #4 gained a second line of defence on 2026-09-10** (change
+`refactor-opportunities`), and it sits at the *port* rather than at a class.
+
+- **#4** — "not checked" and "checked, registry reported nothing" rendering
+  identically — is now asserted of **every** `CepikEnrichmentService`: a
+  non-`FOUND` result carries null lists, never empty ones, across all six ways the
+  three required inputs can be absent or unusable, and `fetchedAt` is stamped even
+  on those paths so the panel can always say when it was attempted.
+- **#2** — the panel letting a user infer "no reported damage" — keeps its
+  capture-driven protection and gains the listing-side half: a null
+  `accidentClaim` yields `NO_ACCIDENT_DECLARATION` at `MEDIUM` from every
+  `AiAnalysisService`, the mock included. That mock had inverted the rule — it
+  suppressed the flag on the substring `"historia"` and rated it `HIGH` — and
+  under the `mock` profile it is the only implementation the git hooks and the
+  E2E specs ever run.
+- **#3** — findings that never reach the verdict — gained the leg that was
+  missing rather than a duplicate one. `CepikRiskAdjuster` was covered in
+  isolation and the HTTP response was covered from a capture, but nothing proved
+  the `mock` profile's own `FOUND` result travels the controller path into
+  `scores` and `verdict`. It does: risk capped at 35 with
+  `CEPIK_SIGNIFICANT_DAMAGE` and `CEPIK_CONTRADICTS_LISTING`, and a `FOUND`
+  result whose `damageRecords` is null still moves nothing in either direction.
+
+See §6.8 for the shape these use and §7 for what they deliberately leave alone.
+**No risk is retired by this** — a contract binds the implementations that exist,
+and the three gaps the work exposed without closing are recorded in §8's
+2026-09-10 port-contract entry alongside §6.7's older carried-forward list.
+
 ### Risk Response Guidance
 
 | Risk | What would prove protection | Must challenge | Context `/10x-research` must ground | Likely cheapest layer | Anti-pattern to avoid |
@@ -574,18 +602,92 @@ Known gaps, left open on purpose. Each would have been *pinned* by a test assert
 - `ListingFetchService` bounds only a *minimum* body length (100 chars), so a URL remains the unbounded path into the prompt while pasted text is capped at 20 000.
 - The 30 s NFR is **asserted, not enforced**. The 295 s worst case is still reachable; this phase made it visible and regression-guarded, not impossible. Enforcement is impl-review F10's deferred async work. (The figure was written here as ≈341 s, which was the pre-Phase-2 sum: Phase 2's own removal of the retry clamp took the LLM stage from 156 s to 110 s, and the Phase 7 backport instruction had been drafted before that landed. `RequestTimeoutBudgetTest.java:180` is the number's only source of truth.)
 
+### 6.8 Pinning a rule that must hold of every implementation of a port
+
+Numbered last only because §6.6 and §6.7 are cited by number from other change
+folders and renumbering them would rot those citations. Read it *before* §6.1 when
+the rule you are about to pin belongs to an interface rather than to a class.
+
+**When it applies.** The rule is a property of the port, and a second
+implementation is free to mean something else by it without anything noticing.
+Both live cases came from the same shape: a profile-switched interface
+(`CepikEnrichmentService`, `AiAnalysisService`) whose mock is the only
+implementation the git hooks and the E2E specs ever run — so a drift in the mock
+is a drift in every gate, and the type system carries none of it.
+
+- **Location**: next to the port, in the port's own package —
+  `backend/src/test/java/.../cepik/CepikEnrichmentServiceContractTest.java`,
+  `backend/src/test/java/.../analysis/AiAnalysisServiceContractTest.java`.
+- **Naming**: `<Interface>ContractTest.java`. **A deliberate deviation from §6.1**
+  (`<ClassUnderTest>Test.java`) and from §6.2 (a test spanning several classes is
+  named for the behaviour): here the subject is the interface and the
+  implementations are *parameters*, so neither convention fits. Both files say so
+  in their class comment and point back to this section.
+- **Shape**: `@ParameterizedTest` + `@MethodSource("implementations")` over a
+  private `record Implementation(String name, <Port> service, <Collaborator> …)`
+  whose `toString()` returns the name — a failure then reads
+  `MockCepikService: null date must yield MISSING_INPUTS` rather than `[2]`. The
+  factory is a `Stream.of` with one element per implementation, so **adding a bean
+  to the contract is one line**. That is the whole point of the shape: an
+  implementation the contract does not run against is an implementation free to
+  drift.
+- **Build the parameters fresh per method.** JUnit calls the `@MethodSource`
+  factory once per `@ParameterizedTest`, so a mocked collaborator constructed
+  there never leaks interactions from one property into the next.
+- **`assertSoftly` over the input list, never a hard assertion.** Measuring a
+  candidate implementation against a contract should cost one run, not one run per
+  defect.
+- **A collaborator that only one implementation has is skipped, not dropped.** One
+  `CepikEnrichmentService` property is about an outbound call — malformed inputs
+  never reach the registry — and only the real bean has a registry to leave alone;
+  a mock answers out of itself. So the record's collaborator is nullable and the
+  `verifyNoInteractions` assertion is skipped where it is null, rather than the
+  parameter being excluded. The status and null-list properties still bind every
+  implementation. Note *why* that property cannot ride on the status: a bean could
+  call the registry, discard the answer, and still return `MISSING_INPUTS`.
+- **The oracle is the port's specification, never an implementation.**
+  `AiAnalysisServiceContractTest`'s oracle is `AnalysisPrompt.java:16` verbatim
+  plus the root `CLAUDE.md` guardrail — *not* `AnalysisResponseParser`, whose
+  agreement is the thing being measured. §6.5's four-source rule holds unchanged.
+- **Run locally**: `cd backend && ./mvnw -o test -Dtest='*ContractTest'`.
+- **Verify with a mutation, not a green run.** Both were verified by negating the
+  guard the property depends on and watching the contract go red. Note that a
+  contract asserting *opposite* directions from two tests can only be broken by the
+  **full negation** of a condition — widening it leaves one of them green, which
+  reads as a passing break-check on a half-broken guard.
+
+**Two asymmetries decide what a contract may assert at all**, and they are why both
+files carry an explicit "what is deliberately not asserted" block:
+
+1. **Only the stretch of the port where the implementations *must* agree is
+   assertable.** With well-formed inputs `RealCepikEnrichmentService` delegates to
+   the registry and returns what it said, while a mock synthesises an answer —
+   there is no shared property there at all. That is why the entire inputs axis of
+   the CEPiK contract is malformed-only: every property is a statement about an
+   absent or unusable input.
+2. **The parameters may not consume the same input, and faking it is worse than the
+   asymmetry.** `AiAnalysisService.analyze` takes a listing text, but the port's
+   real counterpart is `AnalysisResponseParser`, where the accident rule actually
+   lives, and a parser consumes *model JSON*. No single input drives both sides, so
+   what is shared is the **property**, not the input — the parser side is reached
+   through an adapter whose `analyze` ignores its argument, with a deliberately
+   empty string in its input list to make that visible. A reader who assumes both
+   parameters saw the same text draws a wrong conclusion from the next failure.
+
 ## 7. What We Deliberately Don't Test
 
 Exclusions agreed during the rollout (Phase 2 interview, Q5). Future
 contributors should respect these unless the underlying assumption changes.
 
-- **The mock profile's own output** — `MockAiAnalysisService` and `MockCepikService` are deterministic stubs that exist to serve other tests; asserting their canned responses proves nothing. Re-evaluate if a mock ever encodes business logic rather than a fixture. (Source: Phase 2 interview Q5.)
+- **The mock profile's own canned *values*** — the numbers and strings `MockAiAnalysisService` and `MockCepikService` invent (a risk of 65, `TOYOTA COROLLA`, a 26 320 km stamp, PZU as the insurer) are fixture material, and asserting them pins a stub to itself. Still excluded, and the second-order consequences are excluded with it: `MockCepikService` always answers `TOYOTA COROLLA`, so under `mock` a non-Toyota listing shows a registry identity mismatch, and that is a property of the fixture rather than a defect to pin. **But the re-evaluation clause fired on 2026-09-10, and this bullet used to be too wide.** Both mocks did encode business logic, and one had inverted a guardrail: `MockAiAnalysisService` suppressed `NO_ACCIDENT_DECLARATION` on the substring `"historia"` and rated it `HIGH` where the parser rates it `MEDIUM`, and no test had ever pushed `MockCepikService`'s own `FOUND` result through `CepikRiskAdjuster`. Under the `mock` profile those are the only paths the git hooks and the E2E specs run, so the exclusion was shielding the one implementation every gate depends on. The line now falls between a mock's *values* and the *rules its port promises*: the values stay untested, and every rule is asserted against **all** implementations at once (§6.8). (Source: Phase 2 interview Q5, narrowed by change `refactor-opportunities` Phases 1–3.)
+- **Anything a port's implementations may legitimately disagree about** — the exclusion a contract test draws by its own scope. Both live narrowings are worth naming here because each reads as an omission until you see why it cannot be asserted. `CepikEnrichmentServiceContractTest`'s date axis covers `null` and blank **only**: `RealCepikEnrichmentService` parses six formats under `ResolverStyle.STRICT` and rejects `31.02.2016` and `kwiecień 2022`, while a mock that treats any non-blank string as well-formed is still a *correct* implementation of the port — so format coverage stays in `RealCepikEnrichmentServiceTest`, where the behaviour lives, and the contract does not bind every future bean to one date parser. And `result.vin()` is not asserted at all: "the result echoes the requested VIN" is false by design, since `invalidVinShortCircuitsWithNullVin` pins it to null for `"NOT-A-VIN"` (there is no normalised VIN to echo) while the plate and date cases do carry it — a contract assertion would have to pick one and contradict the other. On the `AiAnalysisService` side the same rule excludes three things: the converse ("no flag when a declaration exists" — over-flagging is noise, a missing flag hands a buyer an unknown history dressed as a clean one, and the two error directions are not symmetric), flag count and ordering (the parser only ever appends), and the Polish description string, which `ListingClaimsCannotMoveTheFloorTest` pins instead. Re-evaluate a narrowing when a new implementation makes the disagreement illegitimate — not before. (Source: change `refactor-opportunities` Phases 1–2; see §6.8.)
 - **The deprecated risk endpoint** — slated for deletion since S-01 shipped; testing it entrenches something the roadmap wants gone. Re-evaluate only if the decision to remove it is reversed. (Source: Phase 2 interview Q5; roadmap S-01 carried-forward.)
 - **DTO plumbing** — Java records, Angular model interfaces, getters, and straight field mapping with no logic. Re-evaluate for any type that gains defaulting, normalisation, or validation. (Source: Phase 2 interview Q5.)
 - **Visual appearance is not excluded, but it is not scheduled** — no risk in §2 is visual-only, so under cost × signal nothing is spent there this rollout. If a layout or z-index failure surfaces, prefer a deterministic diff over a vision model. (Source: Phase 2 interview Q5 — the builder declined to exclude it.)
 
 ## 8. Freshness Ledger
 
+- Port contracts added, and the mock-output exclusion narrowed: 2026-09-10 — change `refactor-opportunities`, four phases. Backend 235 → **245 tests in 27 classes, 15.5 s** (241 after Phase 1, 243 after Phase 2, 245 after Phase 3), and the counts printed by `.githooks/pre-commit` and `.githooks/pre-push` were moved with them, since a label a reader trusts without checking is the one place a stale figure does damage. Two new files, both named for a port rather than a class: `CepikEnrichmentServiceContractTest` (three properties × two implementations × six degraded inputs) and `AiAnalysisServiceContractTest` (one property, two implementations, asymmetric inputs). §6.8 is the convention, §7 is what they leave alone, §2 records what they buy Risks #2/#3/#4. **The finding that reshaped §7: the exclusion was protecting the implementation every gate runs.** `MockAiAnalysisService` had drifted to suppressing `NO_ACCIDENT_DECLARATION` on the substring `"historia"` and rating it `HIGH` against the parser's `MEDIUM` — an inverted guardrail inside the only bean the git hooks and the E2E specs ever execute — and "the mock's own output is out of scope" is what let it sit there. A mock that is the sole implementation on a profile is not a fixture; it is production for that profile. **A second, quieter one: two tests asserting opposite directions cannot both be broken by widening a condition, only by fully negating it.** Widening `damages != null && !damages.isEmpty()` leaves one of the pair green, which reads as a passing break-check over a half-broken guard; the guard-inversion had to be the full negation. Three gaps were exposed and deliberately not pinned (§1 rule 4), all pre-existing, all confirmed against a live local `mock` server rather than inferred: **`NO_VIN`/`HIGH` is reported next to a successful `FOUND` lookup keyed on the very VIN the user supplied**, because the flag is built from the listing text and `UserOverrides.apply` runs afterwards — same ordering on the real path, so it reaches production and gets its own change; `CepikRiskAdjuster` is called at `AnalysisController:95` *outside* `degradeOnThrow`, so an NPE inside it discards a complete analysis behind a catch-all 500, which is the one enrichment step that is not fail-soft; and `AnalysisController` never switches on `CepikStatus` at all. **The manual half is also where a two-clause criterion stopped being a green run**: "both E2E specs stay on the `MISSING_INPUTS` path" is not shown by a passing suite, and was verified structurally — neither spec pastes a VIN, plate or date, so `MockCepikService` short-circuits at `VinValidator.normalise(null)` before the registry shape matters
 - Second reviewer runner added, and picked between: 2026-09-10 — `packages/code-reviewer` now holds two implementations of one `Reviewer` contract, `ai-sdk` (hand-assembled Vercel AI SDK loop, OpenRouter) and `agent-sdk` (`@anthropic-ai/claude-agent-sdk`, a `claude` subprocess against Bedrock `eu.anthropic.claude-sonnet-5`), selected by `CODE_REVIEW_RUNNER`; an unrecognised value exits 2 rather than falling back. Suite 152 → **168 tests in 11 spec files**, ten of which skip offline with a printed reason, and the gate arm went 8.2 s → **8.4 s** — 88 new tests for 0.2 s, re-measured rather than re-estimated (§5.1). The pick is `agent-sdk`, on 32 measured runs, written up with its tables in `context/changes/agent-sdk-reviewer/pick.md`; it is the runner M5-L3's promptfoo provider wraps. **Two empirical findings outlive the pick.** First, the Agent SDK's default `settingSources: ['user','project','local']` really does inject this repo's `CLAUDE.md` hierarchy into the model's context, silently — probed with a question whose answer is only in this repo (the backend's port is 10000, not 8080) and `tools: []` so nothing could fetch it: omitted → `10000`, `[]` → `UNKNOWN`. Left on, it would make every eval score a function of documentation edits that never appear in the prompt; measured at n=3 it cost 31% more per review and **inverted one verdict**, the `pass` run's own summary naming the right port and the right file before reporting zero findings. So the runner ships `[]`. Second, the output channel A/B (`outputFormat` versus an MCP submit tool) was settled by building the unexpected arm first: `outputFormat` is an end-turn *tool*, not a decoding constraint, and its error subtypes arrive as *results* rather than throws — so the wrong answer is an empty **passing** review, which is why `requireResult` maps every subtype to a `ReviewerError`. **A third find that was nobody's plan: the containment policy has a measurable capability cost.** All three hermetic `cross-file.diff` runs recorded `denied=[Grep]` — the model wanted an unscoped search of the repo root, which the permission hook refuses because unscoped covers `.env` — and when it cited `CLAUDE.md` from the fixture's preamble instead, `stripUnbackedEvidence` removed the citation. Three enforcement layers visible in one run, none of them decorative
 - `packages/` brought under the gates: 2026-09-09 — the directory had been invisible to all three layers since it was created. The per-edit hook matches `frontend/src/` only (`post-edit-check.mjs:96`) and both git hooks matched `^frontend/src/…` and `^backend/(src/…|pom\.xml)`, so a package with 80 tests had nothing running them. Now a pre-commit arm scoped to `^packages/[^/]+/(src/.*\.ts|scripts/.*\.mjs|package\.json|tsconfig\.json)$` and an unconditional pre-push arm, both `run_reviewer_checks` in `common.sh`: typecheck then suite, 8.2 s measured. Per-edit is deliberately left alone — the package is edited in bursts and 8 s per keystroke-level edit buys nothing a commit gate does not. **The find worth carrying: the runner could not report an empty suite.** `node --test` on a pattern matching nothing exits 0, which is the `catch → exit 0` prettier failure wearing a different tool's clothes, so the arm goes through `scripts/run-tests.mjs` (specs enumerated from disk, non-zero test count required). Both arms were watched blocking — an inverted assertion, and every spec moved aside — and the deliberate break reverted before the commit
 - Local enforcement last verified: 2026-09-04 (§5.1 added — the three local layers now exist and every one of them was watched blocking a real failure, including a `git commit` that `core.hooksPath` refused. Two measurements drove the layering and are worth not re-deriving: scoping the frontend run to one spec saves 0.5 s of 6.4 s because the cost is the Angular bundle build, not the test count, and `npx vitest related` cannot run these specs at all without the Angular builder's transform — the same obstacle that blocks Stryker)

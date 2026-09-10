@@ -160,18 +160,36 @@ regeneration is cheap and one maintained by hand is not. Here:
 - **No regeneration coupling exists.** There is no codegen in the repo — no OpenAPI
   generator, no schema-to-TS pipeline, no snapshot fixtures. **Every** co-change listed above
   cost someone an edit, so read all of them at full price.
-- **Mock coupling exists, and the expensive one is not the one you would guess.** Three
-  `@Profile("mock")` beans stand in for the LLM, the registry and the market fetch.
-  `MockMarketPriceEnrichmentService` ignores its input and is safely constant.
-  `MockAiAnalysisService` is **content-sensitive** — one word of listing text moved `overall`
-  from 41 to 35 — but that is a *latent* liability, not a live one: no test uses it as an
-  oracle. The contract spec asserts only `marketPriceContext` fields, `seed.spec.ts` asserts a
-  200 and one heading, and every backend controller test uses `standaloneSetup` with
-  hand-written stubs. It becomes a hazard the moment anyone adds a score assertion to an E2E
-  spec. **The mock that shapes meaning today is `MockCepikService`, by constancy rather than
-  content-sensitivity:** it returns `LOOKUP_FAILED` unconditionally, so `CepikRiskAdjuster`'s
-  254 lines are never executed by any end-to-end path in the repo. Measured in
-  `context/changes/analysis-flow-analysis/research.md` §2.1.
+- **Mock coupling exists, and since 2026-09-10 two of the three mocks are bound by a
+  contract.** Three `@Profile("mock")` beans stand in for the LLM, the registry and the market
+  fetch. Two of them now sit under a port contract test — `CepikEnrichmentServiceContractTest`
+  and `AiAnalysisServiceContractTest`, each asserting the port's rules against *every*
+  implementation at once (`test-plan.md` §6.8) — and both were bound because both had already
+  drifted, not as a precaution:
+  - `MockAiAnalysisService` is **content-sensitive** — one word of listing text moved `overall`
+    from 41 to 35 — and it had inverted the accident guardrail: it suppressed
+    `NO_ACCIDENT_DECLARATION` on the substring `"historia"` and rated it `HIGH` where
+    `AnalysisResponseParser` rates it `MEDIUM`. The contract now pins the rule (a null
+    `accidentClaim` yields the flag at `MEDIUM`), which is *not* the same as using the mock as
+    an oracle: its canned scores are still asserted nowhere, so the latent hazard stands — it
+    goes live the moment anyone adds a score assertion to an E2E spec.
+  - `MockCepikService` **no longer returns `LOOKUP_FAILED` unconditionally.** It validates all
+    three required inputs and, given a well-formed VIN + plate + date, answers a realistic
+    `FOUND` carrying one `szkoda-istotna`. So `CepikRiskAdjuster` is now reachable end to end,
+    and that is pinned rather than assumed — a controller-path test drives the mock's own
+    `FOUND` result into `scores` and `verdict` (risk capped at 35), and a sibling proves a
+    `FOUND` result whose `damageRecords` is null still moves nothing. The older reading here —
+    that the adjuster's ~255 lines were unexecuted by any end-to-end path, measured in
+    `context/changes/analysis-flow-analysis/research.md` §2.1 — was true when written and is
+    the gap that work closed.
+  - `MockMarketPriceEnrichmentService` ignores its input entirely (always 45000/55000/70000,
+    sample 12) and is **deliberately left unbound.** There is no shared rule to assert: the
+    `market` port promises nothing about absence that a mock could invert, because a thin or
+    dispersed sample is Risk #5 — a *statistical* honesty problem living in
+    `MarketPriceStatistics`, which is a class with its own tests and its own PIT run, not a
+    port property. Constancy is also what makes it the right target for the one E2E contract
+    spec. Re-evaluate if a second real implementation appears, or if the port ever gains a
+    degraded-result shape the way `CepikResult` has.
 - **Fixtures change only by capture, never by edit** — `backend/src/test/resources/cepik/*.json`
   must be verbatim payloads. That rule is what made the invented-field-name defect findable.
 
@@ -185,7 +203,7 @@ regeneration is cheap and one maintained by hand is not. Here:
 | **`analysis` as a package** | 54% of the backend with no seam, both cycles, and the resilience policy buried in a private helper | `backend/.../analysis/` |
 | **`cepik`** | behaviour defined by a government site nobody controls; 100% agent-authored with zero solo commits; Era 2 found its field names invented | `backend/.../cepik/` |
 | **`common`** | defines every endpoint's failure contract, reachable only over HTTP, fan-in 0 so nothing warns you | `common/GlobalExceptionHandler.java` |
-| **the `mock` profile** | it is a different program, not a stub of the same one: it inverts the accident rule on one text, leaves `CepikRiskAdjuster` unexecuted, and does not cover the listing fetch — while being the only profile any gate runs | `cepik/MockCepikService.java`, `analysis/MockAiAnalysisService.java` |
+| **the `mock` profile** | still a different program, not a stub of the same one — it does not cover the listing fetch, `MockCepikService` always answers `TOYOTA COROLLA` so any other listing shows a registry identity mismatch, and it remains the only profile any gate runs. Narrowed 2026-09-10: the inverted accident rule is fixed and pinned, and `CepikRiskAdjuster` is now executed end to end, both by port contract tests (`test-plan.md` §6.8) | `cepik/MockCepikService.java`, `analysis/MockAiAnalysisService.java` |
 | **`vehicle-data-form` + `vehicle-data.ts`** | holds the VIN and mileage rules, is the newest code, and is the only shipped feature with no plan, research or review record | `frontend/.../vehicle-data-form/`, `shared/models/vehicle-data.ts` |
 
 And one business invariant that outranks all of them: **absence of accident data means
@@ -207,7 +225,7 @@ See [`artifact-3-contributors.md`](artifact-3-contributors.md) §5 for the full 
 | `analysis` | `context/changes/s-01/` and `llm-analysis-wiring/` — full chains: brief → plan → review → change | `AnalysisControllerTest` (the most-edited file in the repo, 11 touches) |
 | `cepik` | the **verbatim fixtures** under `backend/src/test/resources/cepik/` — the fixture *is* the documentation of the API | `context/archive/2026-06-02-cepik-vin-lookup/` |
 | `common` | `context/changes/ab-experiment-error-shape.md` | `backend/CLAUDE.md` § "API error shape" |
-| the mock oracle | `context/foundation/test-plan.md` §7 | `frontend/e2e/E2E-RULES.md` |
+| the mock oracle | `context/foundation/test-plan.md` §6.8 (which rules are pinned across implementations) and §7 (which of a mock's output is deliberately untested) | `frontend/e2e/E2E-RULES.md` |
 | `vehicle-data-form` | **nothing in the change chain — this is the one gap.** `frontend/CLAUDE.md` § "Vehicle data form" has the decisions but not the alternatives | ask the human |
 | product intent, infra, credentials | **ask the human.** Business rules, the Render/Cloudflare wiring, the SSO and Zscaler constraints exist only outside the repo | — |
 
