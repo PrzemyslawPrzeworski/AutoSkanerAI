@@ -451,10 +451,10 @@ were wrong") is the question the contract test itself is.
 
 #### Automated
 
-- [ ] 1.1 Write `CepikEnrichmentServiceContractTest` with the real bean as the only parameter; suite green
-- [ ] 1.2 Add `MockCepikService` as the second parameter; record the failure count and which properties broke
-- [ ] 1.3 Rewrite `MockCepikService` — validate three inputs, return a realistic `FOUND`; suite green
-- [ ] 1.4 Confirm `RealCepikEnrichmentServiceTest` and every existing backend test still pass unchanged
+- [x] 1.1 Write `CepikEnrichmentServiceContractTest` with the real bean as the only parameter; suite green
+- [x] 1.2 Add `MockCepikService` as the second parameter; record the failure count and which properties broke
+- [x] 1.3 Rewrite `MockCepikService` — validate three inputs, return a realistic `FOUND`; suite green
+- [x] 1.4 Confirm `RealCepikEnrichmentServiceTest` and every existing backend test still pass unchanged
 
 #### Manual
 

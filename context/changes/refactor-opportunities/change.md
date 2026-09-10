@@ -1,9 +1,9 @@
 ---
 change_id: refactor-opportunities
 title: Which of the recorded structural problems are worth fixing, in what shape, in what order
-status: planned
+status: implementing
 created: 2026-09-08
-updated: 2026-09-09
+updated: 2026-09-10
 archived_at: null
 ---
 
