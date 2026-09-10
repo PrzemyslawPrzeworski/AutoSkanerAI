@@ -1,7 +1,7 @@
 ---
 change_id: no-vin-flag-survives-override
 title: A user-supplied VIN clears the seller question but not the NO_VIN risk flag
-status: new
+status: preparing
 created: 2026-09-10
 updated: 2026-09-10
 archived_at: null
@@ -41,11 +41,29 @@ the shape that already works.
 one — an extra warning, not a missing one, and it is not an accident-data claim, so
 the *absence means unknown, not clean* guardrail is not in play. Two costs anyway:
 a flag that contradicts the panel next to it teaches the user to discount the flag
-list, and the frontend renders only the first four flags before collapsing the
-rest, so a stale `HIGH` entry can push a real finding out of sight. That second one
-is a user-visible loss, not a cosmetic one.
+list, and a spurious `HIGH` occupying a visible slot demotes a real finding below
+the fold.
 
-**Open, for research and planning to settle — do not assume any of these:**
+**Both of those were sharpened by research (`research.md`), and one of them was an
+overstatement — corrected there rather than left standing here:**
+
+- The contradiction is **inside one rendered view**, not between distant panels.
+  `UserOverrides` sets `vinPresent` to `TRUE` on a typed VIN and the table at
+  `analysis-result.component.html:98` renders it, so the same result reads
+  `vinPresent: true` in its table and "Brak numeru VIN" in its flag list.
+- Flags are **not truncated** at four, as first written here — they collapse behind
+  an expand link (`analysis-result.component.ts:47`). Nothing is lost; it costs a
+  click. The precise worry that survives: the parser *appends*
+  `NO_ACCIDENT_DECLARATION` last, so on a five-flag result the entry pushed behind
+  the link is the absence-means-unknown guardrail — the wrong ordering of
+  importance, but not evidence loss.
+
+**All four questions below are now answered in `research.md`** — the headline is
+that `UserOverrides` already reconciles `vinPresent` against a typed VIN, with a
+comment giving verbatim the argument for clearing `NO_VIN`, so the precedent for the
+fix sits three lines above the gap. Scope is **one flag**: no `NO_PLATE` or
+`NO_DATE` flag exists, and no test pins today's behaviour. Kept as written, since
+what was open at the time is part of the record:
 
 - Which flags are text-derived-but-override-invalidated? `NO_VIN` is the one
   observed. `NO_ACCIDENT_DECLARATION` is deliberately *not* in this class —
