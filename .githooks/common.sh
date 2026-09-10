@@ -32,6 +32,19 @@ fi
 MAVEN_OPTS="-Xmx1g"
 export MAVEN_OPTS
 
+# These same two values are ALSO set in .claude/settings.json's `env` block, and the duplication is
+# deliberate. This file only runs when a git hook fires, so it cannot help an agent session that
+# calls `./mvnw -o test` directly -- which is what /10x-goal-implement does for every Automated
+# success criterion, and what a headless `claude -p` or a remote sandbox would do too. Before the
+# settings.json block existed, a bare shell here inherited JAVA_HOME=zulu-8-jre (32-bit) plus
+# MAVEN_OPTS=-Xmx12g and died on "Invalid maximum heap size" -- so an unattended run stopped at
+# preflight having done nothing. Conversely settings.json cannot help a plain `git commit` typed in a
+# terminal with Claude not running. Two callers, two entry points, one pair of values.
+#
+# The drift risk is real and NOT gated, on purpose: reading settings.json needs node, and making a
+# Java-only commit depend on node to verify a file that only affects agent sessions inverts the cost.
+# If you move the JDK, change it in both places.
+
 REPO_ROOT=$(git rev-parse --show-toplevel)
 cd "$REPO_ROOT" || exit 1
 

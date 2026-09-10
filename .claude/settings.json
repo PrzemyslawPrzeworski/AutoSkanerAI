@@ -1,4 +1,8 @@
 {
+  "env": {
+    "JAVA_HOME": "D:/Software/Java/jdk-26.0.1",
+    "MAVEN_OPTS": "-Xmx1g"
+  },
   "hooks": {
     "PostToolUse": [
       {

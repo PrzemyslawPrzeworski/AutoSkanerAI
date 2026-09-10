@@ -105,6 +105,20 @@ versioned but git does not pick them up on its own.
   set, so a budget the environment could override was not a budget. **`require_java`
   now looks for `javac`, not for a variable** — extend that rule to any toolchain
   check added here, because "present and wrong" reads far worse than "absent".
+- **`.claude/settings.json`'s `env` block pins the same two values a second
+  time, for the callers `common.sh` cannot reach.** That file only runs when a
+  git hook fires, so it does nothing for an agent that invokes `./mvnw -o test`
+  directly — which is every Automated success criterion under
+  `/10x-goal-implement`, and anything a headless `claude -p` or a remote sandbox
+  would run. Measured before the block existed: a bare shell inherited the
+  zulu-8 JRE and `-Xmx12g` and died at `Invalid maximum heap size`, so an
+  unattended run stopped at preflight having done nothing, while every git hook
+  stayed green — the toolchain looked fine from the only angle anyone was
+  looking from. Claude Code re-reads `env` per Bash call, so it takes effect
+  without restarting a session. **The duplication is not gated on purpose**:
+  reading `settings.json` needs node, and making a Java-only commit depend on
+  node to check a file that only affects agent sessions inverts the cost. Move
+  the JDK and you edit both.
 - Backend edits are **not** gated per-edit; `./mvnw -o test` is ~15 s, a
   commit-time cost. It runs offline for speed, so a newly added dependency can
   fail pre-commit on its own — the hook says so when it fails.
