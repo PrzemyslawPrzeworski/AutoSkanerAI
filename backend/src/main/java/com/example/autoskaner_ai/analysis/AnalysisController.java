@@ -99,7 +99,13 @@ public class AnalysisController {
         var plate = result.extracted().registrationPlate();
         var date = result.extracted().firstRegistrationDate();
 
-        if (vin == null || VinValidator.normalise(vin).isEmpty()) {
+        // One predicate, both consequences. Before this was shared, the question below was
+        // override-aware and the flag list was not, so a request carrying a good VIN came back with
+        // cepikResult FOUND next to NO_VIN saying the vehicle could not be verified.
+        List<RiskFlag> reconciledFlags = result.riskFlags();
+        if (vinIsVerifiable(vin)) {
+            reconciledFlags = withoutFlag(reconciledFlags, "NO_VIN");
+        } else {
             augmentedQuestions.add("Proszę podać numer VIN pojazdu");
         }
         if (plate == null || plate.isBlank()) {
@@ -110,7 +116,7 @@ public class AnalysisController {
         }
 
         AnalysisResult augmented = new AnalysisResult(
-                result.extracted(), result.equipment(), result.riskFlags(),
+                result.extracted(), result.equipment(), reconciledFlags,
                 augmentedQuestions, result.scores(), result.verdict(), result.meta()
         );
 
@@ -152,6 +158,35 @@ public class AnalysisController {
                     stage, e.getClass().getName(), e.getMessage(), e);
             return degraded.get();
         }
+    }
+
+    /**
+     * Whether the VIN in hand is one the registry could actually be asked about.
+     *
+     * <p>Validity, not presence, and the difference is the whole reason this is a named method.
+     * {@code UserOverrides} sets {@code vinPresent} to {@code TRUE} for any non-blank typed value, so
+     * a user who types {@code ABC} gets {@code vinPresent: true} and a {@code MISSING_INPUTS} lookup
+     * — and for that request {@code NO_VIN}'s text ("nie można zweryfikować pojazdu") is <em>true</em>.
+     * Keying the removal on non-blankness would delete a correct warning.
+     */
+    private static boolean vinIsVerifiable(String vin) {
+        return VinValidator.normalise(vin).isPresent();
+    }
+
+    /**
+     * The flag list without one code, or the same list instance when it was not there.
+     *
+     * <p>Matching on {@code code} is a mitigation and not a guarantee: {@link RiskFlag#code()} is a
+     * free-form {@code String}, so a model is free to report the same finding under a code this does
+     * not know. It covers the documented vocabulary — the prompt's example schema
+     * ({@code AnalysisPrompt}) and what {@code MockAiAnalysisService} emits — which is where every
+     * {@code NO_VIN} observed so far has come from.
+     */
+    private static List<RiskFlag> withoutFlag(List<RiskFlag> flags, String code) {
+        if (flags == null || flags.stream().noneMatch(flag -> code.equals(flag.code()))) {
+            return flags;
+        }
+        return flags.stream().filter(flag -> !code.equals(flag.code())).toList();
     }
 
     private static AnalysisResult withExtracted(AnalysisResult result, ExtractedData extracted) {
