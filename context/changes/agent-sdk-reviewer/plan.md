@@ -972,35 +972,35 @@ calls the way the AI SDK's `Output.object` did.
 
 #### Automated
 
-- [x] 4.1 npm test passes; every new test runs offline or skips loudly
-- [x] 4.2 A bad model id and an unusable credential each fail as a named ReviewerError with exit 2
-- [x] 4.3 No sentinel appears in util.inspect(error, depth 8) for any forced failure
-- [x] 4.4 No thrown ReviewerError attaches cause
-- [x] 4.5 injection.diff under the SDK: the .env read is refused and the injected instruction not obeyed
-- [x] 4.6 A 1 ms abort yields kind timeout in under a second and the test process survives
-- [x] 4.7 maxTurns exhausted with nothing submitted maps to no-output
-- [x] 4.8 Working tree clean of the deliberate break before the phase commit
+- [x] 4.1 npm test passes; every new test runs offline or skips loudly — c6bae85
+- [x] 4.2 A bad model id and an unusable credential each fail as a named ReviewerError with exit 2 — c6bae85
+- [x] 4.3 No sentinel appears in util.inspect(error, depth 8) for any forced failure — c6bae85
+- [x] 4.4 No thrown ReviewerError attaches cause — c6bae85
+- [x] 4.5 injection.diff under the SDK: the .env read is refused and the injected instruction not obeyed — c6bae85
+- [x] 4.6 A 1 ms abort yields kind timeout in under a second and the test process survives — c6bae85
+- [x] 4.7 maxTurns exhausted with nothing submitted maps to no-output — c6bae85
+- [x] 4.8 Working tree clean of the deliberate break before the phase commit — c6bae85
 
 #### Manual
 
-- [x] 4.9 The injection.diff run with the hook removed was performed and its outcome recorded
-- [x] 4.10 Each SKILL.md gotcha added here states how it was found
+- [x] 4.9 The injection.diff run with the hook removed was performed and its outcome recorded — c6bae85
+- [x] 4.10 Each SKILL.md gotcha added here states how it was found — c6bae85
 
 ### Phase 5: The comparison, and the pick
 
 #### Automated
 
-- [ ] 5.1 test-plan.md 4, 5.1 and 8 updated, and the reviewer-arm cost matches a timed run
-- [ ] 5.2 npm test and typecheck pass, and the gate arm still makes no model call
-- [ ] 5.3 The inheritance run is a labelled subsection in pick.md, excluded from the table
-- [ ] 5.4 No table cell reads 0 for a number a runner does not report
-- [ ] 5.5 pick.md's Pick section names exactly one runner in its first sentence and states the tiebreak order
-- [ ] 5.6 No promptfoo config exists anywhere in the repo
-- [ ] 5.7 All 18 comparison runs performed, or the shortfall named in pick.md with its reason
-- [ ] 5.8 The suite count in root CLAUDE.md matches npm test's reported total
+- [x] 5.1 test-plan.md 4, 5.1 and 8 updated, and the reviewer-arm cost matches a timed run
+- [x] 5.2 npm test and typecheck pass, and the gate arm still makes no model call
+- [x] 5.3 The inheritance run is a labelled subsection in pick.md, excluded from the table
+- [x] 5.4 No table cell reads 0 for a number a runner does not report
+- [x] 5.5 pick.md's Pick section names exactly one runner in its first sentence and states the tiebreak order
+- [x] 5.6 No promptfoo config exists anywhere in the repo
+- [x] 5.7 All 18 comparison runs performed, or the shortfall named in pick.md with its reason
+- [x] 5.8 The suite count in root CLAUDE.md matches npm test's reported total
 - [ ] 5.9 A docs-only commit is still instant and silent
 
 #### Manual
 
-- [ ] 5.10 pick.md is legible without this plan and its pick is defensible from its own table
-- [ ] 5.11 The tiebreak order was fixed before the runs, not after
+- [x] 5.10 pick.md is legible without this plan and its pick is defensible from its own table
+- [x] 5.11 The tiebreak order was fixed before the runs, not after

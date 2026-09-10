@@ -193,6 +193,67 @@ settings or Bedrock simply being reachable directly on this network is not estab
 and `pick.md` should say which before leaning on it. Either way it is a row worth having — a
 corporate proxy is exactly the environment a reviewer runs in.
 
+**Withdrawn in Phase 5, on the measurement the paragraph above asked for.** Node's global
+`fetch` reached `https://openrouter.ai/api/v1/models` in **0.4 s with no dispatcher
+configured**, and all eighteen `ai-sdk` comparison runs went out over that same path.
+`NODE_USE_ENV_PROXY=1` made no difference either way. So the undici diagnosis was a plausible
+mechanism for a failure that does not reproduce: what changed between the two sessions is the
+Zscaler tunnel's state, not the transport. The row is withdrawn from `pick.md` rather than
+counted for either runner, and it is left standing here because a belief that was measured and
+dropped is worth more in a log than a silent deletion. `injection.test.ts` is still the other
+runner's test and still outside this change's scope.
+
+### The comparison runs (plan 5.1, 5.2, 5.7)
+
+Thirty-two runs on 2026-09-10, all through the library entry points rather than the CLI. The
+tables live in `pick.md`; what belongs here is what the plan asked for and did not get, and
+what it got without asking.
+
+**The eighteen planned runs happened.** Nine `ai-sdk` on OpenRouter, nine `agent-sdk` on
+Bedrock, three fixtures × three runs each. No shortfall, which was the open scheduling risk:
+the free-tier day-cap had reset (`usage_daily: 0` on the key endpoint), so criterion 5.7 has
+no gap to name. The AI-SDK half of `tool-loop-agent`'s criteria 4.3 and 4.9 was quota-blocked
+on the same account and is unblocked by the same fact.
+
+**Fourteen runs beyond the plan, in three groups, each for a stated reason.**
+
+1. **Nine more `ai-sdk` runs on a second free slug** (`nex-agi/nex-n2.5-mini:free`), because
+   the first nine failed 4 times with `malformed-output` and attributing that to the AI SDK
+   would have been wrong. The second slug returns 8 of 9. So the failures are the slug's, the
+   comparison says so, and the pick rests on the narrower claim that survives: the runner is
+   what selects the model.
+2. **Two probe runs** on `injection.diff` that established (1) was worth doing.
+3. **Two extra inheritance runs**, three instead of the planned one, because the single run
+   *inverted the verdict* — `pass`, zero findings — and this package's own plan warns twice
+   about being misled by single samples. At n=3 the inversion is 1 in 3 rather than 1 in 1,
+   which is a weaker claim and a defensible one.
+
+**The inheritance result is stronger than the hazard the plan predicted.** The plan expected
+`settingSources: ['project']` to be an eval-determinism problem: with inheritance on, editing
+`CLAUDE.md` silently moves every score. Measured, it does not move a score — it flipped a
+verdict, and the flipped run's own summary named the correct port *and* the correct file before
+reporting zero findings. It also cost 31% more per review and spent two to four extra turns,
+one run reaching the 8-turn ceiling. Recorded in `pick.md` as its own labelled subsection and
+excluded from the comparison table (criterion 5.3).
+
+**The containment policy has a measurable capability cost, which no earlier phase saw.** All
+three hermetic `cross-file.diff` runs show refusals: `denied=[Grep]`, `[Grep,Grep]`, `[Grep]`.
+The model wanted an unscoped search of the repo root, which `permission.ts` refuses because an
+unscoped search covers `.env`, and two of the three runs then cited `CLAUDE.md` from the
+fixture's own preamble rather than from a file they had read — `stripUnbackedEvidence` removed
+those citations (`stripped=1` twice). So the deny-unscoped-`Grep` rule works, it costs the
+reviewer a search it wanted, and the evidence check catches what the model says instead. Three
+layers visible in one run, which is the clearest confirmation this change has produced that
+none of them is decorative.
+
+**Gate cost, re-measured rather than estimated** (criterion 5.1): the reviewer arm is **8.4 s**
+— 1.4 s typecheck + 6.9 s suite, twice, 8413 ms and 8330 ms. Against the 8.2 s recorded when
+`packages/` was first gated, three new spec files and 88 new tests cost **0.2 s**. `npm test`
+reports 168 tests in 11 spec files, 158 passing and 10 skipped with a printed reason, with
+`AWS_PROFILE`, `AWS_REGION`, `AWS_DEFAULT_REGION`, `CLAUDE_CODE_USE_BEDROCK` and
+`OPENROUTER_API_KEY` all unset — the arm makes no model call and needs no credential
+(criterion 5.2).
+
 ### Deviation from criterion 3.8
 
 `grep -r 'canUseTool' src/` returns three matches, and none is an implementation: two are
