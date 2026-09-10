@@ -458,7 +458,7 @@ were wrong") is the question the contract test itself is.
 
 #### Manual
 
-- [ ] 1.5 `npm run test:e2e` green under `mock` (both specs stay on the `MISSING_INPUTS` path)
+- [x] 1.5 `npm run test:e2e` green under `mock` (both specs stay on the `MISSING_INPUTS` path)
 - [ ] 1.6 Local `POST /api/analyses` under `mock`: well-formed triple → `FOUND` with damage; no VIN → `MISSING_INPUTS`
 
 ### Phase 2: The LLM port contract, and the inverted accident rule
