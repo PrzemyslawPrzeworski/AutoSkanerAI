@@ -1,7 +1,7 @@
 ---
 change_id: agent-sdk-reviewer
 title: Build the reviewer a second time on the Claude Agent SDK, then pick
-status: implementing
+status: implemented
 created: 2026-09-09
 updated: 2026-09-10
 archived_at: null

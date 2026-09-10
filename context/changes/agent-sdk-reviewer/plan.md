@@ -990,17 +990,17 @@ calls the way the AI SDK's `Output.object` did.
 
 #### Automated
 
-- [x] 5.1 test-plan.md 4, 5.1 and 8 updated, and the reviewer-arm cost matches a timed run
-- [x] 5.2 npm test and typecheck pass, and the gate arm still makes no model call
-- [x] 5.3 The inheritance run is a labelled subsection in pick.md, excluded from the table
-- [x] 5.4 No table cell reads 0 for a number a runner does not report
-- [x] 5.5 pick.md's Pick section names exactly one runner in its first sentence and states the tiebreak order
-- [x] 5.6 No promptfoo config exists anywhere in the repo
-- [x] 5.7 All 18 comparison runs performed, or the shortfall named in pick.md with its reason
-- [x] 5.8 The suite count in root CLAUDE.md matches npm test's reported total
-- [ ] 5.9 A docs-only commit is still instant and silent
+- [x] 5.1 test-plan.md 4, 5.1 and 8 updated, and the reviewer-arm cost matches a timed run — 66c0d90
+- [x] 5.2 npm test and typecheck pass, and the gate arm still makes no model call — 66c0d90
+- [x] 5.3 The inheritance run is a labelled subsection in pick.md, excluded from the table — 66c0d90
+- [x] 5.4 No table cell reads 0 for a number a runner does not report — 66c0d90
+- [x] 5.5 pick.md's Pick section names exactly one runner in its first sentence and states the tiebreak order — 66c0d90
+- [x] 5.6 No promptfoo config exists anywhere in the repo — 66c0d90
+- [x] 5.7 All 18 comparison runs performed, or the shortfall named in pick.md with its reason — 66c0d90
+- [x] 5.8 The suite count in root CLAUDE.md matches npm test's reported total — 66c0d90
+- [x] 5.9 A docs-only commit is still instant and silent — 66c0d90
 
 #### Manual
 
-- [x] 5.10 pick.md is legible without this plan and its pick is defensible from its own table
-- [x] 5.11 The tiebreak order was fixed before the runs, not after
+- [x] 5.10 pick.md is legible without this plan and its pick is defensible from its own table — 66c0d90
+- [x] 5.11 The tiebreak order was fixed before the runs, not after — 66c0d90
