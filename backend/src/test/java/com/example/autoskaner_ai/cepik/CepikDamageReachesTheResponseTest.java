@@ -5,7 +5,9 @@ import com.example.autoskaner_ai.analysis.AnalysisController;
 import com.example.autoskaner_ai.analysis.AnalysisMeta;
 import com.example.autoskaner_ai.analysis.AnalysisResult;
 import com.example.autoskaner_ai.analysis.CategoryScores;
+import com.example.autoskaner_ai.analysis.CepikResult;
 import com.example.autoskaner_ai.analysis.CepikRiskAdjuster;
+import com.example.autoskaner_ai.analysis.CepikStatus;
 import com.example.autoskaner_ai.analysis.ExtractedData;
 import com.example.autoskaner_ai.analysis.ListingFetchService;
 import com.example.autoskaner_ai.analysis.RiskFlag;
@@ -272,8 +274,143 @@ class CepikDamageReachesTheResponseTest {
     }
 
     // ---------------------------------------------------------------------------------------
+    // 4. The two FOUND shapes no capture can drive: a timeline that was never read, and the
+    //    mock profile's own canned answer
+    // ---------------------------------------------------------------------------------------
+
+    @Test
+    void aFoundResultWithNoTimelineReadLeavesTheLlmScoreExactlyAsItWas() throws Exception {
+        // Hand-built, and it has to be: neither HistoriaPojazduParser nor MockCepikService can
+        // produce FOUND with a null damageRecords — the parser reaches FOUND only by having read a
+        // timeline, and the mock always carries one. So no capture and no stubbed socket gets here,
+        // and the collaborator is replaced instead of the bytes behind it.
+        //
+        // It is asserted anyway because it is the defensive case for the rule the whole class exists
+        // for. null and [] are different facts: [] is "the registry reported nothing to insurers",
+        // null is "we did not read a timeline", and only the second is unknown. A future field
+        // rename, a partial payload or a new FOUND branch could produce this shape, and if it moved
+        // the score it would move it in the *adverse* direction — reporting a damage the registry
+        // never mentioned — while looking like diligence.
+        //
+        // anUnreadableRegistryAnswerPutsAnExplicitNullOnTheWire covers null damageRecords behind a
+        // non-FOUND status, which CepikRiskAdjuster rejects at its first guard. This one is past
+        // that guard: status is FOUND, so only the damage-list null check stands between an unread
+        // timeline and a capped score.
+        var foundWithNoTimelineRead = new CepikResult(
+                CepikStatus.FOUND, VIN, FIRST_REG_DATE, null, null, 2,
+                null, null, CepikResult.LOOKUP_URL, Instant.now(),
+                "TOYOTA", "TOYOTA COROLLA", "SAMOCHÓD OSOBOWY", 2022,
+                // ocInsuranceValid true on purpose: a null or false there raises CEPIK_NO_OC_POLICY
+                // and caps risk at 70, which would move the score for a reason this test is not
+                // about and would make a green run indistinguishable from a leak.
+                "Zarejestrowany", "aktualne", true, false, false, "mazowieckie",
+                null);
+        var cepikEnrichmentService = mock(CepikEnrichmentService.class);
+        when(cepikEnrichmentService.enrich(any())).thenReturn(foundWithNoTimelineRead);
+
+        String body = standaloneWith(cepikEnrichmentService).perform(analysisRequest())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cepikResult.status").value("FOUND"))
+
+                // Oracle: absence is not clean, and its converse — absence is not damage either.
+                // Every one of the five scores is the LLM's own, to the integer: a cap would show
+                // up on risk and overall, and asserting equality rather than "not lower" is what
+                // makes a raise visible too.
+                .andExpect(jsonPath("$.analysis.scores.risk").value(LLM_RISK))
+                .andExpect(jsonPath("$.analysis.scores.overall").value(LLM_OVERALL))
+                .andExpect(jsonPath("$.analysis.scores.completeness").value(LLM_COMPLETENESS))
+                .andExpect(jsonPath("$.analysis.scores.equipment").value(LLM_EQUIPMENT))
+                .andExpect(jsonPath("$.analysis.scores.value").value(LLM_VALUE))
+
+                // And the verdict the LLM wrote, label included — applyFloor rewrites the label
+                // when it lifts the code, so an unchanged label is a second witness to an
+                // unchanged code.
+                .andExpect(jsonPath("$.analysis.verdict.code").value("WORTH_CHECKING"))
+                .andExpect(jsonPath("$.analysis.verdict.label").value("warto sprawdzić"))
+
+                // The registry contributed no flag, so the LLM's own flag is still first. Registry
+                // findings are prepended, so this is the assertion that notices a phantom
+                // CEPIK_SIGNIFICANT_DAMAGE built out of a list nobody read.
+                .andExpect(jsonPath("$.analysis.riskFlags[0].code").value("NO_SERVICE_HISTORY"))
+                .andReturn().getResponse().getContentAsString();
+
+        // A self-check on the case under test, not a second copy of the sibling's wire contract:
+        // if serialisation ever turned this null into [], the assertions above would keep passing
+        // while testing the empty-list case aCleanRegistryTimelineIsAnEmptyListAndMovesNothing owns.
+        assertThat(body)
+                .as("the case under test is a null timeline, not an empty one")
+                .contains("\"damageRecords\":null");
+    }
+
+    @Test
+    void theMockProfilesOwnFoundResultReachesTheAdjusterAndCapsTheScore() throws Exception {
+        // MockCepikService itself, not an equivalent CepikResult typed out here. That coupling is
+        // the whole test: mock is the only profile any quality gate or E2E run activates, so while
+        // this bean returned LOOKUP_FAILED unconditionally, CepikRiskAdjuster was unreachable from
+        // every cross-stack path in the repo. If the mock ever stops producing a FOUND result — or
+        // stops carrying a damage record in it — this test fails, which is what stops that
+        // reachability from quietly lapsing again.
+        String body = standaloneWith(new MockCepikService()).perform(analysisRequest())
+                .andExpect(status().isOk())
+
+                // Oracle: MockCepikService.found()'s own values. registrationProvince in
+                // particular is supplied by nothing else on this path, so it witnesses that the
+                // payload is the mock's canned answer rather than an echo of the request.
+                .andExpect(jsonPath("$.cepikResult.status").value("FOUND"))
+                .andExpect(jsonPath("$.cepikResult.registrationProvince").value("mazowieckie"))
+                .andExpect(jsonPath("$.cepikResult.damageRecords[0].description")
+                        .value("Powstanie szkody istotnej"))
+
+                // The damage branch ran. Two flags, not one: llmResult() claims "bezwypadkowy",
+                // which the registry damage contradicts — so this is the worse of the two findings
+                // and it forces HIGH_RISK_SKIP rather than flooring at NEEDS_MORE_INFO.
+                .andExpect(jsonPath("$.analysis.riskFlags[0].code").value("CEPIK_SIGNIFICANT_DAMAGE"))
+                .andExpect(jsonPath("$.analysis.riskFlags[1].code").value("CEPIK_CONTRADICTS_LISTING"))
+                .andExpect(jsonPath("$.analysis.verdict.code").value("HIGH_RISK_SKIP"))
+
+                // Relative, as in the journey test above: the point is that the registry pulled the
+                // score down, not that it landed on whichever integer CAP_CONTRADICTED_CLAIM
+                // currently holds. Pinning that constant here would mirror the implementation.
+                .andExpect(jsonPath("$.analysis.scores.risk").value(lessThan(LLM_RISK)))
+                .andExpect(jsonPath("$.analysis.scores.overall").value(lessThan(LLM_OVERALL)))
+                .andReturn().getResponse().getContentAsString();
+
+        // The mock is not stolen, not rolled back and insured, so exactly the two flags above are
+        // expected — a third would mean the canned answer changed shape under the test.
+        assertThat(body)
+                .as("the mock's clean flags must not raise registry findings of their own")
+                .doesNotContain("CEPIK_VEHICLE_LOST")
+                .doesNotContain("CEPIK_ODOMETER_ROLLBACK")
+                .doesNotContain("CEPIK_NO_OC_POLICY");
+    }
+
+    // ---------------------------------------------------------------------------------------
     // Fixtures and stub plumbing
     // ---------------------------------------------------------------------------------------
+
+    /**
+     * The same controller wiring {@link #setUp()} builds, with the registry bean handed in.
+     *
+     * <p>A second builder rather than a parameter on {@code setUp}: the four journey tests above
+     * depend on the {@code mockMvc} field and on the socket stub bound to its {@code RestClient},
+     * and rewiring that for the two tests that need a different bean would put their fixture at
+     * risk to buy back eight lines. Neither caller here touches the network, so {@code server} is
+     * left with no expectations and is not verified.
+     */
+    private static MockMvc standaloneWith(CepikEnrichmentService cepikEnrichmentService) {
+        var aiAnalysisService = mock(AiAnalysisService.class);
+        when(aiAnalysisService.analyze(anyString())).thenReturn(llmResult());
+
+        var marketPriceEnrichmentService = mock(MarketPriceEnrichmentService.class);
+        when(marketPriceEnrichmentService.enrich(any())).thenReturn(null);
+
+        return MockMvcBuilders
+                .standaloneSetup(new AnalysisController(aiAnalysisService,
+                        mock(ListingFetchService.class), cepikEnrichmentService,
+                        marketPriceEnrichmentService, new CepikRiskAdjuster()))
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+    }
 
     private static ClassPathResource fixture(String name) {
         var resource = new ClassPathResource("cepik/" + name);

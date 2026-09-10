@@ -465,18 +465,18 @@ were wrong") is the question the contract test itself is.
 
 #### Automated
 
-- [x] 2.1 Write `AiAnalysisServiceContractTest` with the parser-backed adapter as the only parameter; suite green
-- [x] 2.2 Add `MockAiAnalysisService` as the second parameter; record both failures (missing flag on `"historia"`, `HIGH` vs `MEDIUM`)
-- [x] 2.3 Fix `MockAiAnalysisService` — derive the flag from `accidentClaim`, emit `MEDIUM`; suite green
-- [x] 2.4 Invert `AnalysisResponseParser:170` once, confirm the real parameter fails, revert; record the count
+- [x] 2.1 Write `AiAnalysisServiceContractTest` with the parser-backed adapter as the only parameter; suite green — b2715d5
+- [x] 2.2 Add `MockAiAnalysisService` as the second parameter; record both failures (missing flag on `"historia"`, `HIGH` vs `MEDIUM`) — b2715d5
+- [x] 2.3 Fix `MockAiAnalysisService` — derive the flag from `accidentClaim`, emit `MEDIUM`; suite green — b2715d5
+- [x] 2.4 Invert `AnalysisResponseParser:170` once, confirm the real parameter fails, revert; record the count — b2715d5
 
 ### Phase 3: Prove the adjuster is reachable, and that null still moves nothing
 
 #### Automated
 
-- [ ] 3.1 Add the `FOUND`-with-null-`damageRecords` case to `CepikDamageReachesTheResponseTest`
-- [ ] 3.2 Add the case driving `MockCepikService`'s own `FOUND` result through `CepikRiskAdjuster`
-- [ ] 3.3 Invert `CepikRiskAdjuster:73` once, confirm both new tests fail, revert; record the count
+- [x] 3.1 Add the `FOUND`-with-null-`damageRecords` case to `CepikDamageReachesTheResponseTest`
+- [x] 3.2 Add the case driving `MockCepikService`'s own `FOUND` result through `CepikRiskAdjuster`
+- [x] 3.3 Invert `CepikRiskAdjuster:73` once, confirm both new tests fail, revert; record the count
 
 ### Phase 4: Documentation, and the counts the hooks print
 
