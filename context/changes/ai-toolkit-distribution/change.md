@@ -88,6 +88,10 @@ Resolved by splitting on who asked:
 
 ## Implemented (2026-09-10)
 
+Single commit, `908cac2` — 36 paths. There is no phased plan for this change (the lesson's
+prompts are build specs, not research prompts), so there is no `## Progress` ledger to carry
+per-phase SHAs; this is the whole of it.
+
 ### What shipped
 
 | Path | Holds |
