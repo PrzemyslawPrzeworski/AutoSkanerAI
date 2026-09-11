@@ -1,7 +1,7 @@
 #!/bin/sh
 # Middle local layer: scoped to what is actually staged.
 #
-# Carries the checks too slow for the per-edit hook -- chiefly the backend suite at ~15 s, which is a
+# Carries the checks too slow for the per-edit hook -- chiefly the backend suite at ~23 s, which is a
 # commit-time cost, not a keystroke-time one. Scoped by staged path so a docs-only commit stays
 # instant and a Java-only commit does not pay for the frontend.
 #
@@ -54,7 +54,7 @@ if [ -n "$FRONTEND_SOURCES" ]; then
 fi
 
 if [ -n "$BACKEND_SOURCES" ]; then
-  step "backend suite (255 tests, ~15 s; live-llm excluded)"
+  step "backend suite (285 tests, ~23 s; live-llm excluded)"
   run_backend_tests
 fi
 
