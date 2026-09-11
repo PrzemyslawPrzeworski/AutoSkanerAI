@@ -15,4 +15,13 @@ public interface SavedAnalysisRepository extends JpaRepository<SavedAnalysis, Lo
      * like, and it cannot be forgotten at one of three call sites.
      */
     Optional<SavedAnalysis> findByIdAndUserId(Long id, Long userId);
+
+    /**
+     * The same rule as {@link #findByIdAndUserId}, for the one operation that cannot be expressed as
+     * a read followed by a check: JPA's inherited {@code deleteById} takes an id alone, so a
+     * controller reaching for it would delete somebody else's row on a guessed id. The return is the
+     * number of rows removed — 0 means "not yours or not there", which is the same answer for the
+     * same reason.
+     */
+    long deleteByIdAndUserId(Long id, Long userId);
 }

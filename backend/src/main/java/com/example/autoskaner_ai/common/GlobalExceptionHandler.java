@@ -4,6 +4,7 @@ import com.example.autoskaner_ai.analysis.llm.LlmCallException;
 import com.example.autoskaner_ai.analysis.llm.LlmResponseSchemaException;
 import com.example.autoskaner_ai.auth.EmailAlreadyRegisteredException;
 import com.example.autoskaner_ai.auth.InvalidCredentialsException;
+import com.example.autoskaner_ai.saved.SavedAnalysisNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -58,6 +59,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ErrorResponse.of(409, "Konto już istnieje",
                         List.of("Konto z tym adresem e-mail jest już zarejestrowane.")));
+    }
+
+    /**
+     * A saved analysis that is missing and one that belongs to somebody else answer identically,
+     * because the lookup that raised this could not tell them apart — see
+     * {@code SavedAnalysisNotFoundException}. Not logged at warn: a 404 here is an ordinary outcome
+     * of a stale tab or a re-issued delete, not a fault.
+     */
+    @ExceptionHandler(SavedAnalysisNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleSavedAnalysisNotFound(SavedAnalysisNotFoundException ex) {
+        log.debug("Saved analysis lookup missed: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorResponse.of(404, "Nie znaleziono analizy",
+                        List.of("Ta analiza nie istnieje lub nie należy do Ciebie.")));
     }
 
     @ExceptionHandler(LlmCallException.class)

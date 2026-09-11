@@ -157,6 +157,34 @@ class SavedAnalysisRepositoryTest {
     }
 
     @Test
+    void theOwnerScopedDeleteRemovesTheRowAndSaysSo() {
+        Long userId = owner("scoped-delete@example.pl");
+        Long id = repository.saveAndFlush(SavedAnalysis.create(userId, "Moje", "{}", LATER)).getId();
+
+        assertThat(repository.deleteByIdAndUserId(id, userId)).isEqualTo(1L);
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(repository.findById(id)).isEmpty();
+    }
+
+    @Test
+    void theOwnerScopedDeleteRefusesAStrangersId() {
+        // The counterpart to doesNotHandAnAnalysisToAUserWhoDoesNotOwnIt, for the one operation that
+        // cannot be a read followed by a check: JPA's own deleteById takes an id with no owner, so
+        // DELETE /api/saved-analyses/{id} would otherwise remove a stranger's row on a guessed number.
+        Long mine = owner("keep-mine@example.pl");
+        Long stranger = owner("not-yours@example.pl");
+        Long id = repository.saveAndFlush(SavedAnalysis.create(mine, "Moje", "{}", LATER)).getId();
+
+        assertThat(repository.deleteByIdAndUserId(id, stranger)).isZero();
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(repository.findById(id)).isPresent();
+    }
+
+    @Test
     void deletingAnAccountTakesItsSavedAnalysesWithIt() {
         // ON DELETE CASCADE in the schema, not an orphanRemoval Hibernate would have to be asked to
         // apply — so it also holds for a row deleted by hand or by a future admin path.
