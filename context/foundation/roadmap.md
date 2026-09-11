@@ -3,7 +3,7 @@ project: AutoSkanerAI
 version: 1
 status: draft
 created: 2026-05-25
-updated: 2026-09-03
+updated: 2026-09-11
 prd_version: 1
 main_goal: market-feedback
 top_blocker: time
@@ -30,7 +30,7 @@ AutoSkanerAI compresses used-car listing evaluation from tens of minutes to a fe
 | ID   | Change ID                 | Outcome (user can …)                                         | Prerequisites    | PRD refs                                          | Status   |
 |------|---------------------------|--------------------------------------------------------------|------------------|---------------------------------------------------|----------|
 | F-01 | llm-analysis-wiring       | (foundation) LlmAnalysisService calls real LLM API           | —                | FR-004, FR-006, FR-007, FR-008, FR-009            | shipped  |
-| F-02 | data-layer-setup          | (foundation) PostgreSQL + JPA + Flyway migrations in place   | —                | FR-010, FR-011, FR-012                            | ready    |
+| F-02 | data-layer-setup          | (foundation) PostgreSQL + JPA + Flyway migrations in place   | —                | FR-010, FR-011, FR-012                            | in-progress |
 | F-03 | auth-scaffold             | (foundation) login/register wired; protected routes in place | F-02             | FR-010                                            | proposed |
 | S-01 | core-analysis-flow        | paste URL or text → receive full AI analysis                 | F-01             | FR-001, FR-002, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, US-01 | shipped  |
 | S-02 | manual-field-entry        | fill in key fields manually → receive full AI analysis       | S-01             | FR-003                                            | shipped  |
@@ -88,8 +88,8 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Parallel with:** F-01
 - **Blockers:** —
 - **Unknowns:** —
-- **Risk:** Supabase free-tier project already provisioned (`db.bahoxzvhamktpepmkaft.supabase.co`). HikariCP pool size must be capped at 5 connections (`spring.datasource.hikari.maximum-pool-size=5`) to stay within the 60-connection free-tier limit. If the entity model changes significantly after F-03 starts (e.g., auth adds foreign keys to `User`), a compensating Flyway migration is needed — plan the schema to include a `user_id` column from the start.
-- **Status:** ready
+- **Risk:** ~~Supabase free-tier project already provisioned (`db.bahoxzvhamktpepmkaft.supabase.co`)~~ — **corrected 2026-09-11: that host no longer resolves (`ENOTFOUND`), so the project was deleted, not paused. Render still carries `DATABASE_URL`/`DATABASE_USERNAME`/`DATABASE_PASSWORD` pointing at it, which means the vars look configured and are dead.** A database must be provisioned before the `postgres` profile can be exercised against anything real. This does *not* block F-02: H2 covers dev and test, so the entity model, the migrations and the whole CRUD surface can be built and tested with no cloud database at all — provisioning is a deploy-time step, not a design-time one. HikariCP pool size must still be capped at 5 connections (`spring.datasource.hikari.maximum-pool-size=5`) on a free tier. If the entity model changes significantly after F-03 starts (e.g., auth adds foreign keys to `User`), a compensating Flyway migration is needed — plan the schema to include a `user_id` column from the start.
+- **Status:** in-progress
 
 ---
 
