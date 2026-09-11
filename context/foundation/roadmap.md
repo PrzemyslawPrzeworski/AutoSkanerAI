@@ -31,7 +31,7 @@ AutoSkanerAI compresses used-car listing evaluation from tens of minutes to a fe
 |------|---------------------------|--------------------------------------------------------------|------------------|---------------------------------------------------|----------|
 | F-01 | llm-analysis-wiring       | (foundation) LlmAnalysisService calls real LLM API           | —                | FR-004, FR-006, FR-007, FR-008, FR-009            | shipped  |
 | F-02 | data-layer-setup          | (foundation) PostgreSQL + JPA + Flyway migrations in place   | —                | FR-010, FR-011, FR-012                            | in-progress |
-| F-03 | auth-scaffold             | (foundation) login/register wired; protected routes in place | F-02             | FR-010                                            | proposed |
+| F-03 | auth-scaffold             | (foundation) login/register wired; protected routes in place | F-02             | FR-010                                            | in-progress |
 | S-01 | core-analysis-flow        | paste URL or text → receive full AI analysis                 | F-01             | FR-001, FR-002, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, US-01 | shipped  |
 | S-02 | manual-field-entry        | fill in key fields manually → receive full AI analysis       | S-01             | FR-003                                            | shipped  |
 | S-03 | save-view-delete-analyses | save an analysis, view saved list, delete entries            | S-01, F-02, F-03 | FR-010, FR-011, FR-012                            | proposed |
@@ -105,7 +105,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Unknowns:**
   - Email+password only vs. include an OAuth provider (Google/GitHub) in MVP? PRD names both as options but doesn't require OAuth at launch. — Owner: user. Block: no (email+password is sufficient for MVP; OAuth can follow as S-NN post-MVP).
 - **Risk:** Spring Boot 4 changes some Security auto-configuration defaults vs Boot 3. The existing `CorsConfig` (`WebMvcConfigurer`) must be migrated into the `SecurityFilterChain` bean when Spring Security is added — if not, CORS breaks for authenticated API requests. Address this in the first commit of this foundation.
-- **Status:** proposed
+- **Status:** in-progress
 
 ## Slices
 

@@ -61,6 +61,26 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
 		</dependency>
+
+		<!--
+			Auth (F-03). Boot 4.0.6 manages Spring Security 7.0.5, so the lambda DSL is the only
+			DSL and every `and()`-chained example predates it.
+
+			No separate JWT library (jjwt, java-jwt) is added, on purpose:
+			spring-boot-starter-security-oauth2-resource-server already contains Nimbus JOSE via
+			spring-security-oauth2-jose, which gives both JwtEncoder (to mint) and JwtDecoder (to
+			verify). jjwt would additionally bind token parsing to Jackson 2 — present here only
+			as a Flyway transitive, while every HTTP converter in this app is Jackson 3 — for a
+			capability already on the classpath.
+		-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
+		</dependency>
 		<!-- Flyway owns the schema; Hibernate only validates it (see application.properties). -->
 		<dependency>
 			<groupId>org.flywaydb</groupId>
@@ -119,6 +139,28 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!--
+		    Carries @AutoConfigureMockMvc, which ApiRequiresAuthenticationTest needs and
+		    spring-boot-starter-test does NOT provide. Boot 4 moved the annotation out of
+		    spring-boot-test-autoconfigure into its own spring-boot-webmvc-test module and renamed the
+		    package (org.springframework.boot.webmvc.test.autoconfigure), the same split that made
+		    spring-boot-flyway a separate dependency in F-02.
+
+		    It is needed because that one test must go through the security filter chain. Every other
+		    controller test here uses MockMvcBuilders.standaloneSetup, which builds a dispatcher with
+		    no filters at all — an unauthenticated request would come back 200 no matter what
+		    SecurityConfig said, which is the one thing the test exists to rule out.
+		-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

@@ -2,6 +2,8 @@ package com.example.autoskaner_ai.common;
 
 import com.example.autoskaner_ai.analysis.llm.LlmCallException;
 import com.example.autoskaner_ai.analysis.llm.LlmResponseSchemaException;
+import com.example.autoskaner_ai.auth.EmailAlreadyRegisteredException;
+import com.example.autoskaner_ai.auth.InvalidCredentialsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -35,6 +37,27 @@ public class GlobalExceptionHandler {
         log.warn("Malformed request body: {}", ex.getMessage());
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.of(400, "Nieprawidłowe dane wejściowe", List.of("Nieprawidłowy JSON")));
+    }
+
+    /**
+     * Every failure to prove identity — unknown email, wrong password, rejected refresh token,
+     * account deleted since the token was minted — answers with this one body. The distinction is
+     * logged and never returned: an API that tells a caller which half was wrong is an account
+     * enumeration endpoint. See {@code InvalidCredentialsException}.
+     */
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentials(InvalidCredentialsException ex) {
+        log.info("Authentication failed: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ErrorResponse.of(401, "Nieprawidłowe dane logowania",
+                        List.of("Nieprawidłowy e-mail lub hasło.")));
+    }
+
+    @ExceptionHandler(EmailAlreadyRegisteredException.class)
+    public ResponseEntity<ErrorResponse> handleEmailTaken(EmailAlreadyRegisteredException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of(409, "Konto już istnieje",
+                        List.of("Konto z tym adresem e-mail jest już zarejestrowane.")));
     }
 
     @ExceptionHandler(LlmCallException.class)
