@@ -153,7 +153,7 @@ and the three gaps the work exposed without closing are recorded in §8's
 | #5 | A sample too thin or too dispersed to be a market range is labelled as such rather than displayed as a confident range | "A number came back, so the range is meaningful" | How sample size and discard count reach the response; what the UI does at the boundary | unit + component test | Re-deriving the expected median with the production formula |
 | #6 | Listing-supplied claims cannot move the deterministic floor that registry facts set | "The model will obviously ignore manipulation" | Which parts of the verdict are deterministic and which are model-produced | unit | An eval asserting a specific model wording — non-deterministic and expensive for the signal |
 | #7 | No test this rollout. Protection needs a control that does not exist yet; see the note above §2's guidance table | — | — | — | — |
-| #8 | A request for a row the caller does not own is answered the same way as a request for a row that does not exist — no row, no leaked existence, and no reliance on the caller remembering to check | "The service layer will check the owner"; "a 403 is the honest answer" — it confirms the row exists | Where `userId` originates on each path (it must come from the authenticated principal, never from the request); whether any single-row read bypasses the ownership-scoped lookup | unit (repository, real schema) now; integration over the HTTP boundary once S-03 exposes one | Asserting the query string or the method name instead of the outcome; testing ownership only at the layer where it is easiest to reach |
+| #8 | A request for a row the caller does not own is answered the same way as a request for a row that does not exist — no row, no leaked existence, and no reliance on the caller remembering to check | "The service layer will check the owner"; "a 403 is the honest answer" — it confirms the row exists | Where `userId` originates on each path (it must come from the authenticated principal, never from the request); whether any single-row read bypasses the ownership-scoped lookup | unit (repository, real schema) plus, since S-03 exposed the boundary, integration over HTTP — `SavedAnalysisControllerTest` answers a second account's GET, PATCH and DELETE of another user's row with 404 and an empty list, and `SavedAnalysisServiceTest` pins the ownership-scoped lookup; both were re-run against the live production API on real Postgres (§8) | Asserting the query string or the method name instead of the outcome; testing ownership only at the layer where it is easiest to reach |
 | #9 | A restart, a redeploy and a fresh environment all end with the same schema and the same rows — and a configuration that cannot persist says so at startup instead of accepting writes | "The datasource is configured, so it is the right one" — Render's `DATABASE_*` vars looked configured and were dead; "Hibernate will keep the schema in step" | Which properties the boot path actually reads per profile, and what a missing one does; who creates the schema — Flyway or Hibernate — and what happens on drift | unit (a migration-applied + `ddl-auto` assertion) plus reading the platform's env-var keys before trusting a properties default | Asserting the schema by listing columns a second time — that is a copy of the migration to be edited twice; treating an H2 pass as evidence about PostgreSQL |
 
 Risk #6's anti-pattern — "an eval asserting a specific model wording" — is about the
@@ -172,8 +172,8 @@ orchestrator updates Status as artifacts appear on disk.
 |---|---|---|---|---|---|---|
 | 1 | Enrichment honesty | Prove a real registry damage reaches both the payload and the verdict, over verbatim captures | #2, #3 | unit + integration | complete | `context/archive/2026-08-27-testing-enrichment-honesty` |
 | 2 | Availability and failure paths | Prove every provider and fetch failure ends in an honest, distinguishable outcome inside the time budget, and that a thin price sample labels itself | #1, #5, #6 | unit + integration (stubbed HTTP edge), live-tagged where a real outcome is assertable | complete | `testing-availability-failure-paths` |
-| 3 | Guardrail rendering | Prove the three history states and the small-sample caveat read differently to a Polish-speaking user | #4, #2 (UI half), #5 (UI half) | component tests (jsdom) | not started | — |
-| 4 | Quality gates | Run both suites on PR and push before auto-deploy, keeping live-tagged tests out of the gate | cross-cutting | gates | not started | — |
+| 3 | Guardrail rendering | Prove the three history states and the small-sample caveat read differently to a Polish-speaking user | #4, #2 (UI half), #5 (UI half) | component tests (jsdom) | complete, no change folder | — |
+| 4 | Quality gates | Run both suites on PR and push before auto-deploy, keeping live-tagged tests out of the gate | cross-cutting | gates | complete locally, no CI | — |
 
 Ordering rationale: Phase 1 defends the two highest-impact scenarios at the
 cheapest layer and does so where churn is highest. Phase 2 covers the
@@ -188,6 +188,20 @@ and the frontend suite is the thinnest part of the codebase. Phase 4 comes
 last because a gate over a suite that does not yet cover the top risks locks
 in a false floor — but it must land, because `main` auto-deploys to
 production on merge and nothing runs the suites today.
+
+**Phases 3 and 4 shipped without change folders, which is why their rows read
+oddly.** Phase 3's work is `cepik-result.component.spec.ts` (the three history
+states, each asserting its own sentence *and* the absence of the one it must not
+be confused with) and `market-price-panel.component.spec.ts` (the thin-sample
+caveat) — both landed inside other changes rather than under a folder of their
+own, and both were mutation-checked, with the results recorded in the spec
+headers. Phase 4 landed as the **three local gate layers** in
+`.githooks/` and `.claude/hooks/` (§5.2), not as the CI the row describes: there
+is still no CI, so **pre-push is the last gate before production** and `main`
+auto-deploys on merge. The row says `complete locally, no CI` rather than
+`complete` because the difference is the whole risk — a local gate protects a
+push from this machine and nothing else, and the `ci-cd-code-review` change that
+would close it is written but deliberately unimplemented (§4).
 
 Phase 2's row reads `complete` against the live change folder, not an archive
 path: the change is finished on `main` (six phase commits, `512f555`…`5de1ce9`)
