@@ -24,7 +24,7 @@ shape was already fixed by F-02's schema and F-03's principal — there was no d
 explore, only code to write. The decisions that would have gone into a plan are recorded below
 instead, which is where a reader would look for them anyway.
 
-Two commits: `ecd3902` for the backend, and the frontend half after it. That split is safe in a
+Two commits: `ecd3902` for the backend, `40ea495` for the frontend half and the docs. That split is safe in a
 direction the auth change was not — a saved-analyses API with no UI in front of it is invisible,
 not broken, so unlike F-03 (where an API demanding a token in front of a frontend that sends none
 is a dead app) neither half had to land with the other.
