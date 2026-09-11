@@ -195,6 +195,46 @@ należy do Ciebie" message; `/saved/abc` → rejected with no request made; dele
 with the irreversibility warning, `Anuluj` restores, second click removes the row; empty state
 survives a reload, so the server agrees rather than just the local list.
 
+## Verified in production
+
+Deployed 2026-09-11 as `2bb9674` — Render `dep-dai1rp15efls73arhdd0` live at 17:31 local, Cloudflare
+Pages `966fee18` on the same commit. **No migration and no schema change**: `V1__init.sql` already
+created `analyses` under F-02, so the deploy carried code only, which is why this one needed no
+env-var work and no `PUT …/env-vars/<key>` dance.
+
+The same matrix as locally, re-run against `https://autoskanerai.onrender.com` on **real Postgres**
+rather than in-memory H2, with two fresh accounts: 401 anonymous; 201 create with the payload
+round-tripping whole (`make`, `verdict`, `overall`, and both enrichment statuses intact); 200 read;
+`[]` and 404 on GET, PATCH and DELETE for the second account, carrying the *"nie istnieje lub nie
+należy do Ciebie"* body; 200 rename with the em dash preserved, `note` cleared to `null`, and
+`updatedAt` advanced past a `createdAt` that stayed put; 204 delete; 404 on the repeat; `[]` after.
+
+Two things only the live run showed:
+
+**The POST response's `createdAt` is not byte-identical to the stored one.** The 201 returned
+`15:33:13.606778657Z` — nanoseconds, straight from the JVM — and reading the row back gave
+`15:33:13.606779Z`, because Postgres `timestamptz` keeps microseconds and rounds. Harmless for
+display, and a trap for any client that compares a POST-returned timestamp with a later GET's for
+equality, or uses one as a concurrency token. It is also a second argument for replacing a renamed row
+from the response rather than rebuilding it locally: the server's copy is the only one that matches
+what a later read will return.
+
+**`SavedAnalysisDetailResponse` nests as `{ summary, analysis }`, and the id is at `summary.id`.**
+The first verification script read `body.id`, got `undefined`, and then called
+`/api/saved-analyses/undefined` five times — every one a 500, which read exactly like a broken deploy.
+The API was correct throughout; the 201 and the list proved it in the same output. Worth writing down
+because the failure presents as the endpoints being down when the mistake is one field deep in the
+caller, and because a `500` from a non-numeric id is the same symptom the frontend's pre-flight guard
+exists to prevent — `/saved/abc` is that bug with a friendlier URL.
+
+**Left behind in the production database: four `prod-s03-*@example.pl` users and one analysis row.**
+The first script's accounts (`…-a-…`, `…-b-…`) died with the shell that held their generated
+passwords, so row `id 1` is owned by an account nobody can log into and **cannot be deleted through
+the API** — there is no delete-account endpoint, and no endpoint deletes another user's row by
+design. It is invisible to every other account and the free-tier database expires 2026-10-11, so it
+stays. The lesson is procedural: a throwaway credential used for a write must outlive the write long
+enough to clean it up, or the cleanup path has to exist before the write.
+
 ## Left undone
 
 - **No pagination, search or sort.** The list is every row the user owns, newest first. Fine at
@@ -208,7 +248,10 @@ survives a reload, so the server agrees rather than just the local list.
   returned in the response, but nothing displays it — a user cannot tell which note they edited
   last.
 - **No export, no share, no bulk delete.** Deleting five rows is ten clicks.
-- **Still no delete-account endpoint**, so the throwaway rows this change created locally, and the
-  two `probe-…@example.pl` rows in production from F-03, all stay.
-- **Not yet verified in production.** The frontend half is committed but the deploy and the live
-  check are outstanding — until then this is verified locally and nothing more.
+- **Still no delete-account endpoint**, so the two `probe-…@example.pl` rows in production from F-03,
+  the four `prod-s03-*` rows from this change's live check, and the one orphaned analysis row all
+  stay. This change made that gap concrete rather than theoretical: it is now possible to create rows
+  in production that nothing can remove.
+- **No production browser walkthrough.** The UI pass was done locally against the identical build;
+  in production only the API was exercised, because a browser login means typing a password into a
+  form and that password then exists in the transcript.

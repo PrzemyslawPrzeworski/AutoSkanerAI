@@ -220,13 +220,21 @@ checks, and the CRLF trap in `openssl rand -base64` that made Render answer a ba
 `context/changes/auth-scaffold/change.md` § "Verified in production".
 
 Two throwaway `users` rows (ids 1 and 2, `probe-…@example.pl`) exist in the production database from
-that verification. **There is still no delete-account endpoint** — S-03 deletes saved analyses, not
-accounts — so they stay; both passwords were generated and discarded unprinted.
+that verification, plus **four `prod-s03-*@example.pl` rows and one orphaned `analyses` row (id 1)**
+from S-03's live check. **There is still no delete-account endpoint** — S-03 deletes saved analyses,
+not accounts — so they all stay; every password was generated and discarded unprinted. That last row
+is the one thing here worth a warning: two of those accounts' passwords died with the shell that held
+them, so a row exists in production that **no API call can remove**, because no endpoint deletes
+another user's row and none deletes an account. **A throwaway credential used for a production write
+has to outlive the write**, or the cleanup path must exist before the write does.
 
-S-03 (save/view/rename/delete analyses) is implemented as of 2026-09-11 — FR-010 to FR-012, the last
-link of Stream B and the change that makes all four CRUD actions reachable by a user. Five endpoints
-under `/api/saved-analyses`, a `/saved` list and a `/saved/:id` detail view. Verified end to end
-against a live local API and in a browser; **not yet verified in production**. Two rules worth not
+S-03 (save/view/rename/delete analyses) is implemented and **live in production as of 2026-09-11**
+(`2bb9674`) — FR-010 to FR-012, the last link of Stream B and the change that makes all four CRUD
+actions reachable by a user. Five endpoints under `/api/saved-analyses`, a `/saved` list and a
+`/saved/:id` detail view. The full ownership matrix was re-run against the live API on real Postgres:
+401 anonymous, 201/200/200/204 for the owner with the payload round-tripping whole, and `[]` plus 404
+on GET, PATCH and DELETE for a second account. **It needed no migration and no env-var change** —
+`V1__init.sql` already created `analyses`, so unlike F-03 the deploy was code only. Two rules worth not
 re-deriving: **ownership is part of the lookup, never a check after it** (`findByIdAndUserId`,
 `deleteByIdAndUserId`), and **a 404 deliberately cannot distinguish "no such row" from "not yours"**
 — so neither can the client. `userId` comes from the authenticated principal via

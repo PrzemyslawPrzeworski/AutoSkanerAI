@@ -150,8 +150,8 @@ them — save with a title and a note, list, open, rename, delete. Every one is 
 authenticated principal, and the owner is part of the database lookup rather than a check after it, so
 a row belonging to someone else is never loaded in the first place; a row that is not yours and a row
 that does not exist answer with the same 404, deliberately, because a 403 on an existing row would
-confirm it exists. **Verified against a live local API and in a browser, not yet deployed** — the
-production check is the one thing outstanding.
+confirm it exists. **Live since 2026-09-11**, with the whole ownership matrix re-checked against the
+production API on real Postgres, and the UI walked through in a browser locally.
 
 Known gaps, all deliberate: no pagination, search or sort on the list; a saved analysis cannot be
 re-run; no export, share or bulk delete; and no delete-account endpoint anywhere yet.
