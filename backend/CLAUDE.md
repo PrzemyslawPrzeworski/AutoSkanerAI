@@ -132,6 +132,68 @@ yet** — F-02 shipped the layer, the endpoints and the login arrive with F-03 a
 - Entity is `UserAccount`, not `User` — F-03 introduces Spring Security, whose own `User` is imported
   in the same files. Table is `users` because `user` is reserved in PostgreSQL.
 
+## Auth (F-03)
+
+Stateless JWT over Spring Security 7's OAuth2 resource server; everything lives in
+`com.example.autoskaner_ai.auth`. `POST /api/auth/register` (201), `POST /api/auth/login` (200),
+`POST /api/auth/refresh` (200) are public; `GET /api/auth/me` is not. **`/api/**` is
+`authenticated()`**, so `POST /api/analyses` — open since S-01 — now answers 401 without a bearer.
+Everything outside `/api/**` keeps its old answer, because Render probes `/`.
+
+- **`auth.jwt.secret` is `${AUTH_JWT_SECRET}` with no fallback**, so an unset value fails context
+  startup. HS256 needs 32 bytes and `JwtConfig` refuses less rather than signing weakly. Only
+  `application-mock.properties` carries a fixed development key — `mock` is the offline
+  no-credentials profile the git hooks and the E2E specs run, and production never activates it. A
+  committed default in a public repository is a key anyone can use to mint a token for any account.
+- **A `typ` claim is the only thing stopping a refresh token from opening the API.** Both tokens are
+  signed with the same key, so a refresh token in an `Authorization` header would authenticate every
+  request unless something rejects it. `TokenTypeValidator` — an `OAuth2TokenValidator` on each
+  decoder — is that something: the resource server's decoder accepts `typ=access` only, and
+  `TokenService`'s private decoder accepts `typ=refresh` only. This is the security assertion of the
+  whole feature; `ApiRequiresAuthenticationTest.aRefreshTokenDoesNotOpenTheApi` is the test that
+  names the consequence, and it is what the deliberate-break check targeted.
+- **`/api/auth/**` is deliberately not a permitted prefix.** The three public paths are listed
+  literally, because `GET /api/auth/me` reads the principal and a wildcard is exactly how that
+  endpoint becomes public. The frontend interceptor repeats the same three literals for a second
+  reason — see `frontend/CLAUDE.md` § "Auth on the client".
+- **No JWT library was added.** `spring-boot-starter-security-oauth2-resource-server` already ships
+  Nimbus JOSE through `spring-security-oauth2-jose`, which is both encoder and decoder. jjwt would
+  bind token handling to Jackson 2 — present here only as a Flyway transitive — to buy something
+  already on the classpath.
+- **`CorsConfig` is gone; CORS lives on a `CorsConfigurationSource` bean the filter chain reads.** A
+  `WebMvcConfigurer`'s mapping is applied by the MVC handler, which runs *after* security, so a
+  preflight `OPTIONS` was judged before the mapping was consulted and surfaced in the browser as an
+  opaque CORS error for what was really an authorization decision. `PATCH` was missing from the old
+  method list and is in the new one, because S-03's rename needs it. `allowCredentials` stays false:
+  the session is a bearer header, not a cookie.
+- **`@AutoConfigureMockMvc` now needs `spring-boot-starter-webmvc-test`.** Boot 4 moved it into its
+  own module and renamed the package to `org.springframework.boot.webmvc.test.autoconfigure`; the
+  symptom is a compile error naming the old package, which reads like a typo. Same split as
+  `spring-boot-flyway` in F-02. It is not optional: every other controller test here uses
+  `MockMvcBuilders.standaloneSetup`, which builds a dispatcher with **no filter chain**, so an
+  unauthenticated request comes back 200 no matter what `SecurityConfig` says. A test that cannot
+  fail when the lock is removed is not a test of the lock, which is why
+  `ApiRequiresAuthenticationTest` is the one class that boots the real chain.
+- **Login answers unknown-email and wrong-password identically**, and an unknown email still runs one
+  BCrypt comparison against a throwaway hash computed at startup, so the two paths cost the same
+  time. Without that, "no such account" answers in microseconds and is a usable oracle for whether an
+  address is registered. Registration necessarily leaks existence through its 409; that is accepted.
+- **Passwords cap at 72 characters because BCrypt truncates there.** Without the check, two different
+  long passwords open the same account. The encoder is delegating, so the hash records its own
+  algorithm (`{bcrypt}$2a$10$…`) and can be migrated without a schema change.
+- **`TokenService` takes `(long userId, String email)`, not the entity.** `UserAccount.create` leaves
+  `id` null until the insert, so passing the entity would mint a token whose subject is the literal
+  `"null"` — and `AuthenticatedUser.requireId` would refuse it far from the cause.
+  `AuthService.tokensFor` is the single seam and throws on a null id.
+- Two traps in the tests: `NimbusJwtEncoder` cannot mint an already-expired token (`Jwt`'s
+  constructor asserts `expiresAt` is after `issuedAt`), so expiry tests hand-build a claims set whose
+  window closed **five** minutes ago — `JwtTimestampValidator` allows 60 s of skew by default, so a
+  −30 s test passes while the expiry check is broken. And `Jwt.getIssuer()` throws on a bare-name
+  issuer like `autoskaner-ai`; read it as `getClaimAsString("iss")`.
+
+Full reasoning, including what is deliberately missing (no revocation, no password reset, no rate
+limit): `context/changes/auth-scaffold/change.md`.
+
 ## URL fetching
 
 Listing URLs are fetched via **Jina Reader** (`https://r.jina.ai/<url>`), which handles JavaScript rendering and Cloudflare bypass for free. No API key needed.
@@ -200,6 +262,10 @@ cd backend && ./mvnw test -Plive-tests        # requires credentials in env
 
 Tests are tagged `@Tag("live-llm")` and skipped by default in `./mvnw test`.
 
+- **These now need `AUTH_JWT_SECRET` too.** The three live `@SpringBootTest` classes activate
+  `openrouter` or `bedrock`, not `mock`, so `auth.jwt.secret` resolves from the environment and an
+  unset value fails context startup — before any credential is even reached. The failure names the
+  placeholder, not the auth feature.
 - Use the `live-tests` **profile**. `-Dgroups=live-llm` does not work: the base surefire config sets `excludedGroups`, so adding an include just intersects to zero and reports BUILD SUCCESS over 0 tests. The profile flips the `test.excludedGroups` / `test.includedGroups` properties instead.
 - Behind a TLS-intercepting corporate proxy the JVM does not trust the injected chain and every outbound call dies with `PKIX path building failed`. Add `-DargLine="-Djavax.net.ssl.trustStoreType=Windows-ROOT"` to use the Windows certificate store.
 - `r.jina.ai` may still be blocked by proxy *policy* (403 interstitial, category "General AI and ML Applications") even once TLS is trusted. That fails `MarketPriceFetchServiceLiveTest`, which is intentional — the test asserts `OK` rather than tolerating `FETCH_FAILED`, so a blocked path is visible instead of silently green.

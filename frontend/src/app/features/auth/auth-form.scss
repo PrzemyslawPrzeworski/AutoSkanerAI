@@ -1,0 +1,56 @@
+// Shared by login and register — the two forms differ by one field note and their copy, so a second
+// stylesheet would be two files drifting apart for no reason.
+.auth-card {
+  max-width: 26rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.auth-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.auth-lead {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #495057;
+  }
+
+  input {
+    width: 100%;
+  }
+}
+
+.field-note {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.auth-switch {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #495057;
+}

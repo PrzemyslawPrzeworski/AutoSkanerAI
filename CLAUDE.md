@@ -175,7 +175,14 @@ verified.
   default so the app still needs no database to run, real PostgreSQL behind an opt-in `postgres`
   profile. Nothing is exposed over HTTP yet. Details, and the three traps worth not re-deriving, in
   `backend/CLAUDE.md` § "Persistence".
-- Auth not yet implemented — Spring Security + JWT or OAuth2 planned per PRD.
+- Auth is in (F-03): Spring Security 7 + stateless JWT. `/api/**` answers 401 without a bearer, which
+  makes this the first change that alters what an anonymous visitor can do — `POST /api/analyses` had
+  been open since S-01. A 15-minute access token lives in the SPA's memory and a 14-day refresh token
+  in `localStorage`, because the frontend and the API are different sites and a session cookie would
+  be a third-party cookie. `AUTH_JWT_SECRET` has no default outside the `mock` profile, so an unset
+  value fails startup. No revocation, no password reset, no rate limit — see
+  `backend/CLAUDE.md` § "Auth (F-03)", `frontend/CLAUDE.md` § "Auth on the client", and
+  `context/changes/auth-scaffold/change.md` § "Left undone".
 - CEPiK integration (live vehicle registry queries) is shipped, FR-017 — see `backend/CLAUDE.md` § "Enrichment services".
 - The AI layer, CEPiK and market price all use the same shape: a Spring interface with a mock bean under the `mock` profile and a real bean under `@Profile("!mock")`. Add a fourth integration the same way.
 
@@ -186,13 +193,21 @@ F-01 (LLM analysis wiring), S-01 (core analysis flow), S-04 (CEPiK VIN lookup) a
 S-02 (manual field entry + user-supplied VIN/plate/date) is implemented; see `backend/CLAUDE.md` § "Manual entry and user overrides".
 
 F-02 (data layer) is implemented as of 2026-09-11 — entities, repositories, `V1__init.sql`, both
-tables. It is deliberately invisible: no endpoint, no login, and the default datasource is in-memory,
-so the deployed app behaves exactly as before. See `backend/CLAUDE.md` § "Persistence" and
+tables. It is deliberately invisible: no endpoint, and the default datasource is in-memory, so the
+deployed app behaves exactly as before. See `backend/CLAUDE.md` § "Persistence" and
 `context/changes/data-layer-setup/`.
 
-A real analysis takes ~27 s end to end (~16 s LLM + a Jina fetch for the market range), all on the request thread. Free-tier LLM slugs are the main fragility: see `application-openrouter.properties`. PRD is at `context/foundation/prd.md` (FR-001 to FR-018). Next: Stream B (F-02 data layer → F-03 auth → S-03 persistence).
+F-03 (auth) is implemented as of 2026-09-11 — registration, login, refresh, a locked `/api/**`, route
+guards, and the two forms. It is the opposite of invisible, and two things follow. **Backend and
+frontend must reach production in the same push**: an API that requires a token in front of a frontend
+that sends none is a dead app. And **`AUTH_JWT_SECRET` must be set on Render before that push lands**,
+through the per-key endpoint — the deploy fails at context startup without it, deliberately.
 
-Suite sizes, so a drop is visible: backend **285** tests in 33 classes (~22.7 s), frontend **51** in 5 spec files (~2.8 s), `packages/code-reviewer` **168** in 11 spec files (~6.9 s, **ten** skipped offline — every test that needs a model or a credential, each printing the reason it skipped), `packages/ai-toolkit` **42** in 4 spec files (~0.4 s, none skipped — it needs no network and no credential), plus one Playwright contract spec that no gate runs.
+A real analysis takes ~27 s end to end (~16 s LLM + a Jina fetch for the market range), all on the request thread. Free-tier LLM slugs are the main fragility: see `application-openrouter.properties`. PRD is at `context/foundation/prd.md` (FR-001 to FR-018). Next: S-03 (`save-view-delete-analyses`) — the last link of Stream B, now that F-02 and F-03 are both
+in. Its `userId` comes from the authenticated principal via `AuthenticatedUser.requireId`, never from
+a request body or a query parameter.
+
+Suite sizes, so a drop is visible: backend **340** tests in 38 classes (~22.7 s), frontend **99** in 11 spec files (~5.8 s), `packages/code-reviewer` **168** in 11 spec files (~6.9 s, **ten** skipped offline — every test that needs a model or a credential, each printing the reason it skipped), `packages/ai-toolkit` **42** in 4 spec files (~0.4 s, none skipped — it needs no network and no credential), plus two Playwright specs and an auth setup project that no gate runs.
 
 ## Deployment
 

@@ -5,6 +5,25 @@
   font-size: 1.25rem;
   font-weight: 600;
   letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.app-account {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+// The address is the only confirmation the user has of which account they are in, so it stays
+// readable rather than being shrunk into decoration — but it is not the title, hence the lighter
+// weight.
+.app-email {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: #d1d5db;
 }
 
 .app-main {

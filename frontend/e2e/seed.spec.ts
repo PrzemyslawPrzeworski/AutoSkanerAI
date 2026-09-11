@@ -10,6 +10,12 @@
  *   3. waits on state, not time   — waitForResponse + toBeVisible; never waitForTimeout
  *   4. a name tied to the outcome — not 'test 1'
  *
+ * The session it opens with is not its own doing: `/` is behind `authGuard`, and the signed-in state
+ * arrives from `auth.setup.ts` via `storageState` (see `playwright.config.ts`). That is the one thing
+ * every spec here shares, and the reason pattern 2 still holds — a shared *starting session* is not
+ * shared state between tests, and no spec depends on what another spec did. Do not log in inside a
+ * test to work around a session problem; fix the setup project.
+ *
  * It is also a real smoke test: it proves the paste -> analyse round trip reaches the browser at
  * all. The contract assertions on specific server fields live in `market-price-contract.spec.ts`.
  */

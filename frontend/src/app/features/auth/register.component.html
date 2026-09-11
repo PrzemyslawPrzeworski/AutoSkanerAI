@@ -1,0 +1,49 @@
+<section class="auth-card">
+  <h1 class="auth-title">Utwórz konto</h1>
+  <p class="auth-lead">Konto pozwala analizować ogłoszenia i wracać do zapisanych wyników.</p>
+
+  <form class="auth-form" (submit)="$event.preventDefault(); submit()">
+    <div class="field">
+      <label for="register-email">Adres e-mail</label>
+      <input
+        id="register-email"
+        pInputText
+        class="w-full"
+        type="email"
+        autocomplete="email"
+        maxlength="255"
+        [value]="email()"
+        (input)="email.set($any($event.target).value)"
+      />
+    </div>
+
+    <div class="field">
+      <label for="register-password">Hasło</label>
+      <input
+        id="register-password"
+        pInputText
+        class="w-full"
+        type="password"
+        autocomplete="new-password"
+        maxlength="72"
+        [value]="password()"
+        (input)="password.set($any($event.target).value)"
+      />
+      <small class="field-note">Od 8 do 72 znaków.</small>
+    </div>
+
+    @if (error()) {
+      <p-message severity="error" [text]="error()!"></p-message>
+    }
+
+    <button
+      pButton
+      type="submit"
+      class="p-button-primary"
+      [disabled]="loading()"
+      [label]="loading() ? 'Tworzenie konta…' : 'Utwórz konto'"
+    ></button>
+  </form>
+
+  <p class="auth-switch">Masz już konto? <a routerLink="/login">Zaloguj się</a></p>
+</section>

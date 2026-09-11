@@ -115,10 +115,14 @@ The most useful thing a map can do. Six cases, all measured:
 
 **Start with the one that has no edge anywhere.** `common` has fan-in 0 in the import graph —
 nothing imports it. It is also on every response path, because Spring wires
-`GlobalExceptionHandler`, `CorsConfig` and `ErrorResponse` by annotation. Git history
-measured that same coupling at **86% confidence** with `analysis` and **100%** with
-`context/changes/`. The history is right and the graph is wrong. In this codebase, fan-in 0
-means *look harder*.
+`GlobalExceptionHandler` and `ErrorResponse` by annotation. Git history measured that same
+coupling at **86% confidence** with `analysis` and **100%** with `context/changes/`. The
+history is right and the graph is wrong. In this codebase, fan-in 0 means *look harder*.
+
+The same reading now applies twice over to `auth`: `SecurityConfig` is imported by nothing and
+decides whether **every** `/api/**` request is answered at all, and its
+`CorsConfigurationSource` bean is the file that replaced `common.CorsConfig` — so a map or a
+grep from before F-03 will point at a class that no longer exists.
 
 The couplings worth knowing, in order of what a change to them costs:
 

@@ -95,6 +95,60 @@ runs one BCrypt comparison against a throwaway hash so the two paths cost the sa
 Registration necessarily leaks existence through its 409 — that is accepted, since the alternative
 (a fake success) makes the form unusable.
 
+### The frontend's public-path list is three literals too, and for a second reason
+
+`auth.interceptor.ts` repeats the backend's decision not to match `/api/auth/**`, and gets a second
+hazard from it: `/api/auth/me` needs the header, so a prefix match would send it out unauthenticated
+and get a 401 — and the interceptor answers a 401 by refreshing. `/api/auth/refresh` under the same
+prefix match means a *failed refresh* is itself a 401 the interceptor tries to refresh. Both are
+pinned by name (`does attach the token to /api/auth/me`, `does not try to refresh a failed refresh`)
+so the "simplify to a prefix" edit fails a test instead of shipping a loop.
+
+The retry also goes back through `next` rather than re-entering the chain, so a 401 on the retry
+propagates instead of starting a second refresh.
+
+### One in-flight refresh, shared
+
+`AuthService.refresh()` caches the in-flight observable and hands the same one to every caller
+(`shareReplay({ bufferSize: 1, refCount: false })`, cleared in `finalize`). Without it, N parallel
+401s each rotate the pair and the last write to `localStorage` wins — every other token is discarded
+while its holder still believes it has a session, and the user is logged out at some random later
+moment with nothing in the log tying the two events together. Two tests hold it: one asserts a single
+HTTP call for two concurrent callers, one asserts a *fresh* call once the previous refresh finished
+(so the cache cannot be "simplified" into a permanent one).
+
+### The guard restores a session; it does not check for one
+
+The access token lives in a signal, so a page reload drops it while the refresh token survives.
+`authGuard` therefore calls `restoreSession()` — which spends one `/api/auth/refresh` — rather than
+reading `isAuthenticated`, which would bounce every logged-in user who pressed F5. `guestGuard` is
+the same call read the other way, so `/login` redirects to `/` for someone who is already signed in.
+
+### `returnUrl` is filtered, and the filter is its own module
+
+The guard puts the attempted URL in a query parameter and the login form navigates to it, which makes
+the form an open redirect unless something checks the value. `safeReturnUrl` is a standalone function
+rather than a private method **so the property is directly testable** — as a private it was reachable
+only through the component, which is why the extraction happened. It refuses anything not starting
+with `/`, plus `//host` and `/\host`, both of which start with a slash and still leave the site.
+
+### Only registration judges the shape of an address
+
+The login form checks emptiness and nothing else: the server answers a malformed address with the
+same 401 as a wrong password, and a client-side "that is not an email" would tell a stranger which
+addresses look registered. Registration does validate — it already discloses existence through its
+409, so there is nothing left to protect, and telling someone their password is too short costs no
+round trip. The asymmetry is deliberate and both halves are pinned by a test.
+
+### The E2E session comes from a setup project, not from a login inside a spec
+
+`E2E-RULES.md` already required `storageState`; F-03 is what gave the rule a subject. `auth.setup.ts`
+registers one timestamped throwaway account through the register form and saves the browser state,
+and the `chromium` project depends on it — so `seed.spec.ts` and `market-price-contract.spec.ts` kept
+their bodies unchanged and a contract test stays about the contract. It works only because a refresh
+token is a stateless JWT that use does not consume; if refresh ever becomes single-use, the setup has
+to mint one session per worker. `e2e/.auth/` is gitignored — it is a real bearer credential.
+
 ## Findings
 
 ### `@AutoConfigureMockMvc` is not in `spring-boot-starter-test` any more
@@ -146,6 +200,42 @@ for a 14-day refresh token on `GET /api/auth/me`. The other four are
 `anAccessTokenIsRefusedWhereARefreshTokenIsExpected`, `aTokenWithNoTypeClaimIsRefusedByBothDecoders`
 and `AuthServiceTest.refreshingWithAnAccessTokenIsRefused`.
 
+### The security property of the whole design is asserted by dumping `localStorage`
+
+`never writes the access token to localStorage` enumerates every key in `localStorage`, joins the
+values and asserts the access token is absent while the refresh token is present. That is the one
+assertion that fails if a future edit "simplifies" storage by persisting both — at which point an
+injected script reads an API bearer without touching the running app, and the reason for choosing this
+mechanism over a cookie is gone. Asserting on the storage dump rather than on the absence of a
+particular key is what makes it survive a rename.
+
+### A wholesale `Router` stub cannot construct a component whose template has a `routerLink`
+
+`LoginComponent`'s template links to `/register`, and `RouterLink` needs a real `Router` — a stub
+produced `Cannot read properties of undefined (reading 'verify')` followed by `Cannot configure the
+test module when the test module has already been instantiated`, with the true first error truncated
+by the pre-edit hook's output. Two moves fixed it, and the first improved the component: read
+`returnUrl` from `inject(ActivatedRoute).snapshot.queryParamMap` instead of
+`router.routerState.snapshot.root.queryParamMap`, then in the spec use `provideRouter([])` for a real
+router, override only `ActivatedRoute`, and spy on `navigateByUrl`. **Stub the narrowest thing the
+component actually reads**, not the router.
+
+### A guard spec must read its outcome after the flush, not at call time
+
+`runAuthGuard` originally returned the emitted value, but the guard emits only once
+`httpMock.flush()` runs — which happens *after* the helper returns, so three tests asserted on `null`.
+It now returns a mutable `{ value }` holder. Worth knowing generally: any zoneless helper that
+subscribes and returns has the same shape of bug, and it presents as "the guard returned nothing"
+rather than as a timing problem.
+
+### `POST /api/auth/register` answers 201, and only the E2E setup noticed
+
+Every unit-level spec flushes a body through `HttpTestingController`, which defaults to 200, so
+nothing in either suite ever observed the real status. The setup project asserted 200 and failed with
+`Expected: 200 / Received: 201`. Harmless here — `HttpClient` treats any 2xx as success — but it is a
+reminder that a hand-written double agrees with whatever it was written to agree with, which is the
+same structural blindness `E2E-RULES.md` exists for.
+
 ## Measurements
 
 - Backend suite: **285 → 340** tests, 0 failures, 0 skipped, `BUILD SUCCESS` offline. The 55 new
@@ -158,6 +248,17 @@ and `AuthServiceTest.refreshingWithAnAccessTokenIsRefused`.
 - Spring Security **7.0.5** and Nimbus JOSE **10.4**, both managed by the Boot 4.0.6 BOM. Verified
   present in the local repository (`D:/.m2`) before writing any code, and `dependency:list` run
   offline afterwards, so the git hooks' `./mvnw -o test` still resolves.
+- Frontend suite: **51 → 99** tests in 5 → 11 spec files, ~2.8 s → **5.8 s**, 0 failures. The 48 new
+  tests are `auth.service.spec.ts` (13), `auth.interceptor.spec.ts` (10), `register.component.spec.ts`
+  (8), `login.component.spec.ts` (7), `auth.guard.spec.ts` (6), `return-url.spec.ts` (5) — one dozen
+  of which exist only to pin a named hazard rather than to cover a line.
+- No new frontend dependency. Interceptor, guards and forms are `@angular/common/http` +
+  `@angular/router` + the PrimeNG modules already in use; there is no JWT-decoding library on the
+  client because the client never inspects a token, it only carries one.
+- E2E: **3 tests** (1 setup + 2 specs), 29.5 s against reused servers, all green. Both pre-existing
+  specs pass **unchanged**, which is the actual result — it means the interceptor attaches a token,
+  `authGuard` restores a session from `localStorage` alone, and the whole path works through a real
+  browser against a real filter chain, since `/api/**` is `authenticated()`.
 
 ## Left undone
 
@@ -175,3 +276,16 @@ and `AuthServiceTest.refreshingWithAnAccessTokenIsRefused`.
   free tier offers nothing here, so it wants a bucket in the app.
 - **`AUTH_JWT_SECRET` is not yet set on Render**, and the deploy fails at context startup without it
   — deliberately. It must be set through the per-key endpoint before this reaches production.
+- **The refresh happens on a 401, not before expiry.** There is no timer and no proactive renewal, so
+  every 15 minutes exactly one request pays a round trip to discover its token died and then retries.
+  It is correct and invisible for a ~27 s analysis; it would not be for a chatty UI.
+- **`GET /api/auth/me` exists and the frontend never calls it.** The email comes from the token
+  response, which is enough for the header, so the endpoint is currently only exercised by tests. It
+  is the natural place for S-03 to confirm a session without a mutation.
+- **No E2E spec covers the auth screens themselves.** `auth.setup.ts` walks the register form, so a
+  break there fails every spec loudly — but there is no test of a *wrong* password, a bounce to
+  `/login`, or the `returnUrl` round trip in a real browser. Those live at unit level, and
+  `E2E-RULES.md`'s cost × signal rule is why they stay there; the honest gap is that the redirect
+  behaviour is asserted against a `UrlTree`, not against an address bar.
+- **No logout-everywhere, no "remember me" distinction.** Every session is a 14-day one, and the only
+  way to end one is to stop holding the token.

@@ -13,7 +13,7 @@ on PATH by default in this environment — on this machine they live in
 
 ## Unit tests
 
-Tests run on **vitest through `@angular/build:unit-test`** (`test` target in `angular.json`, jsdom — no browser needed). 51 tests in 5 spec files, ~2.8 s. Two things to know:
+Tests run on **vitest through `@angular/build:unit-test`** (`test` target in `angular.json`, jsdom — no browser needed). 99 tests in 11 spec files, ~5.8 s. Two things to know:
 
 - **No `fakeAsync` / `tick`.** The app has no zone.js at all (Angular 21 is zoneless by default), so `fakeAsync` throws "zone-testing.js is needed". Adding zone.js only for tests would make tests run under different change-detection semantics than production. Every service call in the specs is a synchronous `of(...)`, so awaiting nothing is correct — if a spec ever needs real async, use `await fixture.whenStable()`.
 - **Vitest matchers, not jasmine.** `vi.fn()`, `mockReturnValue`, `toBe(true)` — `toBeTrue()` does not exist and fails to compile, which is how the stale specs were caught.
@@ -22,6 +22,48 @@ Tests run on **vitest through `@angular/build:unit-test`** (`test` target in `an
 
 - **Every arm asserts its own sentence *and* the absence of the sentence it must not be confused with.** A test that only asserts its own copy still passes after an edit merges two arms — you would simply update the expected string. The negative companion, plus the distinctness test that compares the three *rendered* texts, is what closes that. `market-price-panel.component.spec.ts` established the pattern; `analysis.models.ts`'s own doc comment explains the stakes.
 - **Both guards were mutation-checked and the result is recorded in the file's header.** Inverting `damageState()` to read `damages()` (whose `?? []` collapses the distinction) fails 2 tests; weakening the template's `mileageStamps === null` branch to a length check fails 1. **Before that spec existed, the first mutation left all 276 tests green** — which is the only reason to trust the spec at all. If you touch either guard, re-run the mutation rather than the suite.
+
+## Auth on the client (F-03)
+
+`core/services/auth.service.ts`, `core/interceptors/auth.interceptor.ts`, `core/guards/auth.guard.ts`,
+`features/auth/`. The backend half is `backend/CLAUDE.md` § "Auth (F-03)"; the reasoning for both is
+`context/changes/auth-scaffold/change.md`.
+
+**The 15-minute access token lives in a signal and never touches storage; only the 14-day refresh
+token is in `localStorage`.** That split is the whole security posture — the frontend and the API are
+different sites, so a session cookie would be a third-party cookie, and a bearer header sidesteps it.
+The property is asserted by a test that enumerates every `localStorage` key and checks the access
+token is absent (`never writes the access token to localStorage`); if that ever goes red, an injected
+script can read an API bearer without touching the running app. `AuthService` is the only place either
+token is written, and both storage calls are wrapped — Safari private mode throws on `setItem`, and a
+throw inside `accept()` would leave an access token with no way to renew it.
+
+Four hazards, each pinned by a named test, because each one is a plausible "simplification":
+
+- **`PUBLIC_AUTH_PATHS` is three literal paths, not the `/api/auth/` prefix.** `/api/auth/me` reads
+  the principal, so a prefix match sends it out unauthenticated → 401 → and the interceptor answers a
+  401 by refreshing. `/api/auth/refresh` under the same match means a *failed refresh* is a 401 the
+  interceptor tries to refresh. `does attach the token to /api/auth/me` and `does not try to refresh a
+  failed refresh` are the two tests. The retry also goes through `next` rather than re-entering the
+  chain, so a 401 on the retry propagates instead of starting a second refresh.
+- **One in-flight refresh, shared** (`shareReplay({bufferSize: 1, refCount: false})` + `finalize`
+  clearing the field). Without it, N parallel 401s each rotate the pair, the last write wins, and
+  every other holder is logged out at a random later moment with nothing connecting the two events.
+- **`authGuard` calls `restoreSession()`; it does not read `isAuthenticated`.** A reload drops the
+  in-memory access token, so a naive check bounces a logged-in user who pressed F5. Consequence worth
+  knowing: every guarded navigation may spend one `/api/auth/refresh` before the first render.
+- **`returnUrl` is attacker-supplied**, so `safeReturnUrl` filters it — a login form that navigates
+  wherever the query says is an open redirect. It is a standalone module rather than a private method
+  *so the property is testable*; `//host` and `/\host` both start with a slash and still leave the site.
+
+The two forms are asymmetric on purpose: **login validates emptiness only**, because the server
+answers a malformed address with the same 401 as a wrong password and a client-side "that is not an
+email" would tell a stranger which addresses look registered. **Register validates shape**, because
+its 409 already discloses existence. Neither form lower-cases the address — the server owns
+normalisation, and a second copy of that rule is a second thing to drift.
+
+Both forms follow the app's no-`FormsModule` convention (signals plus `[value]` + `(input)`, with
+`<label for>` so `getByLabel` keeps working) and use per-component PrimeNG imports.
 
 ## Vehicle data form
 
@@ -44,6 +86,19 @@ panel rendering nothing. That already nearly happened with `sampleQuality`.
 - `market-price-contract.spec.ts` compares the DOM against **the same response's own
   JSON**, not against the mock's constants — otherwise it would be a test of
   `MockMarketPriceEnrichmentService`, which `test-plan.md` §7 excludes.
+- **The session comes from a setup project, never from a login inside a spec.**
+  `/` is behind `authGuard` now, so an anonymous `goto('/')` lands on `/login`.
+  `e2e/auth.setup.ts` registers one timestamped throwaway account, saves the
+  browser state, and the `chromium` project loads it as `storageState` — which is
+  why both existing specs kept their bodies unchanged when auth landed. It works
+  only because a refresh token is a stateless JWT that use does not consume; if
+  refresh becomes single-use, the setup must mint one session per worker and the
+  symptom will be intermittent failures under `fullyParallel`. `e2e/.auth/` is
+  gitignored: it is a real bearer credential. Details in `e2e/E2E-RULES.md`.
+- One thing only the E2E layer noticed: **`POST /api/auth/register` answers 201**,
+  not 200. Every unit spec flushes through `HttpTestingController`, which defaults
+  to 200, so a hand-written double agreed with whatever it was written to agree
+  with — the same structural blindness this layer exists for.
 - **Don't assert scores or verdict here.** `MockMarketPriceEnrichmentService` ignores
   its input (always 45000/55000/70000, sample 12), but `MockAiAnalysisService` is
   content-sensitive — one word of listing text moved `overall` from 41 to 35.
@@ -69,4 +124,6 @@ panel rendering nothing. That already nearly happened with `sampleQuality`.
 - **Vision found real bugs and still justifies no spec.** See `test-plan.md` §3's
   vision paragraph for the two defects and why one belongs in a component test
   and the other in a deterministic differ. Screenshots under `frontend/vision/`
-  are scratch evidence, never fixtures, and are not committed.
+  are committed (`a2d5839`) because nothing regenerates them — a one-off manual
+  pass against a live local server — but they are **evidence, never fixtures and
+  never a pixel baseline**: no spec reads them, and nothing should start.

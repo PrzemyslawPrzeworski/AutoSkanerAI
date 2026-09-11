@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'node:path';
 
 /**
  * E2E config. See `e2e/E2E-RULES.md` for the rules every spec here follows, and
@@ -28,6 +29,14 @@ import { defineConfig, devices } from '@playwright/test';
  */
 const MVNW = process.platform === 'win32' ? '.\\mvnw.cmd' : './mvnw';
 
+/**
+ * Where `e2e/auth.setup.ts` writes the signed-in browser state every spec then starts from. Declared
+ * here rather than in the setup file so the config and the writer cannot drift to two paths — a
+ * mismatch would not fail loudly, it would silently run every spec anonymously and fail at the first
+ * locator, since `authGuard` redirects `/` to `/login`. Gitignored: it carries a real refresh token.
+ */
+export const STORAGE_STATE = path.join(__dirname, 'e2e', '.auth', 'user.json');
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -40,7 +49,24 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
 
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  /*
+   * Two projects, because F-03 put `/` behind `authGuard`: a spec that opens the app anonymously now
+   * lands on `/login`. `setup` registers one throwaway account and saves the session; `chromium`
+   * depends on it and loads that session into every context. This is `E2E-RULES.md`'s "use
+   * storageState, never log in through the UI in individual tests" — the login happens once, outside
+   * the specs, so a contract test stays about the contract.
+   *
+   * `auth.setup.ts` is matched only by the setup project: Playwright's default `testMatch` wants
+   * `.spec.` or `.test.`, so chromium never collects it as a test of its own.
+   */
+  projects: [
+    { name: 'setup', testMatch: /.*\.setup\.ts/, use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], storageState: STORAGE_STATE },
+      dependencies: ['setup'],
+    },
+  ],
 
   /*
    * Both servers, so `npx playwright test` works from cold.

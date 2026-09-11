@@ -1,0 +1,48 @@
+<section class="auth-card">
+  <h1 class="auth-title">Zaloguj się</h1>
+  <p class="auth-lead">Analizy ogłoszeń wymagają konta.</p>
+
+  <form class="auth-form" (submit)="$event.preventDefault(); submit()">
+    <div class="field">
+      <label for="login-email">Adres e-mail</label>
+      <input
+        id="login-email"
+        pInputText
+        class="w-full"
+        type="email"
+        autocomplete="email"
+        maxlength="255"
+        [value]="email()"
+        (input)="email.set($any($event.target).value)"
+      />
+    </div>
+
+    <div class="field">
+      <label for="login-password">Hasło</label>
+      <input
+        id="login-password"
+        pInputText
+        class="w-full"
+        type="password"
+        autocomplete="current-password"
+        maxlength="72"
+        [value]="password()"
+        (input)="password.set($any($event.target).value)"
+      />
+    </div>
+
+    @if (error()) {
+      <p-message severity="error" [text]="error()!"></p-message>
+    }
+
+    <button
+      pButton
+      type="submit"
+      class="p-button-primary"
+      [disabled]="loading()"
+      [label]="loading() ? 'Logowanie…' : 'Zaloguj się'"
+    ></button>
+  </form>
+
+  <p class="auth-switch">Nie masz konta? <a routerLink="/register">Zarejestruj się</a></p>
+</section>

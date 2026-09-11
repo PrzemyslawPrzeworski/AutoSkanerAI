@@ -45,6 +45,11 @@ __screenshots__/
 /blob-report
 /.playwright
 
+# The storageState written by e2e/auth.setup.ts. It holds a live refresh token for the
+# throwaway account that run registered, so committing it would commit a bearer
+# credential — and it is regenerated on every run anyway.
+/e2e/.auth
+
 # System files
 .DS_Store
 Thumbs.db

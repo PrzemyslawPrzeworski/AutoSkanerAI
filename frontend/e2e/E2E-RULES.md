@@ -65,7 +65,7 @@ never itself the thing under test.
 ```bash
 cd frontend
 npm run test:e2e                         # starts both servers itself, then runs
-npx playwright test e2e/seed.spec.ts     # one spec
+npx playwright test e2e/seed.spec.ts     # one spec (the setup project still runs first)
 npx playwright test --ui                 # interactive
 ```
 
@@ -85,14 +85,44 @@ frontend/backend contract; it belongs in CI (§3 Phase 4), not in front of a com
 `tsconfig.spec.json` includes only `src/**/*.spec.ts`, and a Playwright spec
 collected by Vitest fails at `test(...)`.
 
-## No persistence yet, so "cleanup" has no teeth here
+## Authentication: one setup project, never a login inside a test
 
-The app has no database and no auth (roadmap F-02 / F-03 are unstarted), so there
-is no server-side record for a spec to leak or tear down, and no `storageState` to
-build. Isolation today comes from Playwright's fresh browser context per test plus
-each test doing its own `goto` and its own submit.
+F-03 put `/` behind `authGuard`, so a spec that opens the app anonymously is
+redirected to `/login` and fails at its first locator. The session comes from
+`auth.setup.ts` — a Playwright *setup project* that runs once, registers one
+throwaway timestamped account through the register form, and saves the browser
+state to `e2e/.auth/user.json`. The `chromium` project declares
+`dependencies: ['setup']` and loads that file as its `storageState`, so every
+spec's `page.goto('/')` starts signed in. The path is declared in
+`playwright.config.ts` and imported by the setup file, so the writer and the
+reader cannot drift.
 
-Keep the timestamped test data anyway — it makes a run traceable in the backend
-log, and it is the line that will matter on the day S-03 lands persistence. When
-it does, add the `afterEach` teardown the rule above asks for; do not assume the
-absence of one here is a precedent.
+Three consequences worth knowing before you touch either file:
+
+- **`storageState` carries a renewable session, not a live one.** The access
+  token lives in memory by design (`auth.service.ts`), so only the refresh token
+  is in the file. `authGuard` therefore spends one `POST /api/auth/refresh`
+  before the first render of every spec — if you ever assert on request counts,
+  that call is there.
+- **It works because a refresh token is a stateless JWT that use does not
+  consume** — no server-side record, no revocation. One stored token restores any
+  number of parallel contexts. If refresh ever becomes single-use or rotating,
+  this file must mint one session per worker; the symptom will be specs failing
+  intermittently under `fullyParallel`, and this paragraph is the pointer back.
+- **`e2e/.auth/` is gitignored, and must stay so.** It is a real bearer
+  credential for a real (if throwaway) account.
+
+## Cleanup still has no teeth, and now for a different reason
+
+There *is* a server-side record now — the account the setup project registers —
+but nothing to tear it down with: the app has no delete-account endpoint, and
+under `SPRING_PROFILES_ACTIVE=mock` the datasource is in-memory H2, so the row
+dies with the server. What keeps a re-run honest is the timestamped address, not
+an `afterEach`. `reuseExistingServer` means a long-lived local server does
+accumulate one `users` row per run; that is harmless and deliberate.
+
+Keep the timestamped listing text too — it makes a run traceable in the backend
+log, and it is the line that will matter when S-03 lands saved analyses. That is
+the point at which a spec starts leaving rows it can actually delete, and the
+`afterEach` the rule above asks for becomes real work; do not read the absence of
+one today as a precedent.

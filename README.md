@@ -75,9 +75,13 @@ cd frontend && npm install && npm start
 Pick a profile with `SPRING_PROFILES_ACTIVE`: `mock` (no credentials, no network),
 `bedrock` (AWS), or `openrouter`. Copy `.env.example` to `.env` for keys.
 
+Outside `mock`, the backend needs `AUTH_JWT_SECRET` (32 bytes or more) and refuses to start without
+one — `/api/**` is behind a login now, and a signing key with a committed default is a key anyone can
+mint tokens with. `mock` carries a fixed development key so the offline path stays credential-free.
+
 ```bash
-cd backend  && ./mvnw test                  # 285 tests
-cd frontend && npm test -- --watch=false    # 51 tests
+cd backend  && ./mvnw test                  # 340 tests
+cd frontend && npm test -- --watch=false    # 99 tests
 cd frontend && npm run test:e2e             # Playwright; starts both servers itself
 ```
 
@@ -121,7 +125,18 @@ seller questions, scoring and verdict — FR-001 … FR-009, FR-017, FR-018.
 
 In progress: persistence and accounts — saving an analysis, listing what you saved, and deleting it
 (FR-010 … FR-012), which is the chain `data-layer-setup` → `auth-scaffold` →
-`save-view-delete-analyses` in the roadmap. The first link is done: JPA entities, Flyway
-migrations and the `users` / `analyses` schema are in, on an in-memory H2 by default so the app
-still needs no database to run, and on a real Render Postgres in production. Nothing is exposed
-over HTTP yet — the endpoints and the login arrive with the next two links.
+`save-view-delete-analyses` in the roadmap. The first two links are done.
+
+`data-layer-setup`: JPA entities, Flyway migrations and the `users` / `analyses` schema, on an
+in-memory H2 by default so the app still needs no database to run, and on a real Render Postgres in
+production.
+
+`auth-scaffold`: registration, login and a locked API. Stateless JWTs signed with `AUTH_JWT_SECRET`
+— a 15-minute access token the SPA keeps in memory and a 14-day refresh token in `localStorage`,
+because the frontend and the API are different sites and a session cookie would be a third-party
+cookie. `/api/**` answers 401 without a bearer, which is the first change in this project that alters
+what an anonymous visitor can do. There is no revocation: logout is client-side, and a stolen refresh
+token cannot be cancelled — see `context/changes/auth-scaffold/change.md` § "Left undone".
+
+Still to come: the save / list / delete endpoints themselves, which is what the login exists to make
+possible.
