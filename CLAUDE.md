@@ -197,11 +197,20 @@ tables. It is deliberately invisible: no endpoint, and the default datasource is
 deployed app behaves exactly as before. See `backend/CLAUDE.md` § "Persistence" and
 `context/changes/data-layer-setup/`.
 
-F-03 (auth) is implemented as of 2026-09-11 — registration, login, refresh, a locked `/api/**`, route
-guards, and the two forms. It is the opposite of invisible, and two things follow. **Backend and
-frontend must reach production in the same push**: an API that requires a token in front of a frontend
-that sends none is a dead app. And **`AUTH_JWT_SECRET` must be set on Render before that push lands**,
-through the per-key endpoint — the deploy fails at context startup without it, deliberately.
+F-03 (auth) is implemented and **live in production as of 2026-09-11** (`1d3ef2b`) — registration,
+login, refresh, a locked `/api/**`, route guards, and the two forms. `POST /api/analyses` now answers
+**401** to an anonymous caller where it answered 200 the day before, and a refresh token presented as
+a bearer answers 401 too, both checked against the live API. It shipped as one push for a reason —
+**an API that requires a token in front of a frontend that sends none is a dead app** — and
+`AUTH_JWT_SECRET` was set on Render *before* that push landed, through the **per-key** endpoint
+(`PUT /v1/services/<id>/env-vars/<key>`; the collection endpoint replaces the whole set and would have
+dropped `OPENROUTER_API_KEY`). The context refuses to start without it, deliberately. The five live
+checks, and the CRLF trap in `openssl rand -base64` that made Render answer a bare 400, are in
+`context/changes/auth-scaffold/change.md` § "Verified in production".
+
+Two throwaway `users` rows (ids 1 and 2, `probe-…@example.pl`) exist in the production database from
+that verification. There is no delete-account endpoint until S-03, so they stay; both passwords were
+generated and discarded unprinted.
 
 A real analysis takes ~27 s end to end (~16 s LLM + a Jina fetch for the market range), all on the request thread. Free-tier LLM slugs are the main fragility: see `application-openrouter.properties`. PRD is at `context/foundation/prd.md` (FR-001 to FR-018). Next: S-03 (`save-view-delete-analyses`) — the last link of Stream B, now that F-02 and F-03 are both
 in. Its `userId` comes from the authenticated principal via `AuthenticatedUser.requireId`, never from

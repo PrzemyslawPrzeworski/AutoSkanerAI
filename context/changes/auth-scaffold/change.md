@@ -1,7 +1,7 @@
 ---
 change_id: auth-scaffold
 title: Accounts and a locked API — stateless JWT, access in memory, refresh in localStorage
-status: implementing
+status: implemented
 created: 2026-09-11
 updated: 2026-09-11
 archived_at: null
@@ -294,8 +294,8 @@ rule: PrimeNG belongs in lazily-loaded components only, and the shell is not one
 - **No rate limit on `/api/auth/login`.** The single-message 401 and the constant-time compare stop
   enumeration through the *response*; neither stops a caller trying a thousand passwords. Render's
   free tier offers nothing here, so it wants a bucket in the app.
-- **`AUTH_JWT_SECRET` is not yet set on Render**, and the deploy fails at context startup without it
-  — deliberately. It must be set through the per-key endpoint before this reaches production.
+- ~~**`AUTH_JWT_SECRET` is not yet set on Render**~~ — done 2026-09-11, before the push; see
+  "Verified in production" below.
 - **The refresh happens on a 401, not before expiry.** There is no timer and no proactive renewal, so
   every 15 minutes exactly one request pays a round trip to discover its token died and then retries.
   It is correct and invisible for a ~27 s analysis; it would not be for a chatty UI.
@@ -309,3 +309,31 @@ rule: PrimeNG belongs in lazily-loaded components only, and the shell is not one
   behaviour is asserted against a `UrlTree`, not against an address bar.
 - **No logout-everywhere, no "remember me" distinction.** Every session is a 14-day one, and the only
   way to end one is to stop holding the token.
+
+## Verified in production
+
+Deployed 2026-09-11 as `1d3ef2b` (Render `dep-dai061tg1s2s73daqla0`, `live` at 13:37 UTC; Cloudflare
+Pages serving `main-GFSW7X2V.js`, byte-identical to the local build since the filename is a content
+hash). `AUTH_JWT_SECRET` was written first, through `PUT /v1/services/<id>/env-vars/AUTH_JWT_SECRET`,
+and the key list re-read afterwards to confirm the other six survived — the collection endpoint
+replaces the whole set and would have dropped `OPENROUTER_API_KEY`.
+
+Five checks against the live API, in the order that makes each one mean something:
+
+| Check | Result |
+|---|---|
+| `GET /actuator/health` | 200 — the context started, so the secret is present and ≥ 32 bytes |
+| `POST /api/analyses`, no bearer | **401** with the project's `ErrorResponse` shape in Polish, where it answered 200 the day before |
+| `POST /api/auth/login`, address that does not exist | 401, single indistinguishable message |
+| `POST /api/auth/register` → `GET /api/auth/me` with the returned access token | 201 then **200** `{"userId":2,…}` — signing and verification agree across a real Postgres |
+| the same token with one character appended; then the **refresh** token as a bearer | **401** and **401** — the second is `TokenTypeValidator` doing the one job the whole design rests on |
+
+**One trap, and it is the reason to script this rather than click it.** `openssl rand -base64 48` on
+this machine emits **CRLF**, and `tr -d '\n'` leaves the `\r` — a literal carriage return inside a
+JSON string, which Render answers with a bare `400` and no explanation. The visible symptom is a
+rejected request, not a malformed secret. `tr -d '\r\n'`, and check the length is 64.
+
+Two throwaway rows are in the production `users` table from this verification
+(`probe-1789133888@example.pl`, `probe-1789133906@example.pl`, ids 1 and 2). There is no
+delete-account endpoint until S-03, so they stay; both passwords were generated and discarded
+unprinted, so neither is usable by anyone.

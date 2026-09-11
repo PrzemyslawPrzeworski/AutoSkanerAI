@@ -9,6 +9,10 @@ Live: **[autoskaner-ai.pages.dev](https://autoskaner-ai.pages.dev)** (frontend) 
 
 > The backend runs on Render's free tier and sleeps when idle, so the **first** request after a
 > quiet period takes ~75 s to wake the instance. Subsequent requests answer in ~15–25 s.
+>
+> **Since 2026-09-11 the app needs an account** — the analyser is behind a login, and `/api/**`
+> answers 401 without one. Registration is on `/register`, takes an email and a password, and
+> confirms nothing by mail.
 
 ## The problem
 
@@ -131,7 +135,7 @@ In progress: persistence and accounts — saving an analysis, listing what you s
 in-memory H2 by default so the app still needs no database to run, and on a real Render Postgres in
 production.
 
-`auth-scaffold`: registration, login and a locked API. Stateless JWTs signed with `AUTH_JWT_SECRET`
+`auth-scaffold` (live since 2026-09-11): registration, login and a locked API. Stateless JWTs signed with `AUTH_JWT_SECRET`
 — a 15-minute access token the SPA keeps in memory and a 14-day refresh token in `localStorage`,
 because the frontend and the API are different sites and a session cookie would be a third-party
 cookie. `/api/**` answers 401 without a bearer, which is the first change in this project that alters
