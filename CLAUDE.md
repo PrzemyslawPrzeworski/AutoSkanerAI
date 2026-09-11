@@ -171,7 +171,10 @@ verified.
 ## Architecture decisions
 
 - Frontend and backend are separate apps communicating via REST. Configure CORS on the Spring side or proxy `/api` in `angular.json` for dev.
-- No database yet — add PostgreSQL (prod) + H2 (dev) when implementing FR-010 (persistence).
+- The data layer is in (F-02): Spring Data JPA, Flyway-owned schema, H2 in `MODE=PostgreSQL` by
+  default so the app still needs no database to run, real PostgreSQL behind an opt-in `postgres`
+  profile. Nothing is exposed over HTTP yet. Details, and the three traps worth not re-deriving, in
+  `backend/CLAUDE.md` § "Persistence".
 - Auth not yet implemented — Spring Security + JWT or OAuth2 planned per PRD.
 - CEPiK integration (live vehicle registry queries) is shipped, FR-017 — see `backend/CLAUDE.md` § "Enrichment services".
 - The AI layer, CEPiK and market price all use the same shape: a Spring interface with a mock bean under the `mock` profile and a real bean under `@Profile("!mock")`. Add a fourth integration the same way.
@@ -182,9 +185,14 @@ F-01 (LLM analysis wiring), S-01 (core analysis flow), S-04 (CEPiK VIN lookup) a
 
 S-02 (manual field entry + user-supplied VIN/plate/date) is implemented; see `backend/CLAUDE.md` § "Manual entry and user overrides".
 
+F-02 (data layer) is implemented as of 2026-09-11 — entities, repositories, `V1__init.sql`, both
+tables. It is deliberately invisible: no endpoint, no login, and the default datasource is in-memory,
+so the deployed app behaves exactly as before. See `backend/CLAUDE.md` § "Persistence" and
+`context/changes/data-layer-setup/`.
+
 A real analysis takes ~27 s end to end (~16 s LLM + a Jina fetch for the market range), all on the request thread. Free-tier LLM slugs are the main fragility: see `application-openrouter.properties`. PRD is at `context/foundation/prd.md` (FR-001 to FR-018). Next: Stream B (F-02 data layer → F-03 auth → S-03 persistence).
 
-Suite sizes, so a drop is visible: backend **255** tests in 28 classes (~15.5 s), frontend **51** in 5 spec files (~2.8 s), `packages/code-reviewer` **168** in 11 spec files (~6.9 s, **ten** skipped offline — every test that needs a model or a credential, each printing the reason it skipped), `packages/ai-toolkit` **42** in 4 spec files (~0.4 s, none skipped — it needs no network and no credential), plus one Playwright contract spec that no gate runs.
+Suite sizes, so a drop is visible: backend **285** tests in 33 classes (~22.7 s), frontend **51** in 5 spec files (~2.8 s), `packages/code-reviewer` **168** in 11 spec files (~6.9 s, **ten** skipped offline — every test that needs a model or a credential, each printing the reason it skipped), `packages/ai-toolkit` **42** in 4 spec files (~0.4 s, none skipped — it needs no network and no credential), plus one Playwright contract spec that no gate runs.
 
 ## Deployment
 

@@ -74,6 +74,64 @@ Scope is that one flag, deliberately: there is no `NO_PLATE` or `NO_DATE` flag t
 
 The frontend's "Sprawdź historię pojazdu" follow-up re-runs the whole analysis rather than calling a lookup-only endpoint. That is intentional: CEPiK findings only reach `scores` / `verdict` through `CepikRiskAdjuster` on the analysis path.
 
+## Persistence (F-02)
+
+Spring Data JPA over Flyway. Two tables, `users` and `analyses`; two entities, `UserAccount` in
+`com.example.autoskaner_ai.account` and `SavedAnalysis` in `…saved`. **Nothing is exposed over HTTP
+yet** — F-02 shipped the layer, the endpoints and the login arrive with F-03 and S-03.
+
+- **Flyway owns the schema; Hibernate only checks it.** `spring.jpa.hibernate.ddl-auto=validate`, so
+  drift fails startup instead of being patched into the live schema while the migration — the thing a
+  new environment replays — stays wrong. Add a column by adding `V<n>__*.sql`, never by letting
+  Hibernate do it. A drifted entity fails in the commit gate, which runs H2.
+- **`spring-boot-flyway` is a separate dependency and its absence does not fail the build.** Boot 4
+  split every autoconfiguration into its own module, so `flyway-core` alone is an inert library that
+  nothing starts, and `spring-boot-starter-data-jpa` does not pull the module in. The symptom is
+  `Schema validation: missing table [analyses]` — a message about the entities, for a migration that
+  never ran. Same shape for any other Boot 4 integration added here: check for a
+  `spring-boot-<technology>` module before concluding the library is misconfigured.
+- **One migration set serves both engines**, because the default datasource is H2 in
+  `MODE=PostgreSQL`. Every type in `V1__init.sql` is chosen to mean the same thing to both:
+  `SERIAL`, `jsonb`, `citext` and `TIMESTAMPTZ` are not portable, so it uses identity columns, `TEXT`
+  and `TIMESTAMP WITH TIME ZONE` spelled out. The payload is `TEXT` rather than `jsonb` for exactly
+  this reason.
+- **H2 folds unquoted identifiers to UPPER CASE even under `MODE=PostgreSQL`** — that is a separate
+  `DATABASE_TO_LOWER` setting. Flyway creates its history table with quoted lower-case names, so
+  `SELECT success FROM flyway_schema_history` fails with `Table "FLYWAY_SCHEMA_HISTORY" not found
+  (candidates are: "flyway_schema_history")`. Quoted lower-case is the one spelling both engines read
+  identically; unquoted is only accidentally portable.
+- **Real Postgres is opt-in via the `postgres` profile**, composed as
+  `SPRING_PROFILES_ACTIVE=openrouter,postgres`, and `application-postgres.properties` gives
+  `DATABASE_URL` / `_USERNAME` / `_PASSWORD` no defaults so an unset value fails startup. **Do not
+  add a `${DATABASE_URL:<h2 default>}` to `application.properties`.** Render still carries those
+  three vars pointing at a Supabase host that no longer resolves, and Flyway needs a connection
+  before the context finishes starting — a default would have turned "the vars are dead" into a
+  silent fallback to in-memory that loses a user's saved analyses without one failing request. For a
+  different local datasource use Spring's own `SPRING_DATASOURCE_URL`.
+- **Every test runs H2, so a green suite says nothing about PostgreSQL.** A dialect-specific type
+  mismatch surfaces first as a failed Render deploy, which keeps serving the previous version.
+- **`@SpringBootTest`, not `@DataJpaTest`, for repository tests.** The slice annotation's
+  `@AutoConfigureTestDatabase` replaces the configured URL with a generated one, dropping
+  `MODE=PostgreSQL` — the test would then exercise the migration against a dialect nothing runs.
+- **`SavedAnalysisRepository` has no single-row `findById` path; every read goes through
+  `findByIdAndUserId`.** Ownership is part of the lookup rather than a check after it, so someone
+  else's id is indistinguishable from an id that does not exist and the check cannot be forgotten at
+  one of three call sites. The schema backs it from below: `user_id` is `NOT NULL` with a FK and
+  `ON DELETE CASCADE`. **When S-03 adds endpoints, `userId` must come from the authenticated
+  principal** — taking it from the request body or a query parameter hands the guarantee to the
+  caller. See `context/foundation/test-plan.md` §2 risk #8.
+- **`UserAccount.create` is the only constructor, and that is the whole of the case-insensitivity
+  guarantee.** The unique index is on the stored bytes, so `Foo@Example.com` and `foo@example.com`
+  would otherwise be two accounts a user believes are one. A lookup must normalise through
+  `UserAccount.normaliseEmail` too. Only the email is normalised — a password hash is bytes.
+- **`title` and `note` are the only user-editable columns**, via `SavedAnalysis.edit`. They exist so
+  the CRUD update operation has an honest subject: an analysis is a record of what the model said at
+  a point in time, and making it editable would stop the saved verdict being evidence. The summary
+  columns beside the payload are denormalised so the saved-list view renders without deserialising
+  every row.
+- Entity is `UserAccount`, not `User` — F-03 introduces Spring Security, whose own `User` is imported
+  in the same files. Table is `users` because `user` is reserved in PostgreSQL.
+
 ## URL fetching
 
 Listing URLs are fetched via **Jina Reader** (`https://r.jina.ai/<url>`), which handles JavaScript rendering and Cloudflare bypass for free. No API key needed.

@@ -58,6 +58,42 @@
 		</dependency>
 
 		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<!-- Flyway owns the schema; Hibernate only validates it (see application.properties). -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<!--
+			Boot 4 split every autoconfiguration into its own module, so flyway-core alone is a
+			library nothing starts: `spring-boot-starter-data-jpa` does not pull this in, and its
+			absence does NOT fail the build. It fails as `Schema validation: missing table
+			[analyses]` — a message about the entities, for a migration that never ran.
+		-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-flyway</artifactId>
+		</dependency>
+		<!-- Flyway 10+ ships each dialect as its own module; core alone cannot migrate PostgreSQL. -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+		<!-- Both drivers ship: H2 is the default datasource everywhere except the postgres profile. -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
 			<version>1.18.3</version>

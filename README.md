@@ -76,7 +76,7 @@ Pick a profile with `SPRING_PROFILES_ACTIVE`: `mock` (no credentials, no network
 `bedrock` (AWS), or `openrouter`. Copy `.env.example` to `.env` for keys.
 
 ```bash
-cd backend  && ./mvnw test                  # 255 tests
+cd backend  && ./mvnw test                  # 285 tests
 cd frontend && npm test -- --watch=false    # 51 tests
 cd frontend && npm run test:e2e             # Playwright; starts both servers itself
 ```
@@ -121,4 +121,7 @@ seller questions, scoring and verdict — FR-001 … FR-009, FR-017, FR-018.
 
 In progress: persistence and accounts — saving an analysis, listing what you saved, and deleting it
 (FR-010 … FR-012), which is the chain `data-layer-setup` → `auth-scaffold` →
-`save-view-delete-analyses` in the roadmap.
+`save-view-delete-analyses` in the roadmap. The first link is done: JPA entities, Flyway
+migrations and the `users` / `analyses` schema are in, on an in-memory H2 by default so the app
+still needs no database to run. Nothing is exposed over HTTP yet — the endpoints and the login
+arrive with the next two links.

@@ -6,7 +6,7 @@
 >
 > Refresh: re-run `/10x-test-plan --refresh` when stale (see §8).
 >
-> Last updated: 2026-09-04
+> Last updated: 2026-09-11
 
 ## 1. Strategy
 
@@ -53,14 +53,51 @@ research's job, see §1 principle #3).
 | 5 | A price sample too thin or too dispersed to mean anything is presented as a market range the buyer trusts | Medium | High | interview Q1, Q2; roadmap S-05 (`roadmap.md:187` — a live run returned `min=39900` against `median=82900`, an earlier one `min=22900` for 2017–2021 Corollas; "the trim is statistical, not semantic"); hot-spot dir `backend/src/test/java/.../market` (4 commits/30d) |
 | 6 | Listing text written to game the analyser — an accident-free assertion, or instructions aimed at the model — produces a reassuring verdict | Medium | Medium | abuse lens, untrusted input (PRD FR-002 accepts raw pasted listing text); roadmap S-01 carried-forward ("the scoring layer trusts the listing's own claims") |
 | 7 | The open analysis endpoint is called in a loop, exhausting the free provider quota and the single backend instance | Medium | Medium | abuse lens, resource abuse; PRD Access Control ("unauthenticated visitors cannot access any analysis functionality") against roadmap F-03 status `proposed`; roadmap Open Roadmap Questions (~27 s of request thread per call) |
+| 8 | One user reads, edits or deletes another user's saved analysis by guessing its id | High | Medium | abuse lens, authorization; PRD FR-010/FR-011/FR-012 (saved analyses belong to an account); roadmap F-02 Risk ("plan the schema to include a `user_id` column from the start"); F-02 as shipped 2026-09-11 (`users` + `analyses` with a `user_id` FK) |
+| 9 | A user saves analyses, and they are silently gone — the deployed app boots against a throwaway in-memory database, or a schema drift is patched under the migration instead of failing | High | Medium | roadmap F-02 Risk **corrected 2026-09-11** (Render's `DATABASE_*` vars point at a Supabase host that no longer resolves — "the vars look configured and are dead"); PRD FR-010 (saved analyses persist across sessions) |
 
 Risk #7 is scored on the same axes as the rest but is **assigned no rollout
 phase**: its protection requires a control that does not exist yet (auth or a
 rate limit), so a test written today could only assert current intended
-behaviour. It belongs to foundation F-03 plus observability. Authorization
-and ownership abuse (IDOR) is deliberately absent from the map for the same
-reason — there is no persistence and no account model until F-02 and F-03
-land, and the check arrives with slice S-03.
+behaviour. It belongs to foundation F-03 plus observability.
+
+**Risks #8 and #9 entered the map on 2026-09-11, when F-02 (`data-layer-setup`)
+shipped the persistence layer.** They were deliberately absent before that — there
+was no persistence and no account model, so a test could only have asserted
+intended behaviour. Both now have code behind them and a first line of defence,
+and both are scored for the abuse they enable rather than for what F-02 alone
+exposes: F-02 ships no endpoint, so nothing is reachable over HTTP until F-03 and
+S-03 land. That is what keeps #8's likelihood at Medium and not High — the id is
+guessable, but there is not yet a request that carries one.
+
+- **#8** is answered structurally rather than by a check a caller can forget.
+  `SavedAnalysisRepository` exposes `findByIdAndUserId` and no single-row
+  `findById` path, so ownership is part of the lookup instead of an `if` after it,
+  and someone else's id is indistinguishable from an id that does not exist.
+  `SavedAnalysisRepositoryTest.doesNotHandAnAnalysisToAUserWhoDoesNotOwnIt` pins
+  it, and was confirmed to go red when the method is rewritten to ignore its
+  `userId` argument. The database backs the same rule from below: `analyses.user_id`
+  is `NOT NULL` with a FK to `users` and `ON DELETE CASCADE`, so no row can exist
+  unowned and deleting an account takes its rows with it — also asserted, also
+  confirmed red with the cascade removed. **When S-03 adds the endpoints, the check
+  that matters moves up a layer**: the `userId` must come from the authenticated
+  principal and never from the request body or a query parameter, or the
+  repository's guarantee is handed the attacker's own answer.
+- **#9** is answered by refusing to make the dangerous configuration reachable by
+  accident. The default datasource is a hardcoded in-memory H2 and *nothing on the
+  boot path reads `DATABASE_URL`*; real Postgres is opt-in via the `postgres`
+  profile (`SPRING_PROFILES_ACTIVE=openrouter,postgres`). A `${DATABASE_URL:<h2>}`
+  default would have been the failure itself — Render still carries three dead
+  `DATABASE_*` vars, so production would have fallen back to in-memory and lost
+  every saved analysis without one failing request. The second half is
+  `ddl-auto=validate`: Flyway owns the schema and Hibernate may only check it, so
+  drift fails at startup instead of being patched into the live schema while the
+  migration a new environment replays stays wrong.
+  `SchemaIsOwnedByFlywayTest` asserts both — that V1 applied, and that `ddl-auto`
+  is `validate`. **What it does not cover, stated so it is not mistaken for
+  covered:** every test runs H2, so a type that means something different in
+  PostgreSQL surfaces first as a failed Render deploy. That is a survivable blast
+  radius — Render keeps serving the previous version — but it is not a test.
 
 **Risks #2, #3 and #4 gained a second line of defence on 2026-09-10** (change
 `refactor-opportunities`), and it sits at the *port* rather than at a class.
@@ -101,6 +138,8 @@ and the three gaps the work exposed without closing are recorded in §8's
 | #5 | A sample too thin or too dispersed to be a market range is labelled as such rather than displayed as a confident range | "A number came back, so the range is meaningful" | How sample size and discard count reach the response; what the UI does at the boundary | unit + component test | Re-deriving the expected median with the production formula |
 | #6 | Listing-supplied claims cannot move the deterministic floor that registry facts set | "The model will obviously ignore manipulation" | Which parts of the verdict are deterministic and which are model-produced | unit | An eval asserting a specific model wording — non-deterministic and expensive for the signal |
 | #7 | No test this rollout. Protection needs a control that does not exist yet; see the note above §2's guidance table | — | — | — | — |
+| #8 | A request for a row the caller does not own is answered the same way as a request for a row that does not exist — no row, no leaked existence, and no reliance on the caller remembering to check | "The service layer will check the owner"; "a 403 is the honest answer" — it confirms the row exists | Where `userId` originates on each path (it must come from the authenticated principal, never from the request); whether any single-row read bypasses the ownership-scoped lookup | unit (repository, real schema) now; integration over the HTTP boundary once S-03 exposes one | Asserting the query string or the method name instead of the outcome; testing ownership only at the layer where it is easiest to reach |
+| #9 | A restart, a redeploy and a fresh environment all end with the same schema and the same rows — and a configuration that cannot persist says so at startup instead of accepting writes | "The datasource is configured, so it is the right one" — Render's `DATABASE_*` vars looked configured and were dead; "Hibernate will keep the schema in step" | Which properties the boot path actually reads per profile, and what a missing one does; who creates the schema — Flyway or Hibernate — and what happens on drift | unit (a migration-applied + `ddl-auto` assertion) plus reading the platform's env-var keys before trusting a properties default | Asserting the schema by listing columns a second time — that is a copy of the migration to be edited twice; treating an H2 pass as evidence about PostgreSQL |
 
 Risk #6's anti-pattern — "an eval asserting a specific model wording" — is about the
 **product's** prompts, where the model's phrasing reaches a user and the deterministic
