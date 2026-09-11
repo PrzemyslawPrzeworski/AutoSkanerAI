@@ -26,6 +26,28 @@
   color: #d1d5db;
 }
 
+// Hand-styled rather than a `p-button`, for the bundle reason recorded in `app.html`. It keeps a
+// real `<button>` element and its accessible name in the text node, so `getByRole('button', { name:
+// 'Wyloguj' })` still finds it.
+.app-logout {
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1;
+  color: #e5e7eb;
+  background: transparent;
+  border: 1px solid #4b5563;
+  border-radius: 4px;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: #2a2a45;
+    border-color: #6b7280;
+  }
+}
+
 .app-main {
   max-width: 900px;
   margin: 0 auto;

@@ -65,6 +65,16 @@ normalisation, and a second copy of that rule is a second thing to drift.
 Both forms follow the app's no-`FormsModule` convention (signals plus `[value]` + `(input)`, with
 `<label for>` so `getByLabel` keeps working) and use per-component PrimeNG imports.
 
+**`app.ts` is the only eager component in the app, so PrimeNG must not appear in it.** Every route is
+`loadComponent`, which keeps PrimeNG's shared base chunk (86.83 kB) inside the lazy analyzer chunk;
+importing `ButtonModule` into the shell to style one logout button hoists that chunk into the initial
+bundle — measured 433.50 → **526.39 kB**, past `angular.json`'s 500 kB `maximumWarning`. **No gate
+catches this**: `maximumError` is 1 MB, so the build exits 0 and pre-push stays green while printing
+the warning into a log nobody reads. The logout button is therefore a plain `<button>` with SCSS in
+`app.scss` (initial bundle 446.81 kB), and both `app.html` and `app.ts` say why. If the shell ever
+needs a real PrimeNG component, move the header into a lazily-loaded layout instead of adding the
+import back.
+
 ## Vehicle data form
 
 **The VIN is the only field the UI asks a user to type.** The registry needs VIN + plate + first registration date, but the advert publishes the last two — only the VIN is encrypted for logged-out fetches. So `VehicleDataFormComponent` has three modes with one job each: `vin` (input screen, always visible, in a titled block named by the outcome), `registry` (all three, shown only after a `MISSING_INPUTS` result, prefilled from the extraction), `listing` (make/model/…/notes, behind "I have no link" — they substitute for a missing advert and have nothing to do with the registry). An earlier single drawer labelled by field name read as a pile of optional boxes and was rebuilt for exactly that reason. `missingRegistryFields` names the fields still empty rather than restating that three are required, since an empty field means the advert did not carry it either.

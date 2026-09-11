@@ -236,6 +236,19 @@ nothing in either suite ever observed the real status. The setup project asserte
 reminder that a hand-written double agrees with whatever it was written to agree with, which is the
 same structural blindness `E2E-RULES.md` exists for.
 
+### One PrimeNG component in the app shell costs 93 kB, and no gate says so
+
+`app.ts` is the only eager component in the app; every route is `loadComponent`. So importing
+`ButtonModule` there to style one logout button hoisted PrimeNG's shared base chunk (86.83 kB) out of
+the lazy analyzer chunk and into the initial bundle: 433.50 → **526.39 kB**, past `angular.json`'s
+500 kB `maximumWarning`. The build still exits 0 — `maximumError` is 1 MB — so **pre-push stayed green
+and printed the warning into a log nobody reads**; this was found by re-measuring the bundle after the
+commit, not by a gate. The logout button is now a plain `<button>` with 20 lines of SCSS, keeping a
+real element and its accessible name in the text node so `getByRole('button', { name: 'Wyloguj' })`
+still works. Initial bundle 446.81 kB, so F-03's real cost on the eager path is **13.31 kB**. The
+rule: PrimeNG belongs in lazily-loaded components only, and the shell is not one. Both `app.html` and
+`app.ts` carry a comment saying so, because the tempting edit is to put the import back.
+
 ## Measurements
 
 - Backend suite: **285 → 340** tests, 0 failures, 0 skipped, `BUILD SUCCESS` offline. The 55 new
@@ -259,6 +272,13 @@ same structural blindness `E2E-RULES.md` exists for.
   specs pass **unchanged**, which is the actual result — it means the interceptor attaches a token,
   `authGuard` restores a session from `localStorage` alone, and the whole path works through a real
   browser against a real filter chain, since `/api/**` is `authenticated()`.
+
+- Production bundle: **433.50 kB → 446.81 kB** initial (102.82 → 106.53 kB transfer), measured by
+  building the pre-auth tree in the worktree and then restoring it, rather than by reasoning about it.
+  `/login` and `/register` are lazy chunks of 3.30 kB and 3.44 kB. The interesting number is the one
+  that is no longer there: the first version of the shell put a `pButton` on the logout button and
+  measured **526.39 kB**, past the 500 kB `maximumWarning` — see the finding below.
+- Playwright, after the shell change: **3 tests, 22.2 s**, all green.
 
 ## Left undone
 
