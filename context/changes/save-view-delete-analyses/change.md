@@ -10,9 +10,12 @@ archived_at: null
 ## Notes
 
 Roadmap S-03, the last link of Stream B: `data-layer-setup` (F-02) → `auth-scaffold` (F-03) →
-this. F-02 shipped the `saved_analyses` table and left it unreachable; F-03 shipped the principal
-a row can belong to. This change is what finally connects the two — the first write into
-`saved_analyses` from an HTTP request, and the first read back out.
+this. F-02 shipped the table and left it unreachable; F-03 shipped the principal a row can belong to.
+This change is what finally connects the two — the first write into `analyses` from an HTTP request,
+and the first read back out. **The table is `analyses`; the entity is `SavedAnalysis`.** The names
+differ because F-02 chose the table name and this change chose the type name, and
+`@Table(name = "analyses")` is the only place they meet — worth knowing before grepping for a table
+called `saved_analyses`, which does not exist.
 
 It covers FR-010 (save), FR-011 (list, read) and FR-012 (rename, delete). It is also the change
 that makes the 10xDevs certification bar's first criterion true: *all four CRUD actions on
@@ -24,8 +27,8 @@ shape was already fixed by F-02's schema and F-03's principal — there was no d
 explore, only code to write. The decisions that would have gone into a plan are recorded below
 instead, which is where a reader would look for them anyway.
 
-Two commits: `ecd3902` for the backend, `40ea495` for the frontend half and the docs. That split is safe in a
-direction the auth change was not — a saved-analyses API with no UI in front of it is invisible,
+Two commits: `ecd3902` for the backend, `40ea495` for the frontend half and the docs. That split is
+safe in a direction the auth change was not — a saved-analyses API with no UI in front of it is invisible,
 not broken, so unlike F-03 (where an API demanding a token in front of a frontend that sends none
 is a dead app) neither half had to land with the other.
 

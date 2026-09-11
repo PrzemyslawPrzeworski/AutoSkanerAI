@@ -233,9 +233,12 @@ limit): `context/changes/auth-scaffold/change.md`.
 
 ## Saved analyses (S-03)
 
-`com.example.autoskaner_ai.saved`. FR-010 to FR-012, and the first code that writes a
-`saved_analyses` row from an HTTP request. Five endpoints, all `authenticated()` under the
-`/api/**` rule:
+`com.example.autoskaner_ai.saved`. FR-010 to FR-012, and the first code that writes an `analyses` row
+from an HTTP request. **The entity is `SavedAnalysis`, the table is `analyses`** — F-02 named the
+table, this change named the type, and `@Table(name = "analyses")` is the only place the two meet.
+There is no `saved_analyses` table and no second migration: `V1__init.sql` already created this one,
+so shipping S-03 changes code and nothing about the schema. Five endpoints, all `authenticated()`
+under the `/api/**` rule:
 
 - `POST /api/saved-analyses` (201) — `{ title, note?, sourceUrl?, analysis }`, returns
   `SavedAnalysisDetailResponse { summary, analysis }`

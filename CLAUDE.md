@@ -202,10 +202,11 @@ S-02 (manual field entry + user-supplied VIN/plate/date) is implemented; see `ba
 
 F-02 (data layer) is implemented as of 2026-09-11 — entities, repositories, `V1__init.sql`, both
 tables. It shipped deliberately invisible (no endpoint, in-memory default datasource, so the deployed
-app behaved exactly as before); F-03 then wrote the first `users` row and S-03 the first
-`saved_analyses` row, so **both tables are now reachable over HTTP** and that note describes how F-02
-landed, not how the app stands. See `backend/CLAUDE.md` § "Persistence" and
-`context/changes/data-layer-setup/`.
+app behaved exactly as before); F-03 then wrote the first `users` row and S-03 the first `analyses`
+row, so **both tables are now reachable over HTTP** and that note describes how F-02 landed, not how
+the app stands. The saved-analysis **entity is `SavedAnalysis` and its table is `analyses`** — there is
+no `saved_analyses` table, and `V1__init.sql` is still the only migration. See
+`backend/CLAUDE.md` § "Persistence" and `context/changes/data-layer-setup/`.
 
 F-03 (auth) is implemented and **live in production as of 2026-09-11** (`1d3ef2b`) — registration,
 login, refresh, a locked `/api/**`, route guards, and the two forms. `POST /api/analyses` now answers
