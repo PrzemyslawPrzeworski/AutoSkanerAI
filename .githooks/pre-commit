@@ -49,12 +49,12 @@ if [ -n "$FRONTEND_SOURCES" ]; then
     fail "staged frontend files are not formatted. Run: cd frontend && npx prettier --write \"src/**/*.{ts,html,scss}\""
   fi
 
-  step "frontend suite (99 tests, ~6 s)"
+  step "frontend suite (134 tests, ~5 s)"
   run_frontend_tests
 fi
 
 if [ -n "$BACKEND_SOURCES" ]; then
-  step "backend suite (340 tests, ~23 s; live-llm excluded)"
+  step "backend suite (363 tests, ~23 s; live-llm excluded)"
   run_backend_tests
 fi
 

@@ -13,7 +13,7 @@ on PATH by default in this environment — on this machine they live in
 
 ## Unit tests
 
-Tests run on **vitest through `@angular/build:unit-test`** (`test` target in `angular.json`, jsdom — no browser needed). 99 tests in 11 spec files, ~5.8 s. Two things to know:
+Tests run on **vitest through `@angular/build:unit-test`** (`test` target in `angular.json`, jsdom — no browser needed). 134 tests in 14 spec files, ~5.4 s. Two things to know:
 
 - **No `fakeAsync` / `tick`.** The app has no zone.js at all (Angular 21 is zoneless by default), so `fakeAsync` throws "zone-testing.js is needed". Adding zone.js only for tests would make tests run under different change-detection semantics than production. Every service call in the specs is a synchronous `of(...)`, so awaiting nothing is correct — if a spec ever needs real async, use `await fixture.whenStable()`.
 - **Vitest matchers, not jasmine.** `vi.fn()`, `mockReturnValue`, `toBe(true)` — `toBeTrue()` does not exist and fails to compile, which is how the stale specs were caught.
@@ -82,6 +82,55 @@ import back.
 The form checks the VIN shape (17 chars, no I/O/Q) before submitting, because a typo otherwise costs a ~30 s analysis whose empty history panel reads as the registry's fault. A malformed VIN is deliberately **not** a 400 on the server — see `backend/CLAUDE.md` § "Manual entry and user overrides".
 
 The registry-vs-listing mileage check lives **only here** (`max(2000 km, 5%)` tolerance, registry-higher direction only) and does not feed the score. If it ever moves into scoring, delete the TypeScript copy rather than keeping two.
+
+## Saved analyses (S-03)
+
+`core/services/saved-analysis.service.ts`, `features/saved/`, plus the save box in
+`features/analyzer/`. The backend half and the ownership rules are `backend/CLAUDE.md` § "Saved
+analyses"; the reasoning for both is `context/changes/save-view-delete-analyses/change.md`.
+
+**`/saved/:id` renders through the same `AnalysisResultComponent` a fresh analysis uses.** That is
+the reason the server stores the whole `AnalysisResponse` rather than the summary columns — a second
+renderer for saved results would drift from the first and would have to invent the panels it has no
+data for. If you add a panel to the result view, a saved analysis gets it for free; if you change the
+`AnalysisResponse` shape, saved rows written before the change still hold the old one.
+
+**No method on `SavedAnalysisService` takes a user id, and that is the contract.** The owner is the
+subject of the bearer token the interceptor attaches. The test that protects it (`never sends a
+userId on any of the four operations`) asserts **on the wire** — `Object.keys(req.request.body)` and
+`req.request.params.keys()` — because a TypeScript type is erased and the request is what the server
+sees. A type-level assertion would pass while the field shipped.
+
+Four behaviours that look like polish and are not:
+
+- **A 404 on delete is treated as success**: the row is dropped and the user is told it is already
+  gone. Leaving it on screen under an error invites a retry that can never succeed.
+- **A renamed row is replaced from the response, never from what was typed.** `updatedAt` is only
+  knowable from the server, so rebuilding the row locally shows a timestamp the database lacks.
+- **Delete takes two clicks, via an in-component confirm, not `window.confirm`** — which cannot be
+  asserted or styled. `does not delete on the first click` is the test; it goes red when the arming
+  step is removed, which was verified by doing exactly that.
+- **A non-numeric `:id` is rejected before the API call.** `/saved/abc` would otherwise be
+  `GET /api/saved-analyses/NaN` → 500, for what is to a user the same outcome as a 404.
+
+**Numbers are grouped with `toLocaleString('pl-PL')` in the component, not the `number` pipe.** The
+app's `LOCALE_ID` is still the default `en-US`, so `| number` renders `64,900` — and to a Polish
+reader that comma is a decimal point, which is worse than the ungrouped `64900` it replaced.
+Registering `pl` locale data app-wide is the real fix and would let the pipe be used everywhere,
+including the analysis footer's `9/11/26, 4:47 PM`; until then do not reach for the pipe here.
+
+**Verdict labels fall back to the raw code** (`VERDICT_LABELS[code] ?? code`). A saved row can carry
+a code this build has no label for, and a blank cell reads as "no verdict" — a different claim.
+
+**The two nav links in `app.html` are plain `<a routerLink>` for the bundle reason above** — see
+§ "Auth on the client", last paragraph. This is the second feature that wanted a PrimeNG button in
+the shell and did not get one.
+
+**Two defects in this feature were found by opening a browser, with 131 tests green over the code**:
+the save title prefilled as `2019` (the year alone, when make and model were both missing — the
+dated fallback only fired when all three were absent), and the list showed `118500 km` unformatted.
+Neither was reachable from a unit test, because the suite checks claims someone thought to make and
+a prefill nobody would choose is not a claim anyone writes down. Both now have tests.
 
 ## E2E: one spec, on purpose
 

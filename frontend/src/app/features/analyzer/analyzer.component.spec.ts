@@ -4,6 +4,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { AnalyzerComponent } from './analyzer.component';
 import { AnalysisService } from '../../core/services/analysis.service';
+import { SavedAnalysisService } from '../../core/services/saved-analysis.service';
 import {
   AnalysisRequest,
   AnalysisResponse,
@@ -82,9 +83,11 @@ function response(overrides: Partial<AnalysisResponse> = {}): AnalysisResponse {
 
 describe('AnalyzerComponent', () => {
   const analysisSpy = { analyze: vi.fn() };
+  const savedSpy = { save: vi.fn() };
 
   beforeEach(async () => {
     analysisSpy.analyze.mockReset();
+    savedSpy.save.mockReset();
 
     await TestBed.configureTestingModule({
       imports: [AnalyzerComponent],
@@ -93,6 +96,7 @@ describe('AnalyzerComponent', () => {
         provideHttpClientTesting(),
         provideRouter([]),
         { provide: AnalysisService, useValue: analysisSpy },
+        { provide: SavedAnalysisService, useValue: savedSpy },
       ],
     }).compileComponents();
   });
@@ -298,5 +302,207 @@ describe('AnalyzerComponent', () => {
     expect(comp.analysisResponse()).toBeNull();
     expect(comp.error()).toBeNull();
     expect(comp.fetchFailedBanner()).toBeNull();
+  });
+
+  it('prefills the save title from the extraction', () => {
+    const comp = create();
+    analysisSpy.analyze.mockReturnValue(of(response()));
+
+    comp.listingText.set('BMW 3 2020');
+    comp.submit();
+
+    expect(comp.saveTitle()).toBe('BMW 3 2020');
+  });
+
+  it('falls back to a dated title when the extraction found no identity', () => {
+    const comp = create();
+    const anonymous = response();
+    anonymous.analysis!.extracted = {
+      ...anonymous.analysis!.extracted,
+      make: null,
+      model: null,
+      year: null,
+    };
+    analysisSpy.analyze.mockReturnValue(of(anonymous));
+
+    comp.listingText.set('cokolwiek');
+    comp.submit();
+
+    // Never the word "brak" or an empty title: this string is the label the user scans the saved
+    // list by, so an invented make would be worse than a date.
+    expect(comp.saveTitle()).toContain('Analiza z ');
+  });
+
+  /**
+   * Found in a live walkthrough: the mock extraction returned a year and no make or model, and the
+   * title prefilled as "2019". The year qualifies an identity; it is not one.
+   */
+  it('does not prefill a bare year as the title', () => {
+    const comp = create();
+    const yearOnly = response();
+    yearOnly.analysis!.extracted = {
+      ...yearOnly.analysis!.extracted,
+      make: null,
+      model: null,
+      year: 2019,
+    };
+    analysisSpy.analyze.mockReturnValue(of(yearOnly));
+
+    comp.listingText.set('cokolwiek');
+    comp.submit();
+
+    expect(comp.saveTitle()).not.toBe('2019');
+    expect(comp.saveTitle()).toContain('Analiza z ');
+  });
+
+  it('keeps the year when there is an identity for it to qualify', () => {
+    const comp = create();
+    const modelOnly = response();
+    modelOnly.analysis!.extracted = {
+      ...modelOnly.analysis!.extracted,
+      make: null,
+      model: 'Corolla',
+      year: 2019,
+    };
+    analysisSpy.analyze.mockReturnValue(of(modelOnly));
+
+    comp.listingText.set('cokolwiek');
+    comp.submit();
+
+    expect(comp.saveTitle()).toBe('Corolla 2019');
+  });
+
+  it('saves the analysis exactly as it came back, with the typed title and url', () => {
+    const comp = create();
+    const analysed = response();
+    analysisSpy.analyze.mockReturnValue(of(analysed));
+    savedSpy.save.mockReturnValue(of({ summary: { id: 41 }, analysis: analysed }));
+
+    comp.url.set(' https://otomoto.pl/oferta/1 ');
+    comp.submit();
+    comp.saveTitle.set('  Corolla z OLX  ');
+    comp.saveNote.set(' Dzwonić po 18:00 ');
+    comp.saveAnalysis();
+
+    expect(savedSpy.save).toHaveBeenCalledWith({
+      title: 'Corolla z OLX',
+      note: 'Dzwonić po 18:00',
+      sourceUrl: 'https://otomoto.pl/oferta/1',
+      analysis: analysed,
+    });
+    expect(comp.savedId()).toBe(41);
+    expect(comp.saveError()).toBeNull();
+  });
+
+  /** No `userId` field exists to send; the server takes the owner from the bearer token. */
+  it('sends no owner with the save', () => {
+    const comp = create();
+    const analysed = response();
+    analysisSpy.analyze.mockReturnValue(of(analysed));
+    savedSpy.save.mockReturnValue(of({ summary: { id: 41 }, analysis: analysed }));
+
+    comp.listingText.set('BMW');
+    comp.submit();
+    comp.saveAnalysis();
+
+    expect(Object.keys(savedSpy.save.mock.calls[0][0])).toEqual([
+      'title',
+      'note',
+      'sourceUrl',
+      'analysis',
+    ]);
+    expect(savedSpy.save.mock.calls[0][0].userId).toBeUndefined();
+  });
+
+  it('omits a blank note and a blank url rather than sending empty strings', () => {
+    const comp = create();
+    analysisSpy.analyze.mockReturnValue(of(response()));
+    savedSpy.save.mockReturnValue(of({ summary: { id: 41 }, analysis: response() }));
+
+    comp.listingText.set('BMW');
+    comp.submit();
+    comp.saveAnalysis();
+
+    expect(savedSpy.save.mock.calls[0][0].note).toBeUndefined();
+    expect(savedSpy.save.mock.calls[0][0].sourceUrl).toBeUndefined();
+  });
+
+  it('refuses a blank title without calling the API', () => {
+    const comp = create();
+    analysisSpy.analyze.mockReturnValue(of(response()));
+
+    comp.listingText.set('BMW');
+    comp.submit();
+    comp.saveTitle.set('   ');
+    comp.saveAnalysis();
+
+    expect(savedSpy.save).not.toHaveBeenCalled();
+    expect(comp.saveError()).toContain('Podaj nazwę');
+  });
+
+  it('does not save the same analysis twice', () => {
+    const comp = create();
+    analysisSpy.analyze.mockReturnValue(of(response()));
+    savedSpy.save.mockReturnValue(of({ summary: { id: 41 }, analysis: response() }));
+
+    comp.listingText.set('BMW');
+    comp.submit();
+    comp.saveAnalysis();
+    comp.saveAnalysis();
+
+    expect(savedSpy.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a failed save and leaves it retryable', () => {
+    const comp = create();
+    analysisSpy.analyze.mockReturnValue(of(response()));
+    savedSpy.save.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 500, error: {} })),
+    );
+
+    comp.listingText.set('BMW');
+    comp.submit();
+    comp.saveAnalysis();
+
+    expect(comp.saveError()).toContain('Nie udało się zapisać');
+    expect(comp.savedId()).toBeNull();
+    expect(comp.saving()).toBe(false);
+  });
+
+  /**
+   * A re-check produces a different analysis under the same result view, so a previous save must stop
+   * counting as this one's — otherwise the screen claims the new verdict is saved when the stored row
+   * holds the old one.
+   */
+  it('a re-analysis clears the saved confirmation', () => {
+    const comp = create();
+    analysisSpy.analyze.mockReturnValue(of(response()));
+    savedSpy.save.mockReturnValue(of({ summary: { id: 41 }, analysis: response() }));
+
+    comp.listingText.set('BMW');
+    comp.submit();
+    comp.saveAnalysis();
+    expect(comp.savedId()).toBe(41);
+
+    comp.submit();
+
+    expect(comp.savedId()).toBeNull();
+  });
+
+  it('reset clears the save box too', () => {
+    const comp = create();
+    analysisSpy.analyze.mockReturnValue(of(response()));
+    savedSpy.save.mockReturnValue(of({ summary: { id: 41 }, analysis: response() }));
+
+    comp.listingText.set('BMW');
+    comp.submit();
+    comp.saveAnalysis();
+
+    comp.reset();
+
+    expect(comp.saveTitle()).toBe('');
+    expect(comp.saveNote()).toBe('');
+    expect(comp.savedId()).toBeNull();
+    expect(comp.saveError()).toBeNull();
   });
 });

@@ -25,10 +25,10 @@ else
   echo "pre-push:"
 fi
 
-step "backend suite (340 tests, ~23 s; live-llm excluded)"
+step "backend suite (363 tests, ~23 s; live-llm excluded)"
 run_backend_tests
 
-step "frontend suite (99 tests, ~6 s)"
+step "frontend suite (134 tests, ~5 s)"
 run_frontend_tests
 
 # Unconditional, unlike the pre-commit arms. Nothing deploys these packages, so the argument is not

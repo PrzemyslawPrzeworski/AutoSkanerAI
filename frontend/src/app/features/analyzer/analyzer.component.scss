@@ -123,3 +123,30 @@
   border-radius: 6px;
   border: 1px solid #dee2e6;
 }
+
+.save-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+
+  h3 {
+    margin: 0;
+    font-size: 1.0625rem;
+    color: #334155;
+  }
+
+  .field {
+    width: 100%;
+  }
+}
+
+.save-box-link {
+  font-size: 0.875rem;
+  color: #1d4ed8;
+}

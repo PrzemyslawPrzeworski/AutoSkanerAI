@@ -2,6 +2,9 @@
   <span class="app-title">AutoSkanerAI</span>
   @if (auth.isAuthenticated()) {
     <div class="app-account">
+      <!-- Plain router links, not `pButton`, for the same bundle reason as the logout button below. -->
+      <a class="app-nav-link" routerLink="/">Analizator</a>
+      <a class="app-nav-link" routerLink="/saved">Zapisane analizy</a>
       <span class="app-email">{{ auth.email() }}</span>
       <!-- Deliberately not a `pButton`. The shell is the only eager component in the app, so one
         PrimeNG component here hoists PrimeNG's shared base out of the lazy analyzer chunk and into

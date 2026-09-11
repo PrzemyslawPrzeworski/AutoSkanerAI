@@ -38,7 +38,10 @@ Given a listing, the app:
   the registry was queried and never saw them;
 - **writes 3–5 questions** to ask the seller, in Polish;
 - **scores and recommends** — completeness, equipment, risk, value and overall, plus a verdict of
-  *warto sprawdzić* / *sprawdź po doprecyzowaniu* / *wysokie ryzyko — pomiń*.
+  *warto sprawdzić* / *sprawdź po doprecyzowaniu* / *wysokie ryzyko — pomiń*;
+- **saves it, under your account** — name an analysis, keep a private note, reopen it later with
+  every panel intact, rename it, delete it. A saved analysis is a **snapshot**: the verdict and the
+  market range as of the day it ran, and nothing re-checks them.
 
 ### The rule the whole app is built around
 
@@ -84,8 +87,8 @@ one — `/api/**` is behind a login now, and a signing key with a committed defa
 mint tokens with. `mock` carries a fixed development key so the offline path stays credential-free.
 
 ```bash
-cd backend  && ./mvnw test                  # 340 tests
-cd frontend && npm test -- --watch=false    # 99 tests
+cd backend  && ./mvnw test                  # 363 tests
+cd frontend && npm test -- --watch=false    # 134 tests
 cd frontend && npm run test:e2e             # Playwright; starts both servers itself
 ```
 
@@ -127,9 +130,9 @@ The analysis path is complete and verified in production: listing input (URL, pa
 manual fields), extraction, equipment audit, risk flags, CEPiK lookup, market price context,
 seller questions, scoring and verdict — FR-001 … FR-009, FR-017, FR-018.
 
-In progress: persistence and accounts — saving an analysis, listing what you saved, and deleting it
-(FR-010 … FR-012), which is the chain `data-layer-setup` → `auth-scaffold` →
-`save-view-delete-analyses` in the roadmap. The first two links are done.
+Persistence and accounts — FR-010 … FR-012 — are the chain `data-layer-setup` → `auth-scaffold` →
+`save-view-delete-analyses`, and **all three links are now implemented**. That closes the must-have
+scope in the roadmap.
 
 `data-layer-setup`: JPA entities, Flyway migrations and the `users` / `analyses` schema, on an
 in-memory H2 by default so the app still needs no database to run, and on a real Render Postgres in
@@ -142,5 +145,13 @@ cookie. `/api/**` answers 401 without a bearer, which is the first change in thi
 what an anonymous visitor can do. There is no revocation: logout is client-side, and a stolen refresh
 token cannot be cancelled — see `context/changes/auth-scaffold/change.md` § "Left undone".
 
-Still to come: the save / list / delete endpoints themselves, which is what the login exists to make
-possible.
+`save-view-delete-analyses`: the five endpoints under `/api/saved-analyses` and the UI that reaches
+them — save with a title and a note, list, open, rename, delete. Every one is keyed on the
+authenticated principal, and the owner is part of the database lookup rather than a check after it, so
+a row belonging to someone else is never loaded in the first place; a row that is not yours and a row
+that does not exist answer with the same 404, deliberately, because a 403 on an existing row would
+confirm it exists. **Verified against a live local API and in a browser, not yet deployed** — the
+production check is the one thing outstanding.
+
+Known gaps, all deliberate: no pagination, search or sort on the list; a saved analysis cannot be
+re-run; no export, share or bulk delete; and no delete-account endpoint anywhere yet.

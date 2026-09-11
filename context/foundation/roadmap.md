@@ -30,15 +30,17 @@ AutoSkanerAI compresses used-car listing evaluation from tens of minutes to a fe
 | ID   | Change ID                 | Outcome (user can …)                                         | Prerequisites    | PRD refs                                          | Status   |
 |------|---------------------------|--------------------------------------------------------------|------------------|---------------------------------------------------|----------|
 | F-01 | llm-analysis-wiring       | (foundation) LlmAnalysisService calls real LLM API           | —                | FR-004, FR-006, FR-007, FR-008, FR-009            | shipped  |
-| F-02 | data-layer-setup          | (foundation) PostgreSQL + JPA + Flyway migrations in place   | —                | FR-010, FR-011, FR-012                            | in-progress |
-| F-03 | auth-scaffold             | (foundation) login/register wired; protected routes in place | F-02             | FR-010                                            | in-progress |
+| F-02 | data-layer-setup          | (foundation) PostgreSQL + JPA + Flyway migrations in place   | —                | FR-010, FR-011, FR-012                            | done        |
+| F-03 | auth-scaffold             | (foundation) login/register wired; protected routes in place | F-02             | FR-010                                            | done        |
 | S-01 | core-analysis-flow        | paste URL or text → receive full AI analysis                 | F-01             | FR-001, FR-002, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, US-01 | shipped  |
 | S-02 | manual-field-entry        | fill in key fields manually → receive full AI analysis       | S-01             | FR-003                                            | shipped  |
-| S-03 | save-view-delete-analyses | save an analysis, view saved list, delete entries            | S-01, F-02, F-03 | FR-010, FR-011, FR-012                            | proposed |
+| S-03 | save-view-delete-analyses | save an analysis, view saved list, delete entries            | S-01, F-02, F-03 | FR-010, FR-011, FR-012                            | done     |
 | S-04 | cepik-vin-lookup          | see live CEPiK vehicle history alongside analysis            | S-01             | FR-017                                            | done     |
 | S-05 | market-price-context      | see comparable market price range alongside analysis         | S-01             | FR-018                                            | done     |
 
-Remaining must-have scope is the chain **F-02 → F-03 → S-03**. Everything else above is merged to `main` and verified against production.
+**All must-have scope is implemented as of 2026-09-11.** F-02 → F-03 → S-03, the last open chain, is
+closed: F-02 and F-03 are verified against production, S-03 is verified locally and awaiting its
+deploy. Everything remaining in the PRD is FR-013 onward, parked below.
 
 ## Streams
 
@@ -89,7 +91,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** ~~Supabase free-tier project already provisioned (`db.bahoxzvhamktpepmkaft.supabase.co`)~~ — **corrected 2026-09-11: that host no longer resolves (`ENOTFOUND`), so the project was deleted, not paused. Render still carries `DATABASE_URL`/`DATABASE_USERNAME`/`DATABASE_PASSWORD` pointing at it, which means the vars look configured and are dead.** A database must be provisioned before the `postgres` profile can be exercised against anything real. This does *not* block F-02: H2 covers dev and test, so the entity model, the migrations and the whole CRUD surface can be built and tested with no cloud database at all — provisioning is a deploy-time step, not a design-time one. HikariCP pool size must still be capped at 5 connections (`spring.datasource.hikari.maximum-pool-size=5`) on a free tier. If the entity model changes significantly after F-03 starts (e.g., auth adds foreign keys to `User`), a compensating Flyway migration is needed — plan the schema to include a `user_id` column from the start.
-- **Status:** in-progress
+- **Status:** done (implemented 2026-09-11; a Render Postgres 17 instance replaced the deleted Supabase project, and `postgres` is live in production. Free tier expires 2026-10-11)
 
 ---
 
@@ -105,7 +107,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Unknowns:**
   - Email+password only vs. include an OAuth provider (Google/GitHub) in MVP? PRD names both as options but doesn't require OAuth at launch. — Owner: user. Block: no (email+password is sufficient for MVP; OAuth can follow as S-NN post-MVP).
 - **Risk:** Spring Boot 4 changes some Security auto-configuration defaults vs Boot 3. The existing `CorsConfig` (`WebMvcConfigurer`) must be migrated into the `SecurityFilterChain` bean when Spring Security is added — if not, CORS breaks for authenticated API requests. Address this in the first commit of this foundation.
-- **Status:** in-progress
+- **Status:** done (closed out `1d3ef2b` 2026-09-11; registration, login, refresh, the locked `/api/**` and both route guards verified against the live API the same day. Email+password only — no OAuth, no revocation, no password reset)
 
 ## Slices
 
@@ -149,8 +151,8 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Parallel with:** S-02 (once all prerequisites are met)
 - **Blockers:** —
 - **Unknowns:** —
-- **Risk:** Has the longest prerequisite chain: F-02 → F-03 → S-03. Start Stream B (F-02, then F-03) early and in parallel with Stream A so it doesn't become the critical path blocker for completing the must-have scope. The save action must handle the unauthenticated case gracefully — either gate the button behind the auth guard or redirect to login inline.
-- **Status:** proposed
+- **Risk:** Has the longest prerequisite chain: F-02 → F-03 → S-03. Start Stream B (F-02, then F-03) early and in parallel with Stream A so it doesn't become the critical path blocker for completing the must-have scope. The save action must handle the unauthenticated case gracefully — either gate the button behind the auth guard or redirect to login inline. *Resolved by putting both `/saved` routes behind `authGuard`, so the question never reaches the save button.*
+- **Status:** done
 
 ---
 
@@ -196,11 +198,11 @@ Foundations below assume these are present and do NOT re-scaffold them.
 | Roadmap ID | Change ID                 | Suggested issue title                                         | Ready for `/10x-plan` | Notes                              |
 |------------|---------------------------|---------------------------------------------------------------|-----------------------|------------------------------------|
 | F-01       | llm-analysis-wiring       | Wire LlmAnalysisService to real Claude/OpenAI API             | shipped               | Merged as `bd9b6e3`; runs `openrouter` in production |
-| F-02       | data-layer-setup          | Add PostgreSQL + Spring Data JPA + Flyway to backend          | yes                   | Run `/10x-plan data-layer-setup`. Confirmed unstarted 2026-08-26 — `pom.xml` still has no JPA, Flyway, PostgreSQL or H2 dependency |
-| F-03       | auth-scaffold             | Wire Spring Security + JWT; Angular login/register + guards   | no                    | Needs F-02 first. Confirmed unstarted — no Spring Security or JWT dependency |
+| F-02       | data-layer-setup          | Add PostgreSQL + Spring Data JPA + Flyway to backend          | shipped               | Implemented 2026-09-11; Render Postgres 17 live in production under the `postgres` profile |
+| F-03       | auth-scaffold             | Wire Spring Security + JWT; Angular login/register + guards   | shipped               | Merged as `1d3ef2b`; verified against the live API 2026-09-11 |
 | S-01       | core-analysis-flow        | Full analysis flow: URL + text paste → AI output on screen    | shipped               | Merged as `2175a70`               |
 | S-02       | manual-field-entry        | Manual entry form (incl. VIN / plate / first registration) → same AI analysis | shipped | Merged as `d259bdc`. This is what makes S-04 fire on real listings |
-| S-03       | save-view-delete-analyses | Save / view list / delete saved analyses                      | no                    | Needs F-02 + F-03 (S-01 is done)  |
+| S-03       | save-view-delete-analyses | Save / view list / delete saved analyses                      | shipped               | Merged as `ecd3902` (backend) + the frontend half; verified locally 2026-09-11, deploy outstanding |
 | S-04       | cepik-vin-lookup          | Live CEPiK vehicle history alongside analysis                 | shipped               | Merged as `d5e0fed`; `FOUND` path fixed and verified 2026-08-26 |
 | S-05       | market-price-context      | Comparable market price range (Otomoto via Jina Reader)       | shipped               | Merged as `51db3fb`; the two `min`/`median` defects fixed 2026-08-26 |
 

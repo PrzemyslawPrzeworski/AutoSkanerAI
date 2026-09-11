@@ -53,3 +53,18 @@
   margin: 0 auto;
   padding: 2rem 1rem;
 }
+
+// Real anchors, so `getByRole('link', { name: 'Zapisane analizy' })` finds them and a middle-click
+// opens a new tab — the same reason the logout control stayed a `<button>`.
+.app-nav-link {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #d1d5db;
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    color: #fff;
+    text-decoration: underline;
+  }
+}

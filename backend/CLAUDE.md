@@ -22,6 +22,10 @@ All Spring controllers must return errors in this exact shape — no exceptions,
 
 - `POST /api/analyses` — canonical endpoint; accepts `{ "listingText": "..." }`, `{ "url": "..." }`, or `{ "manual": { ... } }`, plus optional `vin` / `registrationPlate` / `firstRegistrationDate` overrides. Returns `AnalysisResponse { fetchStatus, fetchFailureReason, analysis, cepikResult, marketPriceContext }`
 - `POST /api/analysis/risk` — **deprecated** facade returning only `{ riskFlags: [...] }`; to be removed after S-01 ships
+- `/api/auth/*` (four endpoints) — see § "Auth (F-03)"
+- `/api/saved-analyses` and `/api/saved-analyses/{id}` (five endpoints) — see § "Saved analyses (S-03)"
+
+Everything under `/api/**` needs a bearer except the three public auth paths; § "Auth (F-03)" lists them.
 
 `fetchStatus` values: `"text"` (listing text analysed directly), `"ok"` (URL fetched successfully), `"manual"` (structured fields, FR-003), `"url_failed"` (fetch failed — `analysis` is null, frontend shows text-paste fallback).
 
@@ -226,6 +230,53 @@ Everything outside `/api/**` keeps its old answer, because Render probes `/`.
 
 Full reasoning, including what is deliberately missing (no revocation, no password reset, no rate
 limit): `context/changes/auth-scaffold/change.md`.
+
+## Saved analyses (S-03)
+
+`com.example.autoskaner_ai.saved`. FR-010 to FR-012, and the first code that writes a
+`saved_analyses` row from an HTTP request. Five endpoints, all `authenticated()` under the
+`/api/**` rule:
+
+- `POST /api/saved-analyses` (201) — `{ title, note?, sourceUrl?, analysis }`, returns
+  `SavedAnalysisDetailResponse { summary, analysis }`
+- `GET /api/saved-analyses` (200) — the caller's rows, newest first, summaries only
+- `GET /api/saved-analyses/{id}` (200) — summary + the stored `AnalysisResponse`
+- `PATCH /api/saved-analyses/{id}` (200) — `{ title, note }`; a `null` note clears it
+- `DELETE /api/saved-analyses/{id}` (204)
+
+**`userId` comes from `AuthenticatedUser.requireId`, and no request record has a `userId` field.**
+Not "we ignore it if present" — the field does not exist on `SaveAnalysisRequest`, so a later edit
+cannot start trusting a client-supplied owner by accident. The record carries a comment saying so,
+because an absence has no other way to announce itself.
+
+**Ownership is part of the lookup, never a check after it.** `findByIdAndUserId`,
+`deleteByIdAndUserId` — the owner is in the `where` clause. The alternative (`findById`, then
+`if (!row.getUserId().equals(userId)) throw`) is one forgotten `if` away from a data leak, and the
+forgotten `if` is invisible in review because the happy path is byte-identical. `delete` reads the
+affected-row count and throws `SavedAnalysisNotFoundException` on zero, so it never reports success
+for a row it did not touch.
+
+**A 404 deliberately cannot distinguish "no such row" from "not yours".** A 403 on a row that exists
+but belongs to someone else confirms the row exists, which is an id-enumeration oracle. The message
+states both possibilities: `"Ta analiza nie istnieje lub nie należy do Ciebie."` Verified live —
+a second account gets 404 on GET, PATCH and DELETE of another user's row, and an empty list, which is
+the same fact from the other side.
+
+**The whole `AnalysisResponse` is persisted, not just the summary columns.** The frontend re-renders
+a saved analysis through the same component a fresh one uses (`frontend/CLAUDE.md` § "Saved
+analyses"), which only works if the payload survives intact. The summary columns (`make`, `model`,
+`productionYear`, `priceAmount`, `mileageKm`, `verdictCode`, `overallScore`) are a denormalised copy
+for the list view and are **not** the record of truth — read them for a listing, never for a decision.
+
+**23 tests, in two new classes and one extended**: `SavedAnalysisServiceTest` (10) and
+`SavedAnalysisControllerTest` (11) are new; `SavedAnalysisRepositoryTest` came from F-02 with the
+entity and gained 2 (it holds 10 in total, 8 of them about the table rather than about these
+endpoints). That is why the suite moved 340 → 363 and the class count 38 → 40 rather than 41 — worth
+stating because a reader adding the per-class figures otherwise gets 31 and concludes a label drifted.
+Reverting `deleteByIdAndUserId` to `deleteById` turns 3 of the 10 service tests red, both ownership
+assertions among them — checked, not assumed. Full reasoning and
+what is deliberately missing (no pagination, no re-run, no export):
+`context/changes/save-view-delete-analyses/change.md`.
 
 ## URL fetching
 

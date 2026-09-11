@@ -1,0 +1,36 @@
+<div class="saved-actions">
+  <a class="saved-link" routerLink="/saved">← Zapisane analizy</a>
+</div>
+
+@if (loading()) {
+  <p-skeleton height="120px" styleClass="mb-3"></p-skeleton>
+  <p-skeleton height="16px" width="60%" styleClass="mb-2"></p-skeleton>
+  <p-skeleton height="16px" width="60%" styleClass="mb-2"></p-skeleton>
+} @else if (error()) {
+  <p-message severity="error" [text]="error()!"></p-message>
+} @else if (detail()) {
+  <h2 class="saved-title">{{ detail()!.summary.title }}</h2>
+  @if (detail()!.summary.note) {
+    <p class="saved-item-note">{{ detail()!.summary.note }}</p>
+  }
+  @if (detail()!.summary.sourceUrl) {
+    <p class="saved-item-meta">
+      <a class="saved-link" [href]="detail()!.summary.sourceUrl" target="_blank" rel="noopener">
+        Ogłoszenie źródłowe
+      </a>
+    </p>
+  }
+
+  @if (detail()!.analysis.analysis) {
+    <app-analysis-result
+      [result]="detail()!.analysis.analysis!"
+      [cepikResult]="detail()!.analysis.cepikResult ?? null"
+      [marketPriceContext]="detail()!.analysis.marketPriceContext ?? null"
+    ></app-analysis-result>
+  } @else {
+    <p-message
+      severity="warn"
+      text="Zapisany wynik nie zawiera analizy — otwórz ogłoszenie i przeanalizuj je ponownie."
+    ></p-message>
+  }
+}

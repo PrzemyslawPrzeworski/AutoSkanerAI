@@ -173,7 +173,7 @@ verified.
 - Frontend and backend are separate apps communicating via REST. Configure CORS on the Spring side or proxy `/api` in `angular.json` for dev.
 - The data layer is in (F-02): Spring Data JPA, Flyway-owned schema, H2 in `MODE=PostgreSQL` by
   default so the app still needs no database to run, real PostgreSQL behind an opt-in `postgres`
-  profile. Nothing is exposed over HTTP yet. Details, and the three traps worth not re-deriving, in
+  profile. Details, and the three traps worth not re-deriving, in
   `backend/CLAUDE.md` § "Persistence".
 - Auth is in (F-03): Spring Security 7 + stateless JWT. `/api/**` answers 401 without a bearer, which
   makes this the first change that alters what an anonymous visitor can do — `POST /api/analyses` had
@@ -183,6 +183,14 @@ verified.
   value fails startup. No revocation, no password reset, no rate limit — see
   `backend/CLAUDE.md` § "Auth (F-03)", `frontend/CLAUDE.md` § "Auth on the client", and
   `context/changes/auth-scaffold/change.md` § "Left undone".
+- Saved analyses are in (S-03): five endpoints under `/api/saved-analyses`, FR-010 to FR-012.
+  **Ownership is part of every lookup, never a check after it** — `findByIdAndUserId`,
+  `deleteByIdAndUserId`, so there is no window where another user's row is in memory awaiting a
+  verdict. **A 404 deliberately cannot tell "no such row" from "not yours"**, because a 403 on an
+  existing row is an id-enumeration oracle. The stored payload is the whole `AnalysisResponse`, not
+  the summary columns, so a saved analysis re-renders through the same component a fresh one uses.
+  See `backend/CLAUDE.md`, `frontend/CLAUDE.md` § "Saved analyses", and
+  `context/changes/save-view-delete-analyses/change.md`.
 - CEPiK integration (live vehicle registry queries) is shipped, FR-017 — see `backend/CLAUDE.md` § "Enrichment services".
 - The AI layer, CEPiK and market price all use the same shape: a Spring interface with a mock bean under the `mock` profile and a real bean under `@Profile("!mock")`. Add a fourth integration the same way.
 
@@ -193,8 +201,10 @@ F-01 (LLM analysis wiring), S-01 (core analysis flow), S-04 (CEPiK VIN lookup) a
 S-02 (manual field entry + user-supplied VIN/plate/date) is implemented; see `backend/CLAUDE.md` § "Manual entry and user overrides".
 
 F-02 (data layer) is implemented as of 2026-09-11 — entities, repositories, `V1__init.sql`, both
-tables. It is deliberately invisible: no endpoint, and the default datasource is in-memory, so the
-deployed app behaves exactly as before. See `backend/CLAUDE.md` § "Persistence" and
+tables. It shipped deliberately invisible (no endpoint, in-memory default datasource, so the deployed
+app behaved exactly as before); F-03 then wrote the first `users` row and S-03 the first
+`saved_analyses` row, so **both tables are now reachable over HTTP** and that note describes how F-02
+landed, not how the app stands. See `backend/CLAUDE.md` § "Persistence" and
 `context/changes/data-layer-setup/`.
 
 F-03 (auth) is implemented and **live in production as of 2026-09-11** (`1d3ef2b`) — registration,
@@ -209,14 +219,23 @@ checks, and the CRLF trap in `openssl rand -base64` that made Render answer a ba
 `context/changes/auth-scaffold/change.md` § "Verified in production".
 
 Two throwaway `users` rows (ids 1 and 2, `probe-…@example.pl`) exist in the production database from
-that verification. There is no delete-account endpoint until S-03, so they stay; both passwords were
-generated and discarded unprinted.
+that verification. **There is still no delete-account endpoint** — S-03 deletes saved analyses, not
+accounts — so they stay; both passwords were generated and discarded unprinted.
 
-A real analysis takes ~27 s end to end (~16 s LLM + a Jina fetch for the market range), all on the request thread. Free-tier LLM slugs are the main fragility: see `application-openrouter.properties`. PRD is at `context/foundation/prd.md` (FR-001 to FR-018). Next: S-03 (`save-view-delete-analyses`) — the last link of Stream B, now that F-02 and F-03 are both
-in. Its `userId` comes from the authenticated principal via `AuthenticatedUser.requireId`, never from
-a request body or a query parameter.
+S-03 (save/view/rename/delete analyses) is implemented as of 2026-09-11 — FR-010 to FR-012, the last
+link of Stream B and the change that makes all four CRUD actions reachable by a user. Five endpoints
+under `/api/saved-analyses`, a `/saved` list and a `/saved/:id` detail view. Verified end to end
+against a live local API and in a browser; **not yet verified in production**. Two rules worth not
+re-deriving: **ownership is part of the lookup, never a check after it** (`findByIdAndUserId`,
+`deleteByIdAndUserId`), and **a 404 deliberately cannot distinguish "no such row" from "not yours"**
+— so neither can the client. `userId` comes from the authenticated principal via
+`AuthenticatedUser.requireId`; no request record has a `userId` field at all, so a later edit cannot
+start trusting one by accident. Details, the three deliberate-break results, and the two UI defects
+that 131 passing tests could not see, in `context/changes/save-view-delete-analyses/change.md`.
 
-Suite sizes, so a drop is visible: backend **340** tests in 38 classes (~22.7 s), frontend **99** in 11 spec files (~5.8 s), `packages/code-reviewer` **168** in 11 spec files (~6.9 s, **ten** skipped offline — every test that needs a model or a credential, each printing the reason it skipped), `packages/ai-toolkit` **42** in 4 spec files (~0.4 s, none skipped — it needs no network and no credential), plus two Playwright specs and an auth setup project that no gate runs.
+A real analysis takes ~27 s end to end (~16 s LLM + a Jina fetch for the market range), all on the request thread. Free-tier LLM slugs are the main fragility: see `application-openrouter.properties`. PRD is at `context/foundation/prd.md` (FR-001 to FR-018). Next: nothing is in flight; the remaining PRD items are FR-013 onward.
+
+Suite sizes, so a drop is visible: backend **363** tests in 40 classes (~23.7 s), frontend **134** in 14 spec files (~5.4 s), `packages/code-reviewer` **168** in 11 spec files (~6.9 s, **ten** skipped offline — every test that needs a model or a credential, each printing the reason it skipped), `packages/ai-toolkit` **42** in 4 spec files (~0.4 s, none skipped — it needs no network and no credential), plus two Playwright specs and an auth setup project that no gate runs.
 
 ## Deployment
 

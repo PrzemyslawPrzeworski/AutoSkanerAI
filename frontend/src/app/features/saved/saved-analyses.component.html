@@ -1,0 +1,130 @@
+<h2 class="saved-title">Zapisane analizy</h2>
+
+@if (loading()) {
+  <p-skeleton height="90px" styleClass="mb-3"></p-skeleton>
+  <p-skeleton height="90px" styleClass="mb-3"></p-skeleton>
+} @else {
+  @if (error()) {
+    <p-message severity="error" [text]="error()!"></p-message>
+  }
+
+  @if (items().length === 0) {
+    <p class="saved-empty">
+      Nie masz jeszcze zapisanych analiz. Przeanalizuj ogłoszenie i kliknij „Zapisz analizę”.
+    </p>
+    <a class="saved-link" routerLink="/">Przejdź do analizatora</a>
+  } @else {
+    <ul class="saved-list">
+      @for (item of items(); track item.id) {
+        <li class="saved-item">
+          @if (editingId() === item.id) {
+            <div class="field">
+              <label [for]="'edit-title-' + item.id">Nazwa</label>
+              <input
+                [id]="'edit-title-' + item.id"
+                pInputText
+                class="w-full"
+                maxlength="200"
+                [value]="editTitle()"
+                (input)="editTitle.set($any($event.target).value)"
+              />
+            </div>
+            <div class="field">
+              <label [for]="'edit-note-' + item.id">Notatka</label>
+              <textarea
+                [id]="'edit-note-' + item.id"
+                pTextarea
+                class="w-full"
+                rows="2"
+                maxlength="2000"
+                [value]="editNote()"
+                (input)="editNote.set($any($event.target).value)"
+              ></textarea>
+            </div>
+            <div class="saved-actions">
+              <button
+                pButton
+                label="Zapisz zmiany"
+                class="p-button-primary"
+                [disabled]="busyId() === item.id"
+                (click)="saveEdit(item.id)"
+              ></button>
+              <button
+                pButton
+                label="Anuluj"
+                class="p-button-secondary"
+                (click)="cancelEdit()"
+              ></button>
+            </div>
+            @if (editError()) {
+              <p-message severity="error" [text]="editError()!"></p-message>
+            }
+          } @else {
+            <h3 class="saved-item-title">{{ item.title }}</h3>
+            <p class="saved-item-meta">
+              @if (item.make || item.model) {
+                <span>{{ item.make }} {{ item.model }}</span>
+              }
+              @if (item.productionYear !== null) {
+                <span>{{ item.productionYear }}</span>
+              }
+              @if (item.priceAmount !== null) {
+                <span>{{ grouped(item.priceAmount) }} {{ item.priceCurrency ?? 'PLN' }}</span>
+              }
+              @if (item.mileageKm !== null) {
+                <span>{{ grouped(item.mileageKm) }} km</span>
+              }
+              @if (verdictLabel(item.verdictCode)) {
+                <span class="saved-item-verdict">{{ verdictLabel(item.verdictCode) }}</span>
+              }
+              @if (item.overallScore !== null) {
+                <span>{{ item.overallScore }}/100</span>
+              }
+            </p>
+            @if (item.note) {
+              <p class="saved-item-note">{{ item.note }}</p>
+            }
+            <p class="saved-item-date">Zapisano: {{ item.createdAt | date: 'yyyy-MM-dd HH:mm' }}</p>
+
+            <div class="saved-actions">
+              <a class="saved-link" [routerLink]="['/saved', item.id]">Otwórz analizę</a>
+              <button
+                pButton
+                label="Zmień nazwę"
+                class="p-button-secondary"
+                (click)="startEdit(item)"
+              ></button>
+              @if (confirmingDeleteId() === item.id) {
+                <button
+                  pButton
+                  label="Potwierdź usunięcie"
+                  class="p-button-danger"
+                  [disabled]="busyId() === item.id"
+                  (click)="confirmDelete(item.id)"
+                ></button>
+                <button
+                  pButton
+                  label="Anuluj"
+                  class="p-button-secondary"
+                  (click)="cancelDelete()"
+                ></button>
+              } @else {
+                <button
+                  pButton
+                  label="Usuń"
+                  class="p-button-danger"
+                  (click)="askDelete(item.id)"
+                ></button>
+              }
+            </div>
+            @if (confirmingDeleteId() === item.id) {
+              <p class="saved-item-warning">
+                Usunięcie jest nieodwracalne — analizy nie da się odzyskać.
+              </p>
+            }
+          }
+        </li>
+      }
+    </ul>
+  }
+}

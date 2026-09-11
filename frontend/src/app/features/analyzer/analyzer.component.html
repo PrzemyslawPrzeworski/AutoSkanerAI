@@ -4,6 +4,51 @@
     <button pButton class="p-button-secondary" label="Nowe ogłoszenie" (click)="reset()"></button>
   </div>
 
+  <!-- FR-010. Saving is offered on the result, not on the form: what gets persisted is this
+       analysis, and the title is prefilled from it so the common case is one click. -->
+  <section class="save-box">
+    @if (savedId() !== null) {
+      <p-message severity="success" text="Analiza zapisana."></p-message>
+      <a class="save-box-link" routerLink="/saved">Przejdź do zapisanych analiz</a>
+    } @else {
+      <h3>Zapisz tę analizę</h3>
+      <div class="field">
+        <label for="save-title">Nazwa</label>
+        <input
+          id="save-title"
+          pInputText
+          class="w-full"
+          maxlength="200"
+          [value]="saveTitle()"
+          (input)="saveTitle.set($any($event.target).value)"
+        />
+      </div>
+      <div class="field">
+        <label for="save-note">Notatka (opcjonalnie)</label>
+        <textarea
+          id="save-note"
+          pTextarea
+          class="w-full"
+          rows="2"
+          maxlength="2000"
+          placeholder="np. dzwonić po 18:00, sprawdzić komplet kluczy"
+          [value]="saveNote()"
+          (input)="saveNote.set($any($event.target).value)"
+        ></textarea>
+      </div>
+      <button
+        pButton
+        label="Zapisz analizę"
+        class="p-button-primary"
+        [disabled]="saving()"
+        (click)="saveAnalysis()"
+      ></button>
+      @if (saveError()) {
+        <p-message severity="error" [text]="saveError()!"></p-message>
+      }
+    }
+  </section>
+
   @if (registryInputsMissing()) {
     <!-- The registry could not be queried. Rather than an unexplained empty panel, ask for the
          three fields it needs — this is the step that turns a URL analysis into a real history
