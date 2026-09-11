@@ -156,13 +156,71 @@ stayed green under break 1 — correct, there is nothing to normalise. And
 Javadoc argues for (it deliberately names no column, so it is not a second copy of the
 migration) rather than a hole.
 
+## Production verification (2026-09-11, deploy `dep-dahup5ad0e5s73c3g0p0`, commit `d581d7f`)
+
+Pushed alone, before any auth code existed, specifically so a Flyway-on-Render failure would
+have one suspect. Status `live`, `/actuator/health` → `{"status":"UP"}`.
+
+**The design bet is confirmed rather than merely reasoned about.** Render's app log shows
+`HikariPool-1 - Added connection conn0: url=jdbc:h2:mem:autoskaner user=SA` — so the hardcoded
+default really did win and the three dead `DATABASE_*` variables really are off the boot path.
+Then `Migrating schema "PUBLIC" to version "1 - init"` and `Successfully applied 1 migration`,
+followed by a clean start, which means `ddl-auto=validate` passed against a schema Flyway had
+just created on a machine that had never run these entities.
+
+**Unpredicted cost: cold start 58 s → 110 s.** Two boots earlier the same day were 59.2 s and
+57.4 s; this one was `Started AutoskanerAiApplication in 110.2 seconds`. Hibernate's entity scan
+plus Flyway on 0.1 CPU roughly doubled it. Render's free tier spins down after ~15 minutes
+idle, so **the first request after a demo pause now waits about two minutes.** Not a defect and
+not worth optimising before the hand-in — but it is a thing to warm up deliberately rather than
+discover in front of an audience.
+
+### And then against real PostgreSQL, the same day
+
+The gap this change shipped with — "every test runs H2, so a dialect-specific type mismatch
+surfaces first as a failed Render deploy" — was closed rather than left open, because closing it
+was 20 minutes and it is the one thing no test can do. Render Postgres 17 `autoskaner-db`
+(`dpg-dahurc3m8hqs73dfl7sg-a`, oregon, free, expires 2026-10-11), profile switched to
+`openrouter,postgres`, deploy `dep-dahusiss728c73dml300`:
+
+```
+Database: jdbc:postgresql://dpg-dahurc3m8hqs73dfl7sg-a/autoskaner (PostgreSQL 17…)
+Migrating schema "public" to version "1 - init"
+Successfully applied 1 migration to schema "public", now at version v1
+Database dialect: PostgreSQLDialect
+Started AutoskanerAiApplication in 127.495 seconds
+```
+
+**`ddl-auto=validate` passing here is the real result**, and it is stronger evidence than listing
+the tables would be: it means every column of both entities matches a schema Flyway built on a
+dialect no test in this repository has ever run. So the portable-types decision is confirmed, not
+merely argued. Cold start is 127 s against H2's 110 s — the extra is the network connect.
+
+**Oregon, not Frankfurt.** The service region was assumed to be Frankfurt (Polish market) and is
+`oregon`; a Frankfurt database would have put a transatlantic round trip on every query. Checked
+before creating, which is the only cheap moment to check it.
+
+### A Render env-var change made through the API does not redeploy
+
+Four `PUT /v1/services/<id>/env-vars/<key>` calls returned 200, and `/deploys` showed no new
+deploy 30 s later: the values were stored and the running instance kept the old ones. The
+dashboard triggers a restart on the same edit, so this is easy to assume. It needs an explicit
+`POST /v1/services/<id>/deploys`. **Same failure mode as the dead `DATABASE_URL` from the other
+direction** — the configuration read correct in every place you would look and changed nothing.
+
+Also worth writing down because the safe way is not the obvious way: use the **per-key** endpoint.
+`PUT /v1/services/<id>/env-vars` replaces the whole collection, which would have silently dropped
+`OPENROUTER_API_KEY` and taken production's LLM with it.
+
 ## Left undone
 
-- **The `postgres` profile has never been run against a real database**, because there isn't
-  one — the Supabase project is gone. Provisioning (a new Supabase project, Render Postgres, or
-  Neon) is a deploy-time step and is undecided.
-- **Every test runs H2, so nothing here is evidence about PostgreSQL.** A dialect-specific type
-  mismatch surfaces first as a failed Render deploy, which keeps serving the previous version.
-  Named in `test-plan.md` §2 under risk #9 rather than left implied.
-- Render's three dead `DATABASE_*` variables are still set. Harmless now that nothing reads
-  them, and deliberately left rather than cleaned up in the same change.
+- **Every test still runs H2**, so the suite remains no evidence about PostgreSQL — the
+  production deploy above is. Named in `test-plan.md` §2 under risk #9 rather than left implied.
+  A future migration gets the same treatment: it is unverified against PostgreSQL until a deploy
+  says otherwise.
+- **Nothing writes to the database yet**, so "persistence works" is still only "the schema
+  exists". The first row is written by S-03.
+- **The free database expires 2026-10-11.** Past the hand-in, so it is not this change's problem,
+  but its death will present as a failed deploy rather than a warning.
+- Cold start is now ~127 s and Render's free tier spins down after ~15 minutes idle. Warm the
+  service deliberately before any demo.

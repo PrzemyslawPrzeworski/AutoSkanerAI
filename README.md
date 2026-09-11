@@ -123,5 +123,5 @@ In progress: persistence and accounts — saving an analysis, listing what you s
 (FR-010 … FR-012), which is the chain `data-layer-setup` → `auth-scaffold` →
 `save-view-delete-analyses` in the roadmap. The first link is done: JPA entities, Flyway
 migrations and the `users` / `analyses` schema are in, on an in-memory H2 by default so the app
-still needs no database to run. Nothing is exposed over HTTP yet — the endpoints and the login
-arrive with the next two links.
+still needs no database to run, and on a real Render Postgres in production. Nothing is exposed
+over HTTP yet — the endpoints and the login arrive with the next two links.

@@ -97,7 +97,12 @@ guessable, but there is not yet a request that carries one.
   is `validate`. **What it does not cover, stated so it is not mistaken for
   covered:** every test runs H2, so a type that means something different in
   PostgreSQL surfaces first as a failed Render deploy. That is a survivable blast
-  radius — Render keeps serving the previous version — but it is not a test.
+  radius — Render keeps serving the previous version — but it is not a test. V1
+  specifically *was* verified against real PostgreSQL 17 on 2026-09-11 by deploying
+  it — `ddl-auto=validate` passed against a Flyway-built schema on a dialect no test
+  in this repository runs, which confirms the portable-types choice. That is a
+  one-off observation about one migration, not coverage: **treat every later
+  migration as unverified against PostgreSQL until a deploy says otherwise.**
 
 **Risks #2, #3 and #4 gained a second line of defence on 2026-09-10** (change
 `refactor-opportunities`), and it sits at the *port* rather than at a class.

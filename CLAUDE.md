@@ -197,6 +197,12 @@ Suite sizes, so a drop is visible: backend **285** tests in 33 classes (~22.7 s)
 ## Deployment
 
 - Backend: Render Web Service (Docker, service **`AutoSkanerAI`** — `srv-d89ni3i8qa3s73e6fub0` — URL `https://autoskanerai.onrender.com`) — live
+- Database: Render Postgres 17 (**`autoskaner-db`** — `dpg-dahurc3m8hqs73dfl7sg-a`, oregon, free) —
+  live, reached over Render's internal network as `jdbc:postgresql://dpg-dahurc3m8hqs73dfl7sg-a/autoskaner`.
+  **In the same region as the service on purpose**; the backend is in `oregon`, not Frankfurt, so a
+  Frankfurt database would have added a round trip to every query. **The free tier expires
+  2026-10-11** — it is provisioned for the hand-in, not to keep, and its death will look like a
+  failed deploy rather than a warning.
 - Frontend: Cloudflare Pages (`autoskaner-ai`, URL `https://autoskaner-ai.pages.dev`) — live; auto-deploys on push to `main`
 - CI/CD: auto-deploy wired on both platforms (push to `main` triggers deploy)
 - GitHub: https://github.com/PrzemyslawPrzeworski/AutoSkanerAI
@@ -208,10 +214,19 @@ Render's REST API with the `RENDER_API_KEY` already in `.env`:
 Do the same for `/env-vars` before trusting any default in
 `application-*.properties` — **a platform variable silently beats the properties default**, which
 is the difference between a config change taking effect and a config change that reads correct and
-does nothing. Measured 2026-09-11: Render sets only `SPRING_PROFILES_ACTIVE=openrouter`,
+does nothing. Measured 2026-09-11: Render sets `SPRING_PROFILES_ACTIVE=openrouter,postgres`,
 `OPENROUTER_API_KEY`, `FRONTEND_URL` and the three `DATABASE_*` vars; it does **not** set
 `OPENROUTER_MODEL`, so the slug in `application-openrouter.properties` is the one production uses.
 Print env-var keys, never their values.
+
+**Updating an env var through the API does not redeploy, unlike editing it in the dashboard.**
+Measured 2026-09-11: four `PUT /v1/services/<id>/env-vars/<key>` calls all returned 200, and
+`/deploys` showed no new deploy 30 s later — the values were stored and the running instance kept
+the old ones. It needs an explicit `POST /v1/services/<id>/deploys`
+(`{"clearCache":"do_not_clear"}`). This is the same failure the paragraph above describes, from the
+other direction: the config read correct everywhere you would look and did nothing.
+**Use `PUT …/env-vars/<key>` per key, never `PUT …/env-vars`** — the collection endpoint *replaces*
+the whole set, which would drop `OPENROUTER_API_KEY`.
 
 <!-- BEGIN @przeprogramowani/10x-cli -->
 
