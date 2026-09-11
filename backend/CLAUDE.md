@@ -46,6 +46,39 @@ Required env vars: `AWS_PROFILE` (or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`
 
 Production runs `openrouter`. `bedrock` is dev-only: the sole AWS credential source here is a corporate SSO profile (`kn.awsapps.com`, role `KN-DevelopmentEngineer`) issuing short-lived credentials, so it cannot back a hosted service — do not copy AWS credentials into Render to work around this.
 
+**`bedrock` is therefore the local escape hatch when the OpenRouter free tier is spent**, and it is
+the *only* one: the daily cap is per **account**, not per model, so rotating the slug does nothing
+(§ "Live integration tests" and `application-openrouter.properties` spell out the three failure
+modes). Measured 2026-09-11 — a real analysis through the authenticated local API in **9.0 s**, of
+which 8.2 s was the model (Haiku 4.5, 2260 in / 1084 out tokens), against ~16 s for a free
+OpenRouter slug. Run it with:
+
+```bash
+cd backend && AWS_PROFILE=przemyslawprzeworski AWS_REGION=eu-central-1 \
+  AUTH_JWT_SECRET="$(openssl rand -base64 48 | tr -d '\r\n')" \
+  SPRING_PROFILES_ACTIVE=bedrock ./mvnw -o spring-boot:run
+```
+
+Three things about that command are not guessable:
+
+- **`AWS_PROFILE` is the credential source, not `.env`.** `.env` carries `AWS_ACCESS_KEY_ID=` and
+  `AWS_SECRET_ACCESS_KEY=` **empty**, so `DefaultCredentialsProvider` finds nothing and the failure
+  arrives as a credentials error that reads like a missing key rather than a missing profile. The
+  live profile is `przemyslawprzeworski` (the only one configured); confirm the SSO session with
+  `aws sts get-caller-identity` before blaming the app, and re-`aws sso login` when it has expired.
+- **No truststore flag is needed here**, unlike the live tests. Verified both ways on 2026-09-11:
+  `bedrock-runtime.<region>.amazonaws.com` is not TLS-intercepted on this machine, so the
+  `-Djavax.net.ssl.trustStoreType=Windows-ROOT` workaround § "Live integration tests" prescribes is
+  specific to `openrouter.ai` and `r.jina.ai`. Adding it does no harm; needing it would mean the
+  proxy policy changed.
+- **`AUTH_JWT_SECRET` is required even locally** under any profile but `mock`, and generating it
+  inline is the reliable way — see § "Auth (F-03)" for why, and the CRLF trap in
+  `context/changes/auth-scaffold/change.md` for why `tr -d '\r\n'` and not `tr -d '\n'`.
+
+Under `bedrock` the two enrichments still degrade behind the proxy: `marketPriceContext` comes back
+`FETCH_FAILED` because `r.jina.ai` is blocked by policy, and `cepikResult` is `MISSING_INPUTS`
+without a VIN. Both are the documented local outcome, not a regression.
+
 Output schema is locked — see `context/changes/llm-analysis-wiring/plan.md` § "Locked output schema".
 
 One rule binds the port, not just the parser: a null `accidentClaim` must yield `NO_ACCIDENT_DECLARATION` at `MEDIUM`. `AiAnalysisServiceContractTest` asserts it on two parameters — `MockAiAnalysisService`, and `AnalysisResponseParser` behind an adapter, since both network beans reach the rule through the parser. A fourth implementation goes into that contract. See § "Enrichment services" for the shape and `context/foundation/test-plan.md` §6.8 for the convention.
