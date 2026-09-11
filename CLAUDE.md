@@ -69,8 +69,8 @@ production**, not a pre-filter in front of CI.
 | Layer | Trigger | Does |
 |---|---|---|
 | per-edit | `PostToolUse` on `Write`/`Edit` — `.claude/hooks/post-edit-check.{sh,mjs}` | `prettier --write` the edited `frontend/src` file, then the whole frontend suite for `.ts` / `.html` (6.9 s) |
-| pre-commit | `.githooks/pre-commit` | `prettier --check` staged frontend sources, frontend suite, backend suite when Java or `pom.xml` is staged, per-package checks for **each** `packages/*` with a staged source or manifest, `terraform/` static checks when a `.tf` is staged (8.4 s) |
-| pre-push | `.githooks/pre-push` | backend + frontend + both `packages/` suites + `terraform/` static checks over the whole tree; for `main` also the production build (41 s) |
+| pre-commit | `.githooks/pre-commit` | `prettier --check` staged frontend sources, frontend suite, backend suite when Java or `pom.xml` is staged, per-package checks for **each** `packages/*` with a staged source or manifest, `terraform/` static checks when a `.tf` is staged (path-scoped, so the cost is the arms that fire: 1.5 s for docs only, ~8 s for a `packages/` commit, ~23 s once Java or `pom.xml` is staged) |
+| pre-push | `.githooks/pre-push` | backend + frontend + both `packages/` suites + `terraform/` static checks over the whole tree; for `main` also the production build (48 s) |
 
 **A fresh clone needs `git config core.hooksPath .githooks`** — the hooks are
 versioned but git does not pick them up on its own.
