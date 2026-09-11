@@ -188,10 +188,22 @@ Suite sizes, so a drop is visible: backend **255** tests in 28 classes (~15.5 s)
 
 ## Deployment
 
-- Backend: Render Web Service (Docker, service `autoskaner-ai-backend`, URL `https://autoskanerai.onrender.com`) — live
+- Backend: Render Web Service (Docker, service **`AutoSkanerAI`** — `srv-d89ni3i8qa3s73e6fub0` — URL `https://autoskanerai.onrender.com`) — live
 - Frontend: Cloudflare Pages (`autoskaner-ai`, URL `https://autoskaner-ai.pages.dev`) — live; auto-deploys on push to `main`
 - CI/CD: auto-deploy wired on both platforms (push to `main` triggers deploy)
 - GitHub: https://github.com/PrzemyslawPrzeworski/AutoSkanerAI
+
+**Which commit is live, and what the platform overrides.** The backend carries no build
+fingerprint, so the deployed commit is not observable from the app. It *is* observable from
+Render's REST API with the `RENDER_API_KEY` already in `.env`:
+`GET /v1/services` then `/v1/services/<id>/deploys?limit=3` returns `status` and `commit.id`.
+Do the same for `/env-vars` before trusting any default in
+`application-*.properties` — **a platform variable silently beats the properties default**, which
+is the difference between a config change taking effect and a config change that reads correct and
+does nothing. Measured 2026-09-11: Render sets only `SPRING_PROFILES_ACTIVE=openrouter`,
+`OPENROUTER_API_KEY`, `FRONTEND_URL` and the three `DATABASE_*` vars; it does **not** set
+`OPENROUTER_MODEL`, so the slug in `application-openrouter.properties` is the one production uses.
+Print env-var keys, never their values.
 
 <!-- BEGIN @przeprogramowani/10x-cli -->
 
